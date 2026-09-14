@@ -105,11 +105,11 @@ alter table public.assets enable row level security;
 alter table public.credits enable row level security;
 alter table public.artifact_links enable row level security;
 
--- Permissive RLS Policies for Authenticated Team Members
+-- Permissive RLS Policies for Team Members (anon + authenticated)
 -- profiles
-create policy "Authenticated can view profiles" on public.profiles for select to authenticated using (true);
-create policy "Authenticated can insert profiles" on public.profiles for insert to authenticated with check (true);
-create policy "Authenticated can update profiles" on public.profiles for update to authenticated using (true);
+create policy "Enable read access for all users" on public.profiles for select using (true);
+create policy "Enable insert access for all users" on public.profiles for insert with check (true);
+create policy "Enable update access for all users" on public.profiles for update using (true);
 
 -- oauth_tokens
 create policy "Users can view their oauth_tokens" on public.oauth_tokens for select to authenticated using (auth.uid() = user_id);
@@ -118,40 +118,40 @@ create policy "Users can update their oauth_tokens" on public.oauth_tokens for u
 create policy "Users can delete their oauth_tokens" on public.oauth_tokens for delete to authenticated using (auth.uid() = user_id);
 
 -- projects
-create policy "Authenticated can view projects" on public.projects for select to authenticated using (true);
-create policy "Authenticated can insert projects" on public.projects for insert to authenticated with check (true);
-create policy "Authenticated can update projects" on public.projects for update to authenticated using (true);
-create policy "Authenticated can delete projects" on public.projects for delete to authenticated using (true);
+create policy "Enable read access for all users" on public.projects for select using (true);
+create policy "Enable insert access for all users" on public.projects for insert with check (true);
+create policy "Enable update access for all users" on public.projects for update using (true);
+create policy "Enable delete access for all users" on public.projects for delete using (true);
 
 -- milestones
-create policy "Authenticated can view milestones" on public.milestones for select to authenticated using (true);
-create policy "Authenticated can insert milestones" on public.milestones for insert to authenticated with check (true);
-create policy "Authenticated can update milestones" on public.milestones for update to authenticated using (true);
-create policy "Authenticated can delete milestones" on public.milestones for delete to authenticated using (true);
+create policy "Enable read access for all users" on public.milestones for select using (true);
+create policy "Enable insert access for all users" on public.milestones for insert with check (true);
+create policy "Enable update access for all users" on public.milestones for update using (true);
+create policy "Enable delete access for all users" on public.milestones for delete using (true);
 
 -- tasks
-create policy "Authenticated can view tasks" on public.tasks for select to authenticated using (true);
-create policy "Authenticated can insert tasks" on public.tasks for insert to authenticated with check (true);
-create policy "Authenticated can update tasks" on public.tasks for update to authenticated using (true);
-create policy "Authenticated can delete tasks" on public.tasks for delete to authenticated using (true);
+create policy "Enable read access for all users" on public.tasks for select using (true);
+create policy "Enable insert access for all users" on public.tasks for insert with check (true);
+create policy "Enable update access for all users" on public.tasks for update using (true);
+create policy "Enable delete access for all users" on public.tasks for delete using (true);
 
 -- assets
-create policy "Authenticated can view assets" on public.assets for select to authenticated using (true);
-create policy "Authenticated can insert assets" on public.assets for insert to authenticated with check (true);
-create policy "Authenticated can update assets" on public.assets for update to authenticated using (true);
-create policy "Authenticated can delete assets" on public.assets for delete to authenticated using (true);
+create policy "Enable read access for all users" on public.assets for select using (true);
+create policy "Enable insert access for all users" on public.assets for insert with check (true);
+create policy "Enable update access for all users" on public.assets for update using (true);
+create policy "Enable delete access for all users" on public.assets for delete using (true);
 
 -- credits
-create policy "Authenticated can view credits" on public.credits for select to authenticated using (true);
-create policy "Authenticated can insert credits" on public.credits for insert to authenticated with check (true);
-create policy "Authenticated can update credits" on public.credits for update to authenticated using (true);
-create policy "Authenticated can delete credits" on public.credits for delete to authenticated using (true);
+create policy "Enable read access for all users" on public.credits for select using (true);
+create policy "Enable insert access for all users" on public.credits for insert with check (true);
+create policy "Enable update access for all users" on public.credits for update using (true);
+create policy "Enable delete access for all users" on public.credits for delete using (true);
 
 -- artifact_links
-create policy "Authenticated can view artifact_links" on public.artifact_links for select to authenticated using (true);
-create policy "Authenticated can insert artifact_links" on public.artifact_links for insert to authenticated with check (true);
-create policy "Authenticated can update artifact_links" on public.artifact_links for update to authenticated using (true);
-create policy "Authenticated can delete artifact_links" on public.artifact_links for delete to authenticated using (true);
+create policy "Enable read access for all users" on public.artifact_links for select using (true);
+create policy "Enable insert access for all users" on public.artifact_links for insert with check (true);
+create policy "Enable update access for all users" on public.artifact_links for update using (true);
+create policy "Enable delete access for all users" on public.artifact_links for delete using (true);
 
 -- Profile Sync Trigger from auth.users
 create or replace function public.handle_new_user()

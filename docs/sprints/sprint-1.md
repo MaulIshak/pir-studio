@@ -56,12 +56,12 @@ Establish the core foundation of the GameDev Project Manager:
 
 ## 3. Bug & Error Prevention Checklist
 
-- [ ] **Next.js Compilation**: `npm run build` succeeds without TypeScript or module resolution errors.
-- [ ] **Preset Integrity**: `components.json` confirms `"style"` preset `b7C9smijg` with zero manual styling overrides.
-- [ ] **RLS Coverage**: Every table has RLS enabled with permissive authenticated policies to avoid silent empty returns.
-- [ ] **Vercel Read-Only Compliance**: No code attempts to write tokens to disk (`fs.writeFile`); all tokens persist to the database.
-- [ ] **Foreign Key Cascades**: Foreign key delete actions match the specification (`credits.asset_id` uses `on delete set null`).
-- [ ] **English Only**: All UI labels and messages are written in English without parenthetical text.
+- [x] **Next.js Compilation**: `npm run build` succeeds without TypeScript or module resolution errors.
+- [x] **Preset Integrity**: `components.json` confirms `"style"` preset `b7C9smijg` with zero manual styling overrides.
+- [x] **RLS Coverage**: Every table has RLS enabled with permissive authenticated policies to avoid silent empty returns.
+- [x] **Vercel Read-Only Compliance**: No code attempts to write tokens to disk (`fs.writeFile`); all tokens persist to the database.
+- [x] **Foreign Key Cascades**: Foreign key delete actions match the specification (`credits.asset_id` uses `on delete set null`).
+- [x] **English Only**: All UI labels and messages are written in English without parenthetical text.
 
 ---
 

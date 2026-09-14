@@ -1,0 +1,22 @@
+name: Supabase Keepalive Ping
+
+on:
+  schedule:
+    # Run every 4 days to prevent Supabase 7-day free tier pause
+    - cron: '0 0 */4 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Ping Keepalive Endpoint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Application Keepalive Route
+        run: |
+          URL="${{ secrets.APP_URL }}"
+          if [ -z "$URL" ]; then
+            echo "APP_URL secret is not set. Skipping ping."
+            exit 0
+          fi
+          echo "Pinging $URL/api/ping..."
+          curl -f -s -m 10 "$URL/api/ping" || echo "Warning: Keepalive ping failed"

@@ -5,7 +5,135 @@ import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "cn"
 import { CaretDownIcon, CheckIcon, CaretUpIcon } from "@phosphor-icons/react"
 
-const Select = SelectPrimitive.Root
+export const KNOWN_ENUM_LABELS: Record<string, string> = {
+  // Task & Milestone status
+  todo: "To Do",
+  in_progress: "In Progress",
+  review: "Review",
+  done: "Done",
+  not_started: "Not Started",
+  // Project type & status
+  jam: "Jam",
+  competition: "Competition",
+  internal: "Internal",
+  active: "Active",
+  completed: "Completed",
+  archived: "Archived",
+  // Asset types & status
+  sprite: "Sprite",
+  audio: "Audio",
+  "3d_model": "3D Model",
+  font: "Font",
+  vfx: "VFX",
+  other: "Other",
+  received: "Received",
+  integrated: "Integrated",
+  rejected: "Rejected",
+  // Licenses
+  cc0: "CC0 (Public Domain)",
+  cc_by: "CC-BY",
+  royalty_free: "Royalty-Free",
+  proprietary: "Proprietary",
+  // Artifact types
+  figma: "Figma",
+  figjam: "FigJam",
+  gdd: "GDD",
+  build: "Build",
+  // Common placeholders & filters
+  none: "None",
+  all: "All",
+}
+
+export function formatEnumFallback(val: string): string {
+  if (!val) return ""
+  // If it's a UUID, return as-is
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+    return val
+  }
+  // Replace underscores and hyphens with spaces and capitalize each word
+  return val
+    .replace(/[_-]/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function extractItemLabels(
+  node: React.ReactNode,
+  map: Map<string, React.ReactNode>
+): Map<string, React.ReactNode> {
+  React.Children.forEach(node, (child) => {
+    if (!React.isValidElement(child)) return
+    const props = child.props as Record<string, unknown>
+    if (props && props.value !== undefined && props.value !== null) {
+      const valStr = String(props.value)
+      const label = (props.label ?? props.children ?? valStr) as React.ReactNode
+      map.set(valStr, label)
+    }
+
+    if (props && props.children) {
+      extractItemLabels(props.children as React.ReactNode, map)
+    }
+  })
+  return map
+}
+
+interface SelectLabelContextValue {
+  labels: Map<string, React.ReactNode>
+  registerItem: (value: string, label: React.ReactNode) => void
+}
+
+const SelectLabelContext = React.createContext<SelectLabelContextValue>({
+  labels: new Map(),
+  registerItem: () => {},
+})
+
+function Select<Value = unknown, Multiple extends boolean | undefined = false>({
+  children,
+  items: itemsProp,
+  ...props
+}: SelectPrimitive.Root.Props<Value, Multiple>) {
+  const [dynamicLabels, setDynamicLabels] = React.useState<Map<string, React.ReactNode>>(
+    () => new Map()
+  )
+
+  const extractedMap = React.useMemo(() => {
+    const map = new Map<string, React.ReactNode>()
+    Object.entries(KNOWN_ENUM_LABELS).forEach(([k, v]) => map.set(k, v))
+    extractItemLabels(children, map)
+    return map
+  }, [children])
+
+  const mergedLabels = React.useMemo(() => {
+    const merged = new Map(extractedMap)
+    dynamicLabels.forEach((v, k) => merged.set(k, v))
+    return merged
+  }, [extractedMap, dynamicLabels])
+
+  const registerItem = React.useCallback((value: string, label: React.ReactNode) => {
+    setDynamicLabels((prev) => {
+      if (prev.get(value) === label) return prev
+      const next = new Map(prev)
+      next.set(value, label)
+      return next
+    })
+  }, [])
+
+  const baseUiItems = React.useMemo(() => {
+    if (itemsProp) return itemsProp
+    const rec: Record<string, React.ReactNode> = {}
+    mergedLabels.forEach((label, val) => {
+      rec[val] = label
+    })
+    return rec
+  }, [itemsProp, mergedLabels])
+
+  return (
+    <SelectLabelContext.Provider value={{ labels: mergedLabels, registerItem }}>
+      <SelectPrimitive.Root<Value, Multiple> items={baseUiItems} {...props}>
+        {children}
+      </SelectPrimitive.Root>
+    </SelectLabelContext.Provider>
+  )
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (
@@ -17,13 +145,41 @@ function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   )
 }
 
-function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
+function SelectValue({
+  className,
+  children,
+  placeholder,
+  ...props
+}: SelectPrimitive.Value.Props) {
+  const context = React.useContext(SelectLabelContext)
+
   return (
     <SelectPrimitive.Value
       data-slot="select-value"
       className={cn("flex flex-1 text-left", className)}
+      placeholder={placeholder}
       {...props}
-    />
+    >
+      {(value: unknown) => {
+        if (typeof children === "function") {
+          return children(value)
+        }
+        if (children != null) {
+          return children
+        }
+        if (value == null || value === "") {
+          return placeholder ?? null
+        }
+        const strVal = String(value)
+        if (context.labels.has(strVal)) {
+          return context.labels.get(strVal)
+        }
+        if (KNOWN_ENUM_LABELS[strVal]) {
+          return KNOWN_ENUM_LABELS[strVal]
+        }
+        return formatEnumFallback(strVal)
+      }}
+    </SelectPrimitive.Value>
   )
 }
 
@@ -82,7 +238,10 @@ function SelectContent({
         <SelectPrimitive.Popup
           data-slot="select-content"
           data-align-trigger={alignItemWithTrigger}
-          className={cn("relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-none bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", className )}
+          className={cn(
+            "relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-none bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            className
+          )}
           {...props}
         >
           <SelectScrollUpButton />
@@ -110,11 +269,23 @@ function SelectLabel({
 function SelectItem({
   className,
   children,
+  value,
+  label,
   ...props
 }: SelectPrimitive.Item.Props) {
+  const context = React.useContext(SelectLabelContext)
+
+  React.useEffect(() => {
+    if (value !== undefined && value !== null) {
+      context.registerItem(String(value), label ?? children ?? String(value))
+    }
+  }, [value, label, children, context])
+
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
+      value={value}
+      label={typeof label === "string" ? label : typeof children === "string" ? children : undefined}
       className={cn(
         "relative flex w-full cursor-default items-center gap-2 rounded-none py-2 pr-8 pl-2 text-xs outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className
@@ -161,8 +332,7 @@ function SelectScrollUpButton({
       )}
       {...props}
     >
-      <CaretUpIcon
-      />
+      <CaretUpIcon />
     </SelectPrimitive.ScrollUpArrow>
   )
 }
@@ -180,8 +350,7 @@ function SelectScrollDownButton({
       )}
       {...props}
     >
-      <CaretDownIcon
-      />
+      <CaretDownIcon />
     </SelectPrimitive.ScrollDownArrow>
   )
 }

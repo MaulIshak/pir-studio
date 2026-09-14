@@ -49,12 +49,12 @@ Finalize production readiness:
 
 ## 3. Bug & Error Prevention Checklist
 
-- [ ] **Fast Dashboard Loading**: Dashboard loads active projects in < 2 seconds.
-- [ ] **Timezone Consistency**: Countdown calculations are reliable across timezones.
-- [ ] **Error Handling**: Server Actions wrap logic in `try-catch` returning readable error states.
-- [ ] **Uptime Ping Reliability**: `/api/ping` is lightweight and authenticated/protected appropriately.
-- [ ] **English & Concise Copy**: All labels are concise, natural English with zero parenthetical annotations.
-- [ ] **Strict shadcn**: UI uses official shadcn components exclusively.
+- [x] **Fast Dashboard Loading**: Dashboard loads active projects in < 2 seconds.
+- [x] **Timezone Consistency**: Countdown calculations are reliable across timezones.
+- [x] **Error Handling**: Server Actions wrap logic in `try-catch` returning readable error states.
+- [x] **Uptime Ping Reliability**: `/api/ping` is lightweight and authenticated/protected appropriately.
+- [x] **English & Concise Copy**: All labels are concise, natural English with zero parenthetical annotations.
+- [x] **Strict shadcn**: UI uses official shadcn components exclusively.
 
 ---
 
