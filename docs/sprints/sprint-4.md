@@ -42,11 +42,11 @@ Implement asset intake, license credits, and external artifact management:
 
 ## 3. Bug & Error Prevention Checklist
 
-- [ ] **Data Retention on Delete**: Deleting a row in `assets` NEVER deletes the associated row in `credits` (`asset_id` sets to `null`).
-- [ ] **Payload Limits**: File uploads handle serverless size constraints gracefully with user feedback.
-- [ ] **Direct Drive Link Format**: Uses standard Drive view URLs (`https://drive.google.com/file/d/{fileId}/view`).
-- [ ] **Clean Microcopy**: Labels are concise and free of parenthetical text (e.g., `New Asset`, `Export`, `Needs Credit`).
-- [ ] **Strict shadcn**: All UI components use official shadcn primitives.
+- [x] **Data Retention on Delete**: Deleting a row in `assets` NEVER deletes the associated row in `credits` (`asset_id` sets to `null`).
+- [x] **Payload Limits**: File uploads handle serverless size constraints gracefully with user feedback.
+- [x] **Direct Drive Link Format**: Uses standard Drive view URLs (`https://drive.google.com/file/d/{fileId}/view`).
+- [x] **Clean Microcopy**: Labels are concise and free of parenthetical text (e.g., `New Asset`, `Export`, `Needs Credit`).
+- [x] **Strict shadcn**: All UI components use official shadcn primitives.
 
 ---
 
