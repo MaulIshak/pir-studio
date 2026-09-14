@@ -9,10 +9,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   CircleNotch,
   WarningCircle,
-  Folder,
-  Kanban,
-  Sparkle,
-  ShieldCheck,
 } from '@phosphor-icons/react'
 
 function LoginContent() {

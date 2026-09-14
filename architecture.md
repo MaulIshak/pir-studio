@@ -48,7 +48,7 @@ GOOGLE_CLIENT_SECRET=...
 
 ## 3. Database Schema (Supabase Postgres)
 
-The application utilizes 8 core tables with Row Level Security (RLS) enabled on all tables, providing full read/write access to authenticated team members:
+The application utilizes 10 core tables with Row Level Security (RLS) enabled on all tables, providing full read/write access to authenticated team members:
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -57,21 +57,27 @@ The application utilizes 8 core tables with Row Level Security (RLS) enabled on 
 |  +----------------+        +-----------------+        +------------------------+  |
 |  |    profiles    |<-------|   oauth_tokens  |        |        projects        |  |
 |  +----------------+        +-----------------+        +------------------------+  |
-|          ^                                                        ^               |
-|          |                                                        |               |
-|          +--------------------------+                             |               |
-|                                     |                             |               |
-|  +----------------+        +-----------------+        +------------------------+  |
-|  |     tasks      |------->|   milestones    |------->|        assets          |  |
-|  +----------------+        +-----------------+        +------------------------+  |
-|                                                                   ^               |
-|                            +-----------------+                    |               |
-|                            |  artifact_links |<-------------------+               |
-|                            +-----------------+                    |               |
-|                                                                   |               |
-|                            +-----------------+                    |               |
-|                            |     credits     |--------------------+               |
-|                            +-----------------+                                    |
+|          ^                                                  ^     ^        ^      |
+|          |                                                  |     |        |      |
+|          +--------------------------+                       |     |        |      |
+|                                     |                       |     |        |      |
+|  +----------------+        +-----------------+              |     |        |      |
+|  |     tasks      |------->|   milestones    |              |     |        |      |
+|  +----------------+        +-----------------+              |     |        |      |
+|          ^                                                  |     |        |      |
+|          |                                                  |     |        |      |
+|          +--------------------------------------------+     |     |        |      |
+|                                                       |     |     |        |      |
+|  +----------------+        +-----------------+        +-----+     |        |      |
+|  |  asset_bundles |<-------|     assets      |--------------------+        |      |
+|  +----------------+        +-----------------+                             |      |
+|                               ^        ^                                   |      |
+|  +------------------+         |        |        +-----------------+        |      |
+|  | asset_references |---------+        +--------|     credits     |        |      |
+|  +------------------+                           +-----------------+        |      |
+|                                                 +-----------------+        |      |
+|                                                 |  artifact_links |<-------+      |
+|                                                 +-----------------+               |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -90,12 +96,19 @@ The application utilizes 8 core tables with Row Level Security (RLS) enabled on 
 5. **`tasks`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `milestone_id (uuid -> milestones.id on delete set null)`, `title (text)`, `description (text)`, `assignee_id (uuid -> profiles.id on delete set null)`, `status (text: 'todo' | 'in_progress' | 'review' | 'done', default 'todo')`, `due_date (date)`, `created_at (timestamptz)`.
    - *Note: Supabase Realtime is enabled specifically for this table.*
-6. **`assets`**
-   - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `name (text)`, `type (text: 'sprite' | 'audio' | '3d_model' | 'font' | 'vfx' | 'other')`, `uploaded_by (uuid -> profiles.id)`, `drive_file_id (text)`, `status (text: 'received' | 'review' | 'integrated' | 'rejected', default 'received')`, `needs_credit (boolean, default false)`, `notes (text)`, `created_at (timestamptz)`.
-7. **`credits`**
+6. **`asset_bundles`**
+   - Stores composite asset files (texture atlases, sprite sheets, sound packages) that include multiple assets.
+   - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `name (text)`, `drive_file_id (text)`, `file_name (text)`, `file_size (bigint)`, `mime_type (text)`, `uploaded_by (uuid -> profiles.id on delete set null)`, `created_at (timestamptz)`.
+7. **`assets`**
+   - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `task_id (uuid -> tasks.id on delete set null)`, `name (text)`, `type (text: 'sprite' | 'audio' | '3d_model' | 'font' | 'vfx' | 'other')`, `uploaded_by (uuid -> profiles.id on delete set null)`, `drive_file_id (text)`, `bundle_id (uuid -> asset_bundles.id on delete set null)`, `file_name (text)`, `status (text: 'todo' | 'in_progress' | 'done' | 'implemented', default 'todo')`, `needs_credit (boolean, default false)`, `notes (text)`, `created_at (timestamptz)`.
+8. **`asset_references`**
+   - Stores visual reference images attached to an asset, supporting Gallery Grid and Lightbox Zoom.
+   - Columns: `id (uuid, PK)`, `asset_id (uuid -> assets.id on delete cascade)`, `drive_file_id (text)`, `file_name (text)`, `file_size (bigint)`, `mime_type (text)`, `uploaded_by (uuid -> profiles.id on delete set null)`, `created_at (timestamptz)`.
+   - *Note: Hard delete policy enabled for references.*
+9. **`credits`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `asset_id (uuid -> assets.id on delete set null)`, `source_name (text)`, `author (text)`, `license (text: 'cc0' | 'cc_by' | 'royalty_free' | 'proprietary' | 'other')`, `source_url (text)`, `notes (text)`, `created_at (timestamptz)`.
    - *Note: `asset_id` on delete set null preserves credit history even if the source asset is deleted.*
-8. **`artifact_links`**
+10. **`artifact_links`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `label (text)`, `type (text: 'figma' | 'figjam' | 'gdd' | 'build' | 'other')`, `url (text)`, `notes (text)`, `created_at (timestamptz)`.
 
 ---

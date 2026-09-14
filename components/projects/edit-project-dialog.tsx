@@ -102,7 +102,7 @@ export function EditProjectDialog({ project }: EditProjectDialogProps) {
         Edit Project
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Project</DialogTitle>
           <DialogDescription>

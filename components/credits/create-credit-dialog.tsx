@@ -73,7 +73,7 @@ export function CreateCreditDialog({ projectId, assets, trigger }: CreateCreditD
         )}
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Attribution</DialogTitle>
           <DialogDescription>

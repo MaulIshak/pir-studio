@@ -21,11 +21,14 @@ import {
   CalendarBlank,
   User,
   ClockCountdown,
+  Package,
 } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { EditTaskDialog } from './edit-task-dialog'
 import { TaskDetailDialog } from './task-detail-dialog'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
+import type { Asset } from '@/actions/assets'
 
 export interface ProfileItem {
   id: string
@@ -36,6 +39,7 @@ export interface ProfileItem {
 
 export interface TaskItem {
   id: string
+  project_id?: string
   title: string
   description: string | null
   status: 'todo' | 'in_progress' | 'review' | 'done'
@@ -44,6 +48,7 @@ export interface TaskItem {
   assignee_id?: string | null
   milestones?: { id: string; title: string } | null
   profiles?: { id: string; name: string; avatar_url?: string | null } | null
+  assets?: Asset[]
 }
 
 interface TaskCardProps {
@@ -267,6 +272,12 @@ export function TaskCard({
                   {task.due_date}
                 </Badge>
               )}
+              {task.assets && task.assets.length > 0 && (
+                <Badge variant="outline" className="gap-1 text-[10px] bg-purple-500/5 border-purple-500/20 text-purple-400">
+                  <Package className="size-2.5" />
+                  {task.assets.filter((a) => a.status === 'done' || a.status === 'implemented').length}/{task.assets.length} Assets
+                </Badge>
+              )}
             </CardContent>
 
             <CardFooter className="flex items-center justify-between border-t pt-2 text-[10px] text-muted-foreground">
@@ -295,6 +306,7 @@ export function TaskCard({
       {/* Task Detail Dialog */}
       <TaskDetailDialog
         task={task}
+        projectId={projectId}
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         onEdit={() => {

@@ -153,46 +153,86 @@ tasks (
 
 ---
 
-## Fitur 3: Asset Tracker
+## Fitur 3: Asset Deliverables & Tracker
 
 **Masalah yang diselesaikan**
-Asset (sprite, audio, model 3D, font, dll) dikirim lewat WhatsApp dan sering tidak jelas: sudah pernah dikirim atau belum, sudah masuk ke project atau belum, sudah direview atau belum.
+Kebutuhan asset (sprite, audio, model 3D, font, VFX) sering tidak terdefinisi dari awal sehingga tim bingung apa saja yang harus dibuat. Selain itu, asset yang dikirim lewat WhatsApp sering tercecer, referensi visual hilang, dan file bundle seperti texture atlas sulit dihubungkan ke banyak item asset sekaligus.
 
 **User story**
-- Sebagai anggota tim, saya ingin submit asset baru lewat satu form resmi agar tercatat dan file-nya otomatis tersimpan di folder project yang benar.
-- Sebagai lead/artist, saya ingin melihat status semua asset (diterima, direview, sudah diintegrasikan, ditolak) dalam satu tabel.
-- Sebagai anggota tim, saya ingin tahu asset mana yang butuh info credit sebelum dipakai.
+- Sebagai lead/game designer/artist, saya ingin menyusun daftar deliverable asset yang diperlukan untuk game (bahkan sebelum file fisiknya dibuat), lengkap dengan referensi visualnya.
+- Sebagai artist, saya ingin menghubungkan asset ke Task terkait (misal task "Gameplay UI Art" memiliki asset health bar, inventory icon, minimap panel).
+- Sebagai artist, saya ingin mem-paste gambar referensi langsung dari clipboard (Ctrl+V) dan melihatnya dalam gallery grid dengan fitur zoom.
+- Sebagai artist/developer, saya ingin mengupload file asset baik secara individual per item maupun dalam bentuk bundle (Texture Atlas / Sprite Sheet) yang mencakup banyak item asset sekaligus.
+- Sebagai tim, saya ingin melacak siklus status asset: `To Do` -> `In Progress` -> `Done` -> `Implemented`.
 
 **Functional requirements**
-1. Form intake asset: nama asset, tipe (Sprite/Audio/3D Model/Font/VFX/Lainnya), file upload (langsung ke Drive folder `/Assets/` project terkait), catatan (opsional), checkbox "butuh credit?"
-2. Setelah submit, asset otomatis berstatus "Diterima" dan tercatat siapa pengirim serta waktunya
-3. Tabel asset tracker per project, kolom: nama, tipe, pengirim, status, butuh credit (ya/tidak), link file Drive, tanggal masuk
-4. Update status oleh reviewer: Diterima → Direview → Diintegrasikan / Ditolak
-5. Jika asset ditandai "butuh credit", muncul prompt untuk mengisi detail credit (bisa langsung atau nanti, terhubung ke Fitur 4)
-6. Search/filter asset by nama, tipe, status
+1. **Asset Deliverables Backlog (List-First)**:
+   - Form penambahan asset: nama asset, tipe (Sprite/Audio/3D Model/Font/VFX/Other), task terkait (opsional/terhubung ke tabel `tasks`), status awal (default: `To Do`), referensi gambar (opsional), file asset (opsional), catatan, dan checkbox butuh credit.
+   - Asset dapat dibuat tanpa file fisik terlebih dahulu sebagai checklist target produksi.
+2. **Koneksi ke Task**:
+   - Setiap item asset dapat dihubungkan ke satu Task (`task_id`). Satu task dapat memiliki banyak deliverable asset.
+   - Kanban Task Card & Task Detail menampilkan counter dan daftar deliverable asset yang terhubung.
+3. **Siklus Status 4-Tahap**:
+   - `To Do`: Asset terdaftar sebagai target pembuatan, belum mulai dikerjakan.
+   - `In Progress`: Asset sedang aktif dikerjakan oleh artist/audio designer.
+   - `Done`: File fisik asset sudah selesai dibuat dan diupload ke Google Drive.
+   - `Implemented`: Asset sudah diintegrasikan ke dalam game engine/build project.
+4. **Dua Model Upload ke Google Drive**:
+   - **Single Asset File**: Upload 1 file fisik untuk 1 item asset spesifik.
+   - **Atlas / Asset Bundle**: Upload 1 file komposit (misal texture atlas, sprite sheet, audio pack) yang langsung meng-cover beberapa item dari list asset sekaligus. Sistem mencatat bundle di tabel `asset_bundles` dan menghubungkan semua asset terpilih.
+5. **Visual References Gallery & Clipboard Paste**:
+   - Mendukung upload gambar referensi dan **Paste langsung dari clipboard (`Ctrl+V`)** dengan instant client-side preview.
+   - Tampilan **Gallery Grid**: menampilkan seluruh gambar referensi dalam bentuk grid responsif.
+   - Fitur **Zoom / Lightbox**: klik pada gambar referensi membuka tampilan zoom/fullscreen beresolusi penuh.
+   - **Hard Delete**: setiap gambar referensi dapat dihapus secara permanen (hard delete dari database dan Google Drive).
+6. **Search & Filter**:
+   - Filter tabel asset berdasarkan Tipe, Status, Task Terkait, dan Ketersediaan File (With File, Missing File, Single File, Atlas/Bundle).
 
 **Data model**
 ```sql
+asset_bundles (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid references projects(id) on delete cascade,
+  name text not null,
+  drive_file_id text not null,
+  file_name text,
+  uploaded_by uuid references profiles(id),
+  created_at timestamptz default now()
+);
+
+asset_references (
+  id uuid primary key default gen_random_uuid(),
+  asset_id uuid references assets(id) on delete cascade,
+  drive_file_id text not null,
+  file_name text,
+  uploaded_by uuid references profiles(id),
+  created_at timestamptz default now()
+);
+
 assets (
-  id uuid primary key,
-  project_id uuid references projects(id),
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid references projects(id) on delete cascade,
+  task_id uuid references tasks(id) on delete set null,
   name text not null,
   type text check (type in ('sprite','audio','3d_model','font','vfx','other')),
   uploaded_by uuid references profiles(id),
   drive_file_id text,
-  status text check (status in ('received','review','integrated','rejected')) default 'received',
+  bundle_id uuid references asset_bundles(id) on delete set null,
+  file_name text,
+  status text check (status in ('todo','in_progress','done','implemented')) default 'todo',
   needs_credit boolean default false,
   notes text,
   created_at timestamptz default now()
-)
+);
 ```
 
 **Acceptance criteria**
-- File yang diupload lewat form langsung tersedia di folder Drive `/Assets/` project yang benar
-- Tidak ada asset yang bisa "hilang jejak" — semua submission tercatat dengan pengirim dan waktu
-- Status asset bisa diubah oleh anggota tim manapun (tanpa role approval khusus di v1)
-
-**Non-goals**: bukan versioning asset (revisi 1, 2, 3), bukan preview file di dalam app (cukup link ke Drive).
+- Asset dapat dibuat sebagai backlog tanpa mewajibkan file fisik upload awal.
+- File asset (individual maupun atlas bundle) otomatis streaming dan tersimpan rapi di Google Drive `/Assets/`.
+- Gambar referensi tersimpan di Google Drive `/Design/` dan dapat dilihat via Gallery Grid serta di-zoom resolusi penuh.
+- Paste gambar dari clipboard via `Ctrl+V` berfungsi mulus dan menampilkan preview seketika.
+- Menghapus gambar referensi mengeksekusi hard-delete permanen.
+- Status asset dapat diubah seketika antara `To Do`, `In Progress`, `Done`, dan `Implemented`.
 
 ---
 

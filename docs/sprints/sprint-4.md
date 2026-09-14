@@ -12,18 +12,29 @@ Implement asset intake, license credits, and external artifact management:
 
 ## 2. Task Breakdown
 
-### Task 4.1: Asset Intake & Upload Handler (`lib/gdrive/upload.ts` & `actions/assets.ts`)
-- File upload streaming directly into the project's `/Assets/` subfolder in Google Drive.
+### Task 4.1: Asset Deliverables & Upload Handlers (`lib/gdrive/upload.ts` & `actions/assets.ts`)
+- File upload streaming directly into the project's `/Assets/` or `/Design/` subfolder in Google Drive.
 - Server Action `createAsset(formData)`:
-  - Stream file to Google Drive -> obtain `drive_file_id`.
-  - Insert row in `assets` table (name, type, uploaded_by, drive_file_id, status: 'received', needs_credit, notes).
-- Server Action `updateAssetStatus(assetId, newStatus)`: Update status to `received`, `review`, `integrated`, or `rejected`.
+  - Create asset deliverable items before physical files exist (list-first backlog).
+  - Link to task (`task_id`), multi-image visual references (`asset_references`), and initial status (`todo`, `in_progress`, `done`, `implemented`).
+- Server Action `uploadSingleAssetFile(assetId, projectId, formData)`:
+  - Upload individual file for an asset and auto-transition to `done`.
+- Server Action `uploadAssetBundle(projectId, formData)`:
+  - Upload multi-asset composite file (Texture Atlas / Sprite Sheet / Pack) to Google Drive and link to multiple selected assets via `asset_bundles`.
+- Server Actions `addAssetReferences` & `deleteAssetReference`:
+  - Upload visual references and support hard-delete (permanently purging DB row and Drive file).
+- Server Action `updateAssetStatus(assetId, projectId, newStatus)`: Update status to `todo`, `in_progress`, `done`, or `implemented`.
 
-### Task 4.2: Asset Tracker UI (`app/projects/[projectId]/assets/page.tsx`)
-- Action button "New Asset" opens a shadcn `<Dialog>` with upload input and metadata fields.
+### Task 4.2: Asset Tracker & Reference Gallery UI (`app/projects/[projectId]/assets/page.tsx`)
+- Action buttons: "New Asset" (backlog definition dialog) and "Upload Atlas / Bundle" (composite package dialog).
+- Clipboard image zone: Drag-and-drop, file browsing, and `Ctrl+V` clipboard image pasting with instant preview.
+- Asset Reference Gallery modal:
+  - Responsive Gallery Grid (`grid-cols-2 sm:grid-cols-3 md:grid-cols-4`).
+  - Zoom / Lightbox modal for high-resolution visual inspection.
+  - Hover actions with hard delete confirmation.
 - Asset table using shadcn `<Table>`:
-  - Columns: Name, Type, Uploader, Date, Status, Credit, and Drive Link.
-  - Filters for type (`Sprite`, `Audio`, `3D Model`, `Font`, `VFX`, `Other`) and status.
+  - Columns: Asset, References trigger & count, Type, Connected Task, Status (interactive styled dropdown), File Source (Single / Atlas / Quick Upload), Attribution, Actions.
+  - Comprehensive filters: Type, Status, Task, and File Attachment state.
 
 ### Task 4.3: Credit / Reference Tracker (`actions/credits.ts` & `app/projects/[projectId]/credits/page.tsx`)
 - Server Actions:

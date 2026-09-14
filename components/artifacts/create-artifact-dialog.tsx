@@ -67,7 +67,7 @@ export function CreateArtifactDialog({ projectId, trigger }: CreateArtifactDialo
         )}
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className="sm:max-w-[460px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Artifact Link</DialogTitle>
           <DialogDescription>

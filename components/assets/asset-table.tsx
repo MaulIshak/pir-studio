@@ -14,8 +14,15 @@ import {
   File,
   WarningCircle,
   Package,
+  UploadSimple,
+  CheckCircle,
+  Play,
+  CircleDashed,
+  PuzzlePiece,
+  Eye,
+  PencilSimple,
 } from '@phosphor-icons/react'
-import { Asset, updateAssetStatus, deleteAsset } from '@/actions/assets'
+import { Asset, AssetStatus, updateAssetStatus, deleteAsset } from '@/actions/assets'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,52 +43,141 @@ import {
 } from '@/components/ui/table'
 import { EmptyState } from '@/components/projects/empty-state'
 import { CreateAssetDialog } from './create-asset-dialog'
+import { UploadBundleDialog } from './upload-bundle-dialog'
+import { UploadSingleDialog } from './upload-single-dialog'
+import { AssetReferenceGallery } from './asset-reference-gallery'
+import { AssetDetailDialog } from './asset-detail-dialog'
+import { EditAssetDialog } from './edit-asset-dialog'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface AssetTableProps {
   assets: Asset[]
   projectId: string
+  tasks?: Array<{ id: string; title: string }>
 }
 
 function getTypeDetails(type: Asset['type']) {
   switch (type) {
     case 'sprite':
-      return { icon: <ImageIcon className="size-3.5 text-purple-400" />, bg: 'bg-purple-500/10 text-purple-400 border-purple-500/20' }
+      return {
+        icon: <ImageIcon className="size-3.5 text-purple-400" />,
+        bg: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+      }
     case 'audio':
-      return { icon: <MusicNotes className="size-3.5 text-blue-400" />, bg: 'bg-blue-500/10 text-blue-400 border-blue-500/20' }
+      return {
+        icon: <MusicNotes className="size-3.5 text-blue-400" />,
+        bg: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      }
     case '3d_model':
-      return { icon: <Cube className="size-3.5 text-amber-400" />, bg: 'bg-amber-500/10 text-amber-400 border-amber-500/20' }
+      return {
+        icon: <Cube className="size-3.5 text-amber-400" />,
+        bg: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+      }
     case 'font':
-      return { icon: <TextAa className="size-3.5 text-teal-400" />, bg: 'bg-teal-500/10 text-teal-400 border-teal-500/20' }
+      return {
+        icon: <TextAa className="size-3.5 text-teal-400" />,
+        bg: 'bg-teal-500/10 text-teal-400 border-teal-500/20',
+      }
     case 'vfx':
-      return { icon: <Sparkle className="size-3.5 text-rose-400" />, bg: 'bg-rose-500/10 text-rose-400 border-rose-500/20' }
+      return {
+        icon: <Sparkle className="size-3.5 text-rose-400" />,
+        bg: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+      }
     default:
-      return { icon: <File className="size-3.5 text-muted-foreground" />, bg: 'bg-secondary text-muted-foreground' }
+      return {
+        icon: <File className="size-3.5 text-muted-foreground" />,
+        bg: 'bg-secondary text-muted-foreground',
+      }
   }
 }
 
-export function AssetTable({ assets, projectId }: AssetTableProps) {
+function getStatusBadge(status: AssetStatus) {
+  switch (status) {
+    case 'todo':
+      return {
+        label: 'To Do',
+        icon: <CircleDashed className="size-3 text-slate-400" />,
+        class: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+      }
+    case 'in_progress':
+      return {
+        label: 'In Progress',
+        icon: <Play className="size-3 text-blue-400" />,
+        class: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      }
+    case 'done':
+      return {
+        label: 'Done',
+        icon: <CheckCircle className="size-3 text-emerald-400" />,
+        class: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+      }
+    case 'implemented':
+      return {
+        label: 'Implemented',
+        icon: <PuzzlePiece className="size-3 text-purple-400" />,
+        class: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+      }
+  }
+}
+
+export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [taskFilter, setTaskFilter] = useState<string>('all')
+  const [fileFilter, setFileFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Modal states
   const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null)
+  const [galleryAsset, setGalleryAsset] = useState<Asset | null>(null)
+  const [uploadSingleAsset, setUploadSingleAsset] = useState<Asset | null>(null)
+  const [selectedDetailAsset, setSelectedDetailAsset] = useState<Asset | null>(null)
+  const [selectedEditAsset, setSelectedEditAsset] = useState<Asset | null>(null)
+
+  // Derive active asset from props to stay in sync with server revalidations
+  const activeDetailAsset = selectedDetailAsset
+    ? assets.find((a) => a.id === selectedDetailAsset.id) || selectedDetailAsset
+    : null
+  const activeEditAsset = selectedEditAsset
+    ? assets.find((a) => a.id === selectedEditAsset.id) || selectedEditAsset
+    : null
+  const activeGalleryAsset = galleryAsset
+    ? assets.find((a) => a.id === galleryAsset.id) || galleryAsset
+    : null
+
   const [, startTransition] = useTransition()
   const router = useRouter()
 
   const filteredAssets = assets.filter((asset) => {
     if (typeFilter !== 'all' && asset.type !== typeFilter) return false
     if (statusFilter !== 'all' && asset.status !== statusFilter) return false
-    if (
-      searchQuery.trim() &&
-      !asset.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !asset.notes?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false
+    if (taskFilter !== 'all') {
+      if (taskFilter === 'unassigned' && asset.task_id) return false
+      if (taskFilter !== 'unassigned' && asset.task_id !== taskFilter) return false
+    }
+    if (fileFilter !== 'all') {
+      if (fileFilter === 'with_file' && !asset.drive_file_id) return false
+      if (fileFilter === 'no_file' && asset.drive_file_id) return false
+      if (fileFilter === 'bundle' && !asset.bundle_id) return false
+      if (fileFilter === 'single' && (asset.bundle_id || !asset.drive_file_id)) return false
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      const matchName = asset.name.toLowerCase().includes(q)
+      const matchNotes = asset.notes?.toLowerCase().includes(q)
+      const matchTask = asset.tasks?.title.toLowerCase().includes(q)
+      const matchBundle = asset.asset_bundles?.name.toLowerCase().includes(q)
+      if (!matchName && !matchNotes && !matchTask && !matchBundle) {
+        return false
+      }
     }
     return true
   })
 
-  function handleStatusChange(assetId: string, newStatus: Asset['status']) {
+  function handleStatusChange(assetId: string, newStatus: AssetStatus) {
+    if (selectedDetailAsset && selectedDetailAsset.id === assetId) {
+      setSelectedDetailAsset({ ...selectedDetailAsset, status: newStatus })
+    }
     startTransition(async () => {
       await updateAssetStatus(assetId, projectId, newStatus)
       router.refresh()
@@ -100,43 +196,77 @@ export function AssetTable({ assets, projectId }: AssetTableProps) {
   return (
     <div className="flex flex-col gap-4">
       {/* Filter and Search Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 items-center gap-2 max-w-sm">
-          <Input
-            placeholder="Search assets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+      <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-1 items-center gap-2 max-w-sm">
+            <Input
+              placeholder="Search assets, tasks, bundles..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
 
-        <div className="flex items-center gap-2">
-          <Select value={typeFilter} onValueChange={(val) => val && setTypeFilter(val)}>
-            <SelectTrigger className="w-[130px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="sprite">Sprite</SelectItem>
-              <SelectItem value="audio">Audio</SelectItem>
-              <SelectItem value="3d_model">3D Model</SelectItem>
-              <SelectItem value="font">Font</SelectItem>
-              <SelectItem value="vfx">VFX</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Type Filter */}
+            <Select value={typeFilter} onValueChange={(val) => val && setTypeFilter(val)}>
+              <SelectTrigger className="w-[125px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="sprite">Sprite</SelectItem>
+                <SelectItem value="audio">Audio</SelectItem>
+                <SelectItem value="3d_model">3D Model</SelectItem>
+                <SelectItem value="font">Font</SelectItem>
+                <SelectItem value="vfx">VFX</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={statusFilter} onValueChange={(val) => val && setStatusFilter(val)}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="received">Received</SelectItem>
-              <SelectItem value="review">Review</SelectItem>
-              <SelectItem value="integrated">Integrated</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
+            {/* Status Filter */}
+            <Select value={statusFilter} onValueChange={(val) => val && setStatusFilter(val)}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="todo">To Do</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="done">Done</SelectItem>
+                <SelectItem value="implemented">Implemented</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Task Filter */}
+            <Select value={taskFilter} onValueChange={(val) => val && setTaskFilter(val)}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Tasks</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {tasks.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* File Source Filter */}
+            <Select value={fileFilter} onValueChange={(val) => val && setFileFilter(val)}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Files</SelectItem>
+                <SelectItem value="with_file">With File</SelectItem>
+                <SelectItem value="no_file">Missing File</SelectItem>
+                <SelectItem value="single">Single File</SelectItem>
+                <SelectItem value="bundle">Atlas / Bundle</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -146,11 +276,18 @@ export function AssetTable({ assets, projectId }: AssetTableProps) {
           title={assets.length === 0 ? 'No assets recorded' : 'No matching assets'}
           description={
             assets.length === 0
-              ? 'Upload or register assets to begin tracking art, audio, and VFX.'
-              : 'No assets match your search filters.'
+              ? 'Add required game assets to establish your production backlog.'
+              : 'No assets match your search and filter criteria.'
           }
           icon={<Package className="size-7" />}
-          action={assets.length === 0 ? <CreateAssetDialog projectId={projectId} /> : undefined}
+          action={
+            assets.length === 0 ? (
+              <div className="flex items-center gap-2">
+                <CreateAssetDialog projectId={projectId} tasks={tasks} />
+                <UploadBundleDialog projectId={projectId} assets={assets} />
+              </div>
+            ) : undefined
+          }
         />
       ) : (
         <motion.div
@@ -162,12 +299,14 @@ export function AssetTable({ assets, projectId }: AssetTableProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Asset</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Attribution</TableHead>
-                <TableHead>Uploader</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="min-w-[160px]">Asset</TableHead>
+                <TableHead className="w-[95px]">References</TableHead>
+                <TableHead className="w-[95px]">Type</TableHead>
+                <TableHead className="w-[140px]">Connected Task</TableHead>
+                <TableHead className="w-[130px]">Status</TableHead>
+                <TableHead className="w-[105px]">File Source</TableHead>
+                <TableHead className="w-[90px]">Attribution</TableHead>
+                <TableHead className="w-[85px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -176,49 +315,162 @@ export function AssetTable({ assets, projectId }: AssetTableProps) {
                   ? `https://drive.google.com/file/d/${asset.drive_file_id}/view`
                   : null
                 const details = getTypeDetails(asset.type)
+                const statusInfo = getStatusBadge(asset.status)
+                const refCount = asset.asset_references?.length || 0
+                const firstRef = asset.asset_references?.[0]
 
                 return (
                   <TableRow key={asset.id} className="hover:bg-muted/40 transition-colors">
-                    <TableCell className="font-medium">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground">{asset.name}</span>
-                        {asset.notes && (
-                          <span className="text-xs text-muted-foreground line-clamp-1">
-                            {asset.notes}
-                          </span>
-                        )}
-                      </div>
+                    {/* Asset Name */}
+                    <TableCell className="font-medium max-w-[200px]">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDetailAsset(asset)}
+                        className="group flex items-center text-left hover:opacity-80 transition-opacity cursor-pointer truncate max-w-full"
+                        title={asset.name}
+                      >
+                        <span className="font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                          {asset.name}
+                        </span>
+                      </button>
                     </TableCell>
 
+                    {/* Visual References Gallery Trigger */}
                     <TableCell>
-                      <Badge variant="outline" className={`flex items-center gap-1.5 w-fit capitalize text-xs ${details.bg}`}>
+                      {refCount > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setGalleryAsset(asset)}
+                          className="group flex items-center gap-2 rounded-md border border-border/70 p-1 pr-2 hover:border-primary/50 hover:bg-muted/40 transition-all text-left"
+                        >
+                          {firstRef && (
+                            <div className="size-7 rounded overflow-hidden bg-muted border border-border/60">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={`/api/drive/file/${firstRef.drive_file_id}`}
+                                alt="Reference thumbnail"
+                                className="size-full object-cover"
+                              />
+                            </div>
+                          )}
+                          <span className="text-xs font-medium text-foreground group-hover:text-primary">
+                            {refCount} {refCount === 1 ? 'Ref' : 'Refs'}
+                          </span>
+                        </button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setGalleryAsset(asset)}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          <ImageIcon className="size-3.5" />
+                          Add Ref
+                        </Button>
+                      )}
+                    </TableCell>
+
+                    {/* Type */}
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={`flex items-center gap-1.5 w-fit capitalize text-xs ${details.bg}`}
+                      >
                         {details.icon}
                         {asset.type.replace('_', ' ')}
                       </Badge>
                     </TableCell>
 
+                    {/* Connected Task */}
+                    <TableCell>
+                      {asset.tasks ? (
+                        <Badge
+                          variant="secondary"
+                          className="text-xs font-normal max-w-[125px] truncate"
+                          title={asset.tasks.title}
+                        >
+                          <span className="truncate">{asset.tasks.title}</span>
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+
+                    {/* Status Dropdown */}
                     <TableCell>
                       <Select
                         value={asset.status}
                         onValueChange={(val) =>
-                          val && handleStatusChange(asset.id, val as Asset['status'])
+                          val && handleStatusChange(asset.id, val as AssetStatus)
                         }
                       >
-                        <SelectTrigger className="h-7 w-[125px] text-xs">
+                        <SelectTrigger className={`h-7 w-[125px] text-xs gap-1.5 ${statusInfo.class}`}>
+                          {statusInfo.icon}
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="received">Received</SelectItem>
-                          <SelectItem value="review">Review</SelectItem>
-                          <SelectItem value="integrated">Integrated</SelectItem>
-                          <SelectItem value="rejected">Rejected</SelectItem>
+                          <SelectItem value="todo">To Do</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="done">Done</SelectItem>
+                          <SelectItem value="implemented">Implemented</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
 
+                    {/* File Source */}
+                    <TableCell>
+                      {driveLink ? (
+                        asset.bundle_id ? (
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            nativeButton={false}
+                            render={
+                              <a href={driveLink} target="_blank" rel="noopener noreferrer" />
+                            }
+                            className="h-6 text-[11px] gap-1.5 text-purple-400 border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 max-w-[140px]"
+                            title={`Atlas: ${asset.asset_bundles?.name || 'Bundle'} (Open in Google Drive)`}
+                          >
+                            <ArrowSquareOut className="size-3 shrink-0" />
+                            <span className="truncate">
+                              {asset.asset_bundles?.name ? `Atlas: ${asset.asset_bundles.name}` : 'Atlas'}
+                            </span>
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            nativeButton={false}
+                            render={
+                              <a href={driveLink} target="_blank" rel="noopener noreferrer" />
+                            }
+                            className="h-6 text-[11px] gap-1.5 text-primary border-primary/30 bg-primary/5 hover:bg-primary/10"
+                            title="Open in Google Drive"
+                          >
+                            <ArrowSquareOut className="size-3 shrink-0" />
+                            Drive
+                          </Button>
+                        )
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={() => setUploadSingleAsset(asset)}
+                          className="h-6 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                        >
+                          <UploadSimple className="size-3" />
+                          Upload
+                        </Button>
+                      )}
+                    </TableCell>
+
+                    {/* Attribution */}
                     <TableCell>
                       {asset.needs_credit ? (
-                        <Badge variant="secondary" className="flex items-center gap-1 w-fit text-xs border-amber-500/20 bg-amber-500/10 text-amber-500">
+                        <Badge
+                          variant="secondary"
+                          className="flex items-center gap-1 w-fit text-xs border-amber-500/20 bg-amber-500/10 text-amber-500"
+                        >
                           <WarningCircle className="size-3" />
                           Required
                         </Badge>
@@ -227,31 +479,35 @@ export function AssetTable({ assets, projectId }: AssetTableProps) {
                       )}
                     </TableCell>
 
-                    <TableCell className="text-sm text-muted-foreground">
-                      {asset.profiles?.name || asset.profiles?.email || 'Team'}
-                    </TableCell>
-
+                    {/* Actions */}
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {driveLink && (
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            nativeButton={false}
-                            render={
-                              <a href={driveLink} target="_blank" rel="noopener noreferrer" />
-                            }
-                            className="text-primary hover:text-primary"
-                          >
-                            <ArrowSquareOut className="size-3.5" />
-                            Drive
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setSelectedDetailAsset(asset)}
+                          className="text-muted-foreground hover:text-foreground"
+                          title="View Details"
+                        >
+                          <Eye className="size-3.5" />
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setSelectedEditAsset(asset)}
+                          className="text-muted-foreground hover:text-foreground"
+                          title="Edit Asset"
+                        >
+                          <PencilSimple className="size-3.5" />
+                        </Button>
+
                         <Button
                           variant="ghost"
                           size="xs"
                           onClick={() => setAssetToDelete(asset)}
                           className="text-destructive hover:text-destructive"
+                          title="Delete Asset"
                         >
                           <Trash className="size-3.5" />
                         </Button>
@@ -265,7 +521,68 @@ export function AssetTable({ assets, projectId }: AssetTableProps) {
         </motion.div>
       )}
 
-      {/* Reusable Confirm Delete Dialog */}
+      {/* Asset Detail Dialog */}
+      {activeDetailAsset && (
+        <AssetDetailDialog
+          asset={activeDetailAsset}
+          projectId={projectId}
+          open={!!selectedDetailAsset}
+          onOpenChange={(isOpen) => !isOpen && setSelectedDetailAsset(null)}
+          onEdit={() => {
+            const current = activeDetailAsset
+            setSelectedDetailAsset(null)
+            setSelectedEditAsset(current)
+          }}
+          onDelete={() => {
+            const current = activeDetailAsset
+            setSelectedDetailAsset(null)
+            setAssetToDelete(current)
+          }}
+          onManageReferences={() => {
+            setGalleryAsset(activeDetailAsset)
+          }}
+          onUploadFile={() => {
+            setUploadSingleAsset(activeDetailAsset)
+          }}
+          onStatusChange={(assetId, newStatus) => handleStatusChange(assetId, newStatus)}
+        />
+      )}
+
+      {/* Edit Asset Dialog */}
+      {activeEditAsset && (
+        <EditAssetDialog
+          asset={activeEditAsset}
+          projectId={projectId}
+          tasks={tasks}
+          open={!!selectedEditAsset}
+          onOpenChange={(isOpen) => !isOpen && setSelectedEditAsset(null)}
+          onSuccess={() => {
+            router.refresh()
+          }}
+        />
+      )}
+
+      {/* Asset Reference Gallery Modal */}
+      {galleryAsset && (
+        <AssetReferenceGallery
+          asset={activeGalleryAsset || galleryAsset}
+          projectId={projectId}
+          open={!!galleryAsset}
+          onOpenChange={(isOpen) => !isOpen && setGalleryAsset(null)}
+        />
+      )}
+
+      {/* Upload Single File Modal */}
+      {uploadSingleAsset && (
+        <UploadSingleDialog
+          asset={uploadSingleAsset}
+          projectId={projectId}
+          open={!!uploadSingleAsset}
+          onOpenChange={(isOpen) => !isOpen && setUploadSingleAsset(null)}
+        />
+      )}
+
+      {/* Confirm Delete Asset Dialog */}
       <ConfirmDialog
         open={!!assetToDelete}
         onOpenChange={(open) => !open && setAssetToDelete(null)}

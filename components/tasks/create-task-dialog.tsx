@@ -86,7 +86,7 @@ export function CreateTaskDialog({
         New Task
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">New Task</DialogTitle>
         </DialogHeader>
@@ -186,6 +186,7 @@ export function CreateTaskDialog({
             <Textarea
               placeholder="Task details or acceptance criteria"
               rows={2}
+              className="max-h-36 overflow-y-auto resize-y"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}

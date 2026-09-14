@@ -127,11 +127,29 @@ export async function getTasksByProjectId(projectId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('tasks')
-    .select('*, profiles:assignee_id(id, name, avatar_url), milestones:milestone_id(id, title)')
+    .select(`
+      *,
+      profiles:assignee_id(id, name, avatar_url),
+      milestones:milestone_id(id, title),
+      assets(
+        *,
+        asset_bundles:bundle_id (id, name, drive_file_id, file_name),
+        asset_references (id, asset_id, drive_file_id, file_name, created_at),
+        profiles:uploaded_by (name, email, avatar_url)
+      )
+    `)
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
 
   if (error) {
+    if (error.code === 'PGRST200') {
+      const fallback = await supabase
+        .from('tasks')
+        .select('*, profiles:assignee_id(id, name, avatar_url), milestones:milestone_id(id, title)')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false })
+      return fallback.data ?? []
+    }
     return []
   }
 

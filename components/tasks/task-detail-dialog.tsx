@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -20,12 +21,16 @@ import {
   Play,
   Eye,
   CheckCircle,
+  Package,
 } from '@phosphor-icons/react'
 import { cn } from 'cn'
+import { AssetDetailDialog } from '@/components/assets/asset-detail-dialog'
+import { Asset, getAssetById } from '@/actions/assets'
 import type { TaskItem } from './task-card'
 
 interface TaskDetailDialogProps {
   task: TaskItem
+  projectId?: string
   open: boolean
   onOpenChange: (open: boolean) => void
   onEdit: () => void
@@ -58,12 +63,28 @@ const statusConfig = {
 
 export function TaskDetailDialog({
   task,
+  projectId,
   open,
   onOpenChange,
   onEdit,
   onDelete,
   onStatusChange,
 }: TaskDetailDialogProps) {
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
+  const [loadingAssetId, setLoadingAssetId] = useState<string | null>(null)
+
+  const handleOpenAssetDetail = async (asset: Asset) => {
+    setLoadingAssetId(asset.id)
+    try {
+      const fullAsset = await getAssetById(asset.id)
+      setSelectedAsset(fullAsset || asset)
+    } catch {
+      setSelectedAsset(asset)
+    } finally {
+      setLoadingAssetId(null)
+    }
+  }
+
   let isOverdue = false
   if (task.due_date && task.status !== 'done') {
     const today = new Date()
@@ -79,8 +100,9 @@ export function TaskDetailDialog({
   const StatusIcon = currentStatus.icon
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader className="gap-2.5 pb-1">
           <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
             <Badge variant="outline" className={cn('gap-1.5 font-mono text-xs', currentStatus.badgeClass)}>
@@ -148,7 +170,7 @@ export function TaskDetailDialog({
           <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
             Description
           </span>
-          <div className="rounded-md border border-border/50 bg-background/50 p-3 min-h-[90px] text-xs leading-relaxed text-foreground whitespace-pre-wrap break-words">
+          <div className="rounded-md border border-border/50 bg-background/50 p-3 min-h-[60px] max-h-48 overflow-y-auto text-xs leading-relaxed text-foreground whitespace-pre-wrap break-words">
             {task.description ? (
               task.description
             ) : (
@@ -156,6 +178,51 @@ export function TaskDetailDialog({
             )}
           </div>
         </div>
+
+        {/* Linked Assets Section */}
+        {task.assets && task.assets.length > 0 && (
+          <div className="flex flex-col gap-1.5 py-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Package className="size-3 text-primary" />
+                Linked Assets ({task.assets.length})
+              </span>
+            </div>
+            <div className="flex flex-col gap-1.5 rounded-md border border-border/50 bg-background/50 p-2 max-h-[140px] overflow-y-auto overflow-x-hidden">
+              {task.assets.map((asset) => (
+                <div
+                  key={asset.id}
+                  className="flex items-center justify-between gap-2 p-1.5 rounded text-xs bg-muted/20 border border-border/40 min-w-0"
+                >
+                  <span
+                    className="font-medium text-foreground truncate flex-1 min-w-0 cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => handleOpenAssetDetail(asset)}
+                    title={asset.name}
+                  >
+                    {asset.name}
+                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge variant="outline" className="text-[10px] capitalize font-mono shrink-0">
+                      {asset.status.replace('_', ' ')}
+                    </Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1"
+                      onClick={() => handleOpenAssetDetail(asset)}
+                      disabled={loadingAssetId === asset.id}
+                      title="View Asset Details"
+                    >
+                      <Eye className="size-3" />
+                      Detail
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Quick Status Move buttons */}
         {onStatusChange && (
@@ -222,5 +289,17 @@ export function TaskDetailDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {selectedAsset && (
+      <AssetDetailDialog
+        asset={selectedAsset}
+        projectId={projectId || task.project_id || ''}
+        open={!!selectedAsset}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setSelectedAsset(null)
+        }}
+      />
+    )}
+    </>
   )
 }

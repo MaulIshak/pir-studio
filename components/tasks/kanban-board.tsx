@@ -7,9 +7,11 @@ import { updateTaskStatus, deleteTask } from '@/actions/tasks'
 import { TaskCard, type TaskItem, type ProfileItem } from './task-card'
 import { CreateTaskDialog } from './create-task-dialog'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { CircleDashed, Play, Eye, CheckCircle, Funnel, ArrowDown, User } from '@phosphor-icons/react'
+import { CircleDashed, Play, Eye, CheckCircle, Funnel, ArrowDown, User, Kanban, Table as TableIcon } from '@phosphor-icons/react'
+import { TaskTable } from './task-table'
 import { cn } from 'cn'
 
 const COLUMNS = [
@@ -61,8 +63,10 @@ export function KanbanBoard({
   profiles = [],
 }: KanbanBoardProps) {
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks)
+  const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
   const [selectedMilestone, setSelectedMilestone] = useState<string>('all')
   const [selectedAssignee, setSelectedAssignee] = useState<string>('all')
+  const [selectedStatus, setSelectedStatus] = useState<string>('all')
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [activeDropColId, setActiveDropColId] = useState<string | null>(null)
   const supabase = createClient()
@@ -132,7 +136,7 @@ export function KanbanBoard({
     await deleteTask(taskId, projectId)
   }
 
-  // Filter tasks by milestone and assignee
+  // Filter tasks by milestone, assignee, and status
   const displayedTasks = tasks.filter((t) => {
     const matchMilestone =
       selectedMilestone === 'all' ||
@@ -146,20 +150,58 @@ export function KanbanBoard({
         ? !t.profiles && !t.assignee_id
         : t.profiles?.id === selectedAssignee || t.assignee_id === selectedAssignee
 
-    return matchMilestone && matchAssignee
+    const matchStatus =
+      viewMode === 'kanban' || selectedStatus === 'all'
+        ? true
+        : t.status === selectedStatus
+
+    return matchMilestone && matchAssignee && matchStatus
   })
 
   return (
     <div className="flex flex-col gap-6">
       {/* Top Filter and Action Bar */}
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* View Mode Switcher */}
+          <div className="flex items-center rounded-md border border-border p-0.5 bg-muted/40">
+            <Button
+              type="button"
+              variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
+              size="xs"
+              onClick={() => setViewMode('kanban')}
+              className={cn(
+                "h-7 gap-1.5 px-2.5 text-xs transition-all",
+                viewMode === 'kanban'
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Kanban className="size-3.5 text-primary" />
+              Kanban
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+              size="xs"
+              onClick={() => setViewMode('table')}
+              className={cn(
+                "h-7 gap-1.5 px-2.5 text-xs transition-all",
+                viewMode === 'table'
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <TableIcon className="size-3.5 text-primary" />
+              Table
+            </Button>
+          </div>
+
           {/* Milestone Filter */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Funnel className="size-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Milestone:</span>
-            <Select value={selectedMilestone} onValueChange={(val) => setSelectedMilestone(val as string)}>
-              <SelectTrigger className="w-40">
+            <Select value={selectedMilestone} onValueChange={(val) => val && setSelectedMilestone(val)}>
+              <SelectTrigger className="w-36">
                 <SelectValue placeholder="All milestones" />
               </SelectTrigger>
               <SelectContent>
@@ -174,11 +216,10 @@ export function KanbanBoard({
           </div>
 
           {/* Assignee Filter */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <User className="size-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Assignee:</span>
-            <Select value={selectedAssignee} onValueChange={(val) => setSelectedAssignee(val as string)}>
-              <SelectTrigger className="w-40">
+            <Select value={selectedAssignee} onValueChange={(val) => val && setSelectedAssignee(val)}>
+              <SelectTrigger className="w-36">
                 <SelectValue placeholder="All assignees" />
               </SelectTrigger>
               <SelectContent>
@@ -192,6 +233,25 @@ export function KanbanBoard({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Status Filter (Active in Table View) */}
+          {viewMode === 'table' && (
+            <div className="flex items-center gap-1.5">
+              <CircleDashed className="size-3.5 text-muted-foreground" />
+              <Select value={selectedStatus} onValueChange={(val) => val && setSelectedStatus(val)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="todo">To Do</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="review">Review</SelectItem>
+                  <SelectItem value="done">Done</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         <CreateTaskDialog
@@ -202,8 +262,9 @@ export function KanbanBoard({
         />
       </div>
 
-      {/* 4-Column Kanban Grid */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* View Content (Kanban or Table) */}
+      {viewMode === 'kanban' ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {COLUMNS.map((col) => {
           const colTasks = displayedTasks.filter((t) => t.status === col.id)
           const Icon = col.icon
@@ -316,6 +377,17 @@ export function KanbanBoard({
           )
         })}
       </div>
+      ) : (
+        <TaskTable
+          tasks={displayedTasks}
+          projectId={projectId}
+          milestones={milestones}
+          profiles={profiles}
+          onStatusChange={handleStatusChange}
+          onUpdateTask={handleUpdateTask}
+          onDelete={handleDelete}
+        />
+      )}
     </div>
   )
 }

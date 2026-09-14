@@ -21,8 +21,6 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
     notFound()
   }
 
-  const typeLabel = project.type.charAt(0).toUpperCase() + project.type.slice(1)
-
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
       {/* Top Header */}

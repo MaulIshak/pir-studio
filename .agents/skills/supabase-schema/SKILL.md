@@ -66,16 +66,38 @@ tasks (
   created_at timestamptz default now()
 )
 
+asset_bundles (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid references projects(id) on delete cascade,
+  name text not null,
+  drive_file_id text not null,
+  file_name text,
+  uploaded_by uuid references profiles(id),
+  created_at timestamptz default now()
+)
+
 assets (
   id uuid primary key default gen_random_uuid(),
   project_id uuid references projects(id) on delete cascade,
+  task_id uuid references tasks(id) on delete set null,
   name text not null,
   type text check (type in ('sprite','audio','3d_model','font','vfx','other')),
   uploaded_by uuid references profiles(id),
   drive_file_id text,
-  status text check (status in ('received','review','integrated','rejected')) default 'received',
+  bundle_id uuid references asset_bundles(id) on delete set null,
+  file_name text,
+  status text check (status in ('todo','in_progress','done','implemented')) default 'todo',
   needs_credit boolean default false,
   notes text,
+  created_at timestamptz default now()
+)
+
+asset_references (
+  id uuid primary key default gen_random_uuid(),
+  asset_id uuid references assets(id) on delete cascade,
+  drive_file_id text not null,
+  file_name text,
+  uploaded_by uuid references profiles(id),
   created_at timestamptz default now()
 )
 
