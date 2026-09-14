@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { updateTaskStatus, deleteTask } from '@/actions/tasks'
-import { TaskCard, type TaskItem } from './task-card'
+import { TaskCard, type TaskItem, type ProfileItem } from './task-card'
 import { CreateTaskDialog } from './create-task-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { CircleDashed, Play, Eye, CheckCircle, Funnel, ArrowDown } from '@phosphor-icons/react'
+import { CircleDashed, Play, Eye, CheckCircle, Funnel, ArrowDown, User } from '@phosphor-icons/react'
 import { cn } from 'cn'
 
 const COLUMNS = [
@@ -51,11 +51,18 @@ interface KanbanBoardProps {
   projectId: string
   initialTasks: TaskItem[]
   milestones: Array<{ id: string; title: string }>
+  profiles?: ProfileItem[]
 }
 
-export function KanbanBoard({ projectId, initialTasks, milestones }: KanbanBoardProps) {
+export function KanbanBoard({
+  projectId,
+  initialTasks,
+  milestones,
+  profiles = [],
+}: KanbanBoardProps) {
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks)
   const [selectedMilestone, setSelectedMilestone] = useState<string>('all')
+  const [selectedAssignee, setSelectedAssignee] = useState<string>('all')
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [activeDropColId, setActiveDropColId] = useState<string | null>(null)
   const supabase = createClient()
@@ -112,43 +119,85 @@ export function KanbanBoard({ projectId, initialTasks, milestones }: KanbanBoard
     }
   }
 
+  // Handle task edit update
+  const handleUpdateTask = (updated: TaskItem) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t))
+    )
+  }
+
   // Handle delete (Optimistic)
   const handleDelete = async (taskId: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== taskId))
     await deleteTask(taskId, projectId)
   }
 
-  // Filter tasks by milestone
+  // Filter tasks by milestone and assignee
   const displayedTasks = tasks.filter((t) => {
-    if (selectedMilestone === 'all') return true
-    return t.milestones?.id === selectedMilestone
+    const matchMilestone =
+      selectedMilestone === 'all' ||
+      t.milestones?.id === selectedMilestone ||
+      t.milestone_id === selectedMilestone
+
+    const matchAssignee =
+      selectedAssignee === 'all'
+        ? true
+        : selectedAssignee === 'unassigned'
+        ? !t.profiles && !t.assignee_id
+        : t.profiles?.id === selectedAssignee || t.assignee_id === selectedAssignee
+
+    return matchMilestone && matchAssignee
   })
 
   return (
     <div className="flex flex-col gap-6">
       {/* Top Filter and Action Bar */}
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2">
-          <Funnel className="size-3.5 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Filter milestone:</span>
-          <Select value={selectedMilestone} onValueChange={(val) => setSelectedMilestone(val as string)}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All milestones" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" label="All milestones">All milestones</SelectItem>
-              {milestones.map((m) => (
-                <SelectItem key={m.id} value={m.id} label={m.title}>
-                  {m.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Milestone Filter */}
+          <div className="flex items-center gap-2">
+            <Funnel className="size-3.5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Milestone:</span>
+            <Select value={selectedMilestone} onValueChange={(val) => setSelectedMilestone(val as string)}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="All milestones" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" label="All milestones">All milestones</SelectItem>
+                {milestones.map((m) => (
+                  <SelectItem key={m.id} value={m.id} label={m.title}>
+                    {m.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Assignee Filter */}
+          <div className="flex items-center gap-2">
+            <User className="size-3.5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Assignee:</span>
+            <Select value={selectedAssignee} onValueChange={(val) => setSelectedAssignee(val as string)}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="All assignees" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" label="All assignees">All assignees</SelectItem>
+                <SelectItem value="unassigned" label="Unassigned">Unassigned</SelectItem>
+                {profiles.map((p) => (
+                  <SelectItem key={p.id} value={p.id} label={p.name || p.email || 'Member'}>
+                    {p.name || p.email || 'Member'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <CreateTaskDialog
           projectId={projectId}
           milestones={milestones}
+          profiles={profiles}
           onSuccess={() => {}}
         />
       </div>
@@ -239,6 +288,9 @@ export function KanbanBoard({ projectId, initialTasks, milestones }: KanbanBoard
                         <TaskCard
                           key={task.id}
                           task={task}
+                          projectId={projectId}
+                          milestones={milestones}
+                          profiles={profiles}
                           isDragging={draggedTaskId === task.id}
                           onDragStart={() => setDraggedTaskId(task.id)}
                           onDragEnd={() => {
@@ -246,6 +298,7 @@ export function KanbanBoard({ projectId, initialTasks, milestones }: KanbanBoard
                             setActiveDropColId(null)
                           }}
                           onStatusChange={handleStatusChange}
+                          onUpdateTask={handleUpdateTask}
                           onDelete={handleDelete}
                         />
                       ))}

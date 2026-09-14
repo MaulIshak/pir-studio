@@ -73,14 +73,28 @@ export async function updateTaskStatus(
 export async function updateTask(
   taskId: string,
   projectId: string,
-  input: Partial<TaskInput>
+  input: {
+    title?: string
+    description?: string | null
+    status?: 'todo' | 'in_progress' | 'review' | 'done'
+    milestone_id?: string | null
+    assignee_id?: string | null
+    due_date?: string | null
+  }
 ) {
   const supabase = await createClient()
+
+  const updateData: Record<string, unknown> = {}
+  if (input.title !== undefined) updateData.title = input.title.trim()
+  if (input.description !== undefined) updateData.description = input.description?.trim() || null
+  if (input.status !== undefined) updateData.status = input.status
+  if (input.milestone_id !== undefined) updateData.milestone_id = input.milestone_id === 'none' ? null : input.milestone_id
+  if (input.assignee_id !== undefined) updateData.assignee_id = input.assignee_id === 'none' ? null : input.assignee_id
+  if (input.due_date !== undefined) updateData.due_date = input.due_date || null
+
   const { data, error } = await supabase
     .from('tasks')
-    .update({
-      ...input,
-    })
+    .update(updateData)
     .eq('id', taskId)
     .select('*, profiles:assignee_id(id, name, avatar_url), milestones:milestone_id(id, title)')
     .single()
@@ -123,3 +137,19 @@ export async function getTasksByProjectId(projectId: string) {
 
   return data ?? []
 }
+
+export async function getProfiles() {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, email, avatar_url')
+    .order('name', { ascending: true })
+
+  if (error) {
+    console.error('Failed to get profiles:', error)
+    return []
+  }
+
+  return data ?? []
+}
+

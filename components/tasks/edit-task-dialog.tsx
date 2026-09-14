@@ -1,10 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { createTask } from '@/actions/tasks'
+import { useState, useEffect } from 'react'
+import { updateTask } from '@/actions/tasks'
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -14,33 +13,48 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Plus } from '@phosphor-icons/react/dist/ssr'
-import type { ProfileItem } from './task-card'
+import type { TaskItem, ProfileItem } from './task-card'
 
-interface CreateTaskDialogProps {
+interface EditTaskDialogProps {
+  task: TaskItem
   projectId: string
-  defaultStatus?: 'todo' | 'in_progress' | 'review' | 'done'
   milestones: Array<{ id: string; title: string }>
-  profiles?: ProfileItem[]
-  onSuccess?: () => void
+  profiles: ProfileItem[]
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSuccess?: (updatedTask: TaskItem) => void
 }
 
-export function CreateTaskDialog({
+export function EditTaskDialog({
+  task,
   projectId,
-  defaultStatus = 'todo',
   milestones,
-  profiles = [],
+  profiles,
+  open,
+  onOpenChange,
   onSuccess,
-}: CreateTaskDialogProps) {
-  const [open, setOpen] = useState(false)
-  const [title, setTitle] = useState('')
-  const [status, setStatus] = useState<'todo' | 'in_progress' | 'review' | 'done'>(defaultStatus)
-  const [milestoneId, setMilestoneId] = useState<string>('none')
-  const [assigneeId, setAssigneeId] = useState<string>('none')
-  const [dueDate, setDueDate] = useState('')
-  const [description, setDescription] = useState('')
+}: EditTaskDialogProps) {
+  const [title, setTitle] = useState(task.title)
+  const [status, setStatus] = useState<'todo' | 'in_progress' | 'review' | 'done'>(task.status)
+  const [milestoneId, setMilestoneId] = useState<string>(task.milestones?.id || task.milestone_id || 'none')
+  const [assigneeId, setAssigneeId] = useState<string>(task.profiles?.id || task.assignee_id || 'none')
+  const [dueDate, setDueDate] = useState(task.due_date || '')
+  const [description, setDescription] = useState(task.description || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Sync state whenever task prop changes or modal opens
+  useEffect(() => {
+    if (open) {
+      setTitle(task.title)
+      setStatus(task.status)
+      setMilestoneId(task.milestones?.id || task.milestone_id || 'none')
+      setAssigneeId(task.profiles?.id || task.assignee_id || 'none')
+      setDueDate(task.due_date || '')
+      setDescription(task.description || '')
+      setError(null)
+    }
+  }, [open, task])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,8 +66,7 @@ export function CreateTaskDialog({
     setLoading(true)
     setError(null)
 
-    const res = await createTask({
-      project_id: projectId,
+    const res = await updateTask(task.id, projectId, {
       title: title.trim(),
       status,
       milestone_id: milestoneId === 'none' ? null : milestoneId,
@@ -69,29 +82,20 @@ export function CreateTaskDialog({
       return
     }
 
-    // Reset and close
-    setTitle('')
-    setDescription('')
-    setDueDate('')
-    setMilestoneId('none')
-    setAssigneeId('none')
-    setOpen(false)
-    onSuccess?.()
+    onOpenChange(false)
+    if (res.task) {
+      onSuccess?.(res.task as unknown as TaskItem)
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" />}>
-        <Plus className="size-3.5" />
-        New Task
-      </DialogTrigger>
-
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold">New Task</DialogTitle>
+          <DialogTitle className="text-base font-semibold">Edit Task</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3 pt-2">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5 pt-2">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -160,7 +164,9 @@ export function CreateTaskDialog({
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none" label="None">None</SelectItem>
+                  <SelectItem value="none" label="None">
+                    None
+                  </SelectItem>
                   {milestones.map((m) => (
                     <SelectItem key={m.id} value={m.id} label={m.title}>
                       {m.title}
@@ -185,7 +191,7 @@ export function CreateTaskDialog({
             <label className="text-xs font-medium text-foreground">Description</label>
             <Textarea
               placeholder="Task details or acceptance criteria"
-              rows={2}
+              rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
@@ -197,13 +203,13 @@ export function CreateTaskDialog({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange(false)}
               disabled={loading}
             >
               Cancel
             </Button>
             <Button type="submit" size="sm" disabled={loading}>
-              {loading ? 'Creating...' : 'Create'}
+              {loading ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </form>
