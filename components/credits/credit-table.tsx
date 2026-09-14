@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/table'
 import { EmptyState } from '@/components/projects/empty-state'
 import { CreateCreditDialog } from './create-credit-dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface CreditTableProps {
   credits: Credit[]
@@ -51,6 +52,7 @@ function getLicenseStyle(license: Credit['license']) {
 export function CreditTable({ credits, projectId, assets = [] }: CreditTableProps) {
   const [licenseFilter, setLicenseFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [creditToDelete, setCreditToDelete] = useState<Credit | null>(null)
   const [, startTransition] = useTransition()
   const router = useRouter()
 
@@ -67,10 +69,11 @@ export function CreditTable({ credits, projectId, assets = [] }: CreditTableProp
     return true
   })
 
-  function handleDelete(creditId: string) {
-    if (!confirm('Are you sure you want to remove this credit attribution?')) return
+  function handleConfirmDelete() {
+    if (!creditToDelete) return
     startTransition(async () => {
-      await deleteCredit(creditId, projectId)
+      await deleteCredit(creditToDelete.id, projectId)
+      setCreditToDelete(null)
       router.refresh()
     })
   }
@@ -192,7 +195,7 @@ export function CreditTable({ credits, projectId, assets = [] }: CreditTableProp
                     <Button
                       variant="ghost"
                       size="xs"
-                      onClick={() => handleDelete(credit.id)}
+                      onClick={() => setCreditToDelete(credit)}
                       className="text-destructive hover:text-destructive"
                     >
                       <Trash className="size-3.5" />
@@ -204,6 +207,19 @@ export function CreditTable({ credits, projectId, assets = [] }: CreditTableProp
           </Table>
         </motion.div>
       )}
+
+      {/* Reusable Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={!!creditToDelete}
+        onOpenChange={(open) => !open && setCreditToDelete(null)}
+        title="Delete Credit"
+        description={`Are you sure you want to remove the credit attribution for "${creditToDelete?.source_name}"?`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        icon="trash"
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

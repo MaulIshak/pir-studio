@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/table'
 import { EmptyState } from '@/components/projects/empty-state'
 import { CreateAssetDialog } from './create-asset-dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface AssetTableProps {
   assets: Asset[]
@@ -63,6 +64,7 @@ export function AssetTable({ assets, projectId }: AssetTableProps) {
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null)
   const [, startTransition] = useTransition()
   const router = useRouter()
 
@@ -86,10 +88,11 @@ export function AssetTable({ assets, projectId }: AssetTableProps) {
     })
   }
 
-  function handleDelete(assetId: string) {
-    if (!confirm('Are you sure you want to delete this asset?')) return
+  function handleConfirmDelete() {
+    if (!assetToDelete) return
     startTransition(async () => {
-      await deleteAsset(assetId, projectId)
+      await deleteAsset(assetToDelete.id, projectId)
+      setAssetToDelete(null)
       router.refresh()
     })
   }
@@ -247,7 +250,7 @@ export function AssetTable({ assets, projectId }: AssetTableProps) {
                         <Button
                           variant="ghost"
                           size="xs"
-                          onClick={() => handleDelete(asset.id)}
+                          onClick={() => setAssetToDelete(asset)}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash className="size-3.5" />
@@ -261,6 +264,19 @@ export function AssetTable({ assets, projectId }: AssetTableProps) {
           </Table>
         </motion.div>
       )}
+
+      {/* Reusable Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={!!assetToDelete}
+        onOpenChange={(open) => !open && setAssetToDelete(null)}
+        title="Delete Asset"
+        description={`Are you sure you want to delete "${assetToDelete?.name}"? Any credits referencing this asset will be preserved.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        icon="trash"
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

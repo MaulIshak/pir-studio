@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/card'
 import { EmptyState } from '@/components/projects/empty-state'
 import { CreateArtifactDialog } from './create-artifact-dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface ArtifactListProps {
   artifacts: ArtifactLink[]
@@ -74,13 +75,15 @@ const CATEGORIES: Array<{ key: ArtifactLink['type']; label: string }> = [
 ]
 
 export function ArtifactList({ artifacts, projectId }: ArtifactListProps) {
+  const [artifactToDelete, setArtifactToDelete] = useState<ArtifactLink | null>(null)
   const [, startTransition] = useTransition()
   const router = useRouter()
 
-  function handleDelete(linkId: string) {
-    if (!confirm('Are you sure you want to remove this artifact link?')) return
+  function handleConfirmDelete() {
+    if (!artifactToDelete) return
     startTransition(async () => {
-      await deleteArtifactLink(linkId, projectId)
+      await deleteArtifactLink(artifactToDelete.id, projectId)
+      setArtifactToDelete(null)
       router.refresh()
     })
   }
@@ -139,7 +142,7 @@ export function ArtifactList({ artifacts, projectId }: ArtifactListProps) {
                           <Button
                             variant="ghost"
                             size="xs"
-                            onClick={() => handleDelete(artifact.id)}
+                            onClick={() => setArtifactToDelete(artifact)}
                             className="text-muted-foreground hover:text-destructive shrink-0 size-7 p-0"
                           >
                             <Trash className="size-3.5" />
@@ -179,6 +182,19 @@ export function ArtifactList({ artifacts, projectId }: ArtifactListProps) {
           </div>
         )
       })}
+
+      {/* Reusable Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={!!artifactToDelete}
+        onOpenChange={(open) => !open && setArtifactToDelete(null)}
+        title="Delete Artifact Link"
+        description={`Are you sure you want to remove the link to "${artifactToDelete?.label}"?`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        icon="trash"
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

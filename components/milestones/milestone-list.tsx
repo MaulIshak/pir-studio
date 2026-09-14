@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { CreateMilestoneDialog } from './create-milestone-dialog'
 import { EmptyState } from '@/components/projects/empty-state'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   DotsThreeVertical,
   Trash,
@@ -89,6 +90,8 @@ export function MilestoneList({
 }: MilestoneListProps) {
   const [milestones, setMilestones] = useState<MilestoneItem[]>(initialMilestones)
   const [viewMode, setViewMode] = useState<'gantt' | 'timeline'>('gantt')
+  const [milestoneToDelete, setMilestoneToDelete] = useState<MilestoneItem | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const totalCount = milestones.length
   const completedCount = milestones.filter((m) => m.status === 'done').length
@@ -110,10 +113,16 @@ export function MilestoneList({
     await updateMilestone(milestoneId, projectId, { status })
   }
 
-  const handleDelete = async (milestoneId: string) => {
-    if (!confirm('Are you sure you want to delete this milestone?')) return
-    setMilestones((prev) => prev.filter((m) => m.id !== milestoneId))
-    await deleteMilestone(milestoneId, projectId)
+  const handleConfirmDelete = async () => {
+    if (!milestoneToDelete) return
+    setIsDeleting(true)
+    try {
+      setMilestones((prev) => prev.filter((m) => m.id !== milestoneToDelete.id))
+      await deleteMilestone(milestoneToDelete.id, projectId)
+      setMilestoneToDelete(null)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   // --- Gantt Scale Calculations ---
@@ -312,7 +321,7 @@ export function MilestoneList({
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            onClick={() => handleDelete(milestone.id)}
+                            onClick={() => setMilestoneToDelete(milestone)}
                             className="text-destructive focus:text-destructive"
                           >
                             <Trash className="size-3.5 mr-2" />
@@ -492,7 +501,7 @@ export function MilestoneList({
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            onClick={() => handleDelete(milestone.id)}
+                            onClick={() => setMilestoneToDelete(milestone)}
                             className="text-destructive focus:text-destructive"
                           >
                             <Trash className="size-3.5 mr-2" />
@@ -508,6 +517,20 @@ export function MilestoneList({
           })}
         </div>
       )}
+
+      {/* Reusable Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={!!milestoneToDelete}
+        onOpenChange={(open) => !open && setMilestoneToDelete(null)}
+        title="Delete Milestone"
+        description={`Are you sure you want to delete "${milestoneToDelete?.title}"? Any linked tasks will not be deleted, but will no longer be attached to this milestone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        icon="trash"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }
