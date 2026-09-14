@@ -10,6 +10,7 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -202,16 +203,18 @@ export function AppHeader() {
                   }
                 />
                 <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuLabel className="flex flex-col gap-0.5">
-                    <span className="text-xs font-medium leading-none text-foreground">
-                      {userName}
-                    </span>
-                    {userEmail && (
-                      <span className="truncate text-[10px] text-muted-foreground">
-                        {userEmail}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="flex flex-col gap-0.5">
+                      <span className="text-xs font-medium leading-none text-foreground">
+                        {userName}
                       </span>
-                    )}
-                  </DropdownMenuLabel>
+                      {userEmail && (
+                        <span className="truncate text-[10px] text-muted-foreground">
+                          {userEmail}
+                        </span>
+                      )}
+                    </DropdownMenuLabel>
+                  </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleSignIn}
