@@ -97,7 +97,7 @@ export function EditProjectDialog({ project }: EditProjectDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+      <DialogTrigger render={<Button variant="default" size="sm" />}>
         <PencilSimple className="size-3.5" />
         Edit Project
       </DialogTrigger>

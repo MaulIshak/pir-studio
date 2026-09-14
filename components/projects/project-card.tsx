@@ -93,9 +93,20 @@ export function ProjectCard({ project }: ProjectCardProps) {
                   Due Soon
                 </Badge>
               )}
-              {project.status !== 'active' && (
-                <Badge variant="outline" className="capitalize">
-                  {project.status}
+              {project.status === 'active' ? (
+                <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 capitalize font-medium text-[11px]">
+                  <span className="size-1.5 rounded-full bg-emerald-500" />
+                  Active
+                </Badge>
+              ) : project.status === 'completed' ? (
+                <Badge variant="outline" className="gap-1 border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 capitalize font-medium text-[11px]">
+                  <span className="size-1.5 rounded-full bg-blue-500" />
+                  Completed
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="gap-1 border-slate-500/30 bg-slate-500/10 text-slate-600 dark:text-slate-400 capitalize font-medium text-[11px]">
+                  <span className="size-1.5 rounded-full bg-slate-400" />
+                  Archived
                 </Badge>
               )}
             </div>

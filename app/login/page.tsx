@@ -77,10 +77,6 @@ function LoginContent() {
 
           {/* Title & Tagline */}
           <div className="flex flex-col gap-1.5">
-            <div className="inline-flex items-center justify-center gap-1.5 self-center rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[11px] font-medium tracking-wide text-primary">
-              <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-              GameDev Workspace
-            </div>
             <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Pir Studio
             </h1>
@@ -138,29 +134,8 @@ function LoginContent() {
           </button>
         </div>
 
-        {/* Studio Highlights Pills */}
-        <div className="mt-6 pt-5 border-t border-border/60">
-          <div className="grid grid-cols-3 gap-2">
-            <div className="flex flex-col items-center justify-center rounded-lg border border-border/50 bg-secondary/30 py-2.5 px-2 text-center transition-colors hover:bg-secondary/60">
-              <Folder className="size-4 text-primary mb-1" />
-              <span className="text-[10px] font-medium text-foreground">Drive Sync</span>
-            </div>
-            <div className="flex flex-col items-center justify-center rounded-lg border border-border/50 bg-secondary/30 py-2.5 px-2 text-center transition-colors hover:bg-secondary/60">
-              <Kanban className="size-4 text-sky-500 mb-1" />
-              <span className="text-[10px] font-medium text-foreground">Kanban</span>
-            </div>
-            <div className="flex flex-col items-center justify-center rounded-lg border border-border/50 bg-secondary/30 py-2.5 px-2 text-center transition-colors hover:bg-secondary/60">
-              <Sparkle className="size-4 text-amber-500 mb-1" />
-              <span className="text-[10px] font-medium text-foreground">Assets</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Security / Privacy Footer */}
-        <div className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
-          <ShieldCheck className="size-3.5 text-primary" />
-          <span>Single sign-on via Google OAuth</span>
-        </div>
+
       </div>
     </motion.div>
   )

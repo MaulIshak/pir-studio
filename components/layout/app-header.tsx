@@ -182,7 +182,6 @@ export function AppHeader() {
                 >
                   <GoogleDriveLogo className="size-3 text-emerald-400" />
                   <CheckCircle className="size-2.5 text-emerald-400" />
-                  Drive Ready
                 </Badge>
               ) : (
                 <Button
