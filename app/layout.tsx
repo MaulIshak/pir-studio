@@ -1,9 +1,22 @@
+import type { Metadata } from "next"
 import { Geist_Mono, Noto_Sans } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AppHeader } from "@/components/layout/app-header"
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
+
+export const metadata: Metadata = {
+  title: {
+    default: "Pir Studio",
+    template: "%s | Pir Studio",
+  },
+  description: "Pir Studio - Game development projects, kanban, assets, and Google Drive storage.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
+}
 
 const notoSans = Noto_Sans({subsets:['latin'],variable:'--font-sans'})
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -16,7 +17,6 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import {
-  GameController,
   GoogleLogo,
   GoogleDriveLogo,
   SignOut,
@@ -111,10 +111,17 @@ export function AppHeader() {
             href="/"
             className="flex items-center gap-2.5 font-heading text-sm font-bold tracking-tight text-foreground transition-colors hover:text-primary"
           >
-            <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-xs">
-              <GameController className="size-4" />
+            <div className="relative flex size-7 items-center justify-center overflow-hidden rounded-md">
+              <Image
+                src="/logo.png"
+                alt="Pir Studio"
+                width={28}
+                height={28}
+                className="size-7 object-contain"
+                priority
+              />
             </div>
-            <span>GameDev PM</span>
+            <span>Pir Studio</span>
           </Link>
 
           <nav className="hidden items-center gap-1 sm:flex">

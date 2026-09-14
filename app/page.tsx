@@ -1,9 +1,10 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { ProjectListClient } from '@/components/projects/project-list-client'
-import { Plus, GameController, ClockCountdown, CheckCircle, Sparkle } from '@phosphor-icons/react/dist/ssr'
+import { Plus, GameController, ClockCountdown, CheckCircle } from '@phosphor-icons/react/dist/ssr'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,12 +36,19 @@ export default async function DashboardPage() {
       {/* Dashboard Top Header */}
       <div className="flex flex-col justify-between gap-4 border-b pb-6 sm:flex-row sm:items-center">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Sparkle className="size-4" />
-            </span>
+          <div className="flex items-center gap-2.5">
+            <div className="relative flex size-8 items-center justify-center overflow-hidden rounded-md">
+              <Image
+                src="/logo.png"
+                alt="Pir Studio"
+                width={32}
+                height={32}
+                className="size-8 object-contain"
+                priority
+              />
+            </div>
             <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
-              GameDev Dashboard
+              Pir Studio
             </h1>
           </div>
           <p className="text-xs text-muted-foreground">
