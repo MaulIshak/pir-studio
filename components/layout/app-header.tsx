@@ -17,7 +17,6 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import {
-  GoogleLogo,
   GoogleDriveLogo,
   SignOut,
   Plus,
@@ -95,6 +94,10 @@ export function AppHeader() {
     window.location.reload()
   }
 
+  if (pathname === '/login') {
+    return null
+  }
+
   const isDashboard = pathname === '/'
   const isProjects = pathname === '/projects' || pathname.startsWith('/projects/')
 
@@ -124,44 +127,48 @@ export function AppHeader() {
             <span>Pir Studio</span>
           </Link>
 
-          <nav className="hidden items-center gap-1 sm:flex">
-            <Link
-              href="/"
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                isDashboard
-                  ? 'bg-secondary text-foreground'
-                  : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
-              }`}
-            >
-              <SquaresFour className="size-3.5" />
-              Dashboard
-            </Link>
-            <Link
-              href="/projects"
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                isProjects
-                  ? 'bg-secondary text-foreground'
-                  : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
-              }`}
-            >
-              <Kanban className="size-3.5" />
-              Projects
-            </Link>
-          </nav>
+          {user && (
+            <nav className="hidden items-center gap-1 sm:flex">
+              <Link
+                href="/"
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  isDashboard
+                    ? 'bg-secondary text-foreground'
+                    : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+                }`}
+              >
+                <SquaresFour className="size-3.5" />
+                Dashboard
+              </Link>
+              <Link
+                href="/projects"
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  isProjects
+                    ? 'bg-secondary text-foreground'
+                    : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+                }`}
+              >
+                <Kanban className="size-3.5" />
+                Projects
+              </Link>
+            </nav>
+          )}
         </div>
 
         {/* Right: Actions, Auth & Drive Status */}
         <div className="flex items-center gap-2.5">
-          <Button
-            nativeButton={false}
-            render={<Link href="/projects/new" />}
-            size="xs"
-            variant="outline"
-            className="hidden sm:inline-flex"
-          >
-            <Plus className="size-3" />
-            New Project
-          </Button>
+          {user && (
+            <Button
+              nativeButton={false}
+              render={<Link href="/projects/new" />}
+              size="xs"
+              variant="outline"
+              className="hidden sm:inline-flex"
+            >
+              <Plus className="size-3" />
+              New Project
+            </Button>
+          )}
 
           {isLoading ? (
             <div className="h-7 w-20 animate-pulse rounded-md bg-secondary" />
@@ -242,17 +249,7 @@ export function AppHeader() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          ) : (
-            <Button
-              size="xs"
-              variant="default"
-              onClick={handleSignIn}
-              className="flex items-center gap-1.5"
-            >
-              <GoogleLogo className="size-3.5" />
-              Sign In
-            </Button>
-          )}
+          ) : null}
         </div>
       </div>
     </header>

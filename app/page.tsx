@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import Image from 'next/image'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -10,6 +10,14 @@ export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
 
   const { data: projects } = await supabase
     .from('projects')
@@ -36,21 +44,9 @@ export default async function DashboardPage() {
       {/* Dashboard Top Header */}
       <div className="flex flex-col justify-between gap-4 border-b pb-6 sm:flex-row sm:items-center">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2.5">
-            <div className="relative flex size-8 items-center justify-center overflow-hidden rounded-md">
-              <Image
-                src="/logo.png"
-                alt="Pir Studio"
-                width={32}
-                height={32}
-                className="size-8 object-contain"
-                priority
-              />
-            </div>
-            <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
-              Pir Studio
-            </h1>
-          </div>
+          <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
+            Dashboard
+          </h1>
           <p className="text-xs text-muted-foreground">
             Central hub for game jams, tasks, assets, and Google Drive storage.
           </p>
