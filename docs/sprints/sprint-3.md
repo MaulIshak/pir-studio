@@ -43,12 +43,12 @@ Develop the central project execution hub:
 
 ## 3. Bug & Error Prevention Checklist
 
-- [ ] **Nullable Milestone Safety**: Tasks without a milestone (`milestone_id = null`) render and filter without runtime errors.
-- [ ] **Realtime Cleanup**: Subscription channels are cleaned up on component unmount to prevent memory leaks.
-- [ ] **Division by Zero Protection**: Progress calculations return 0% when zero tasks exist, avoiding `NaN` or crashes.
-- [ ] **Responsive Kanban**: Columns stack gracefully on mobile screens without horizontal layout breaking.
-- [ ] **Strict shadcn Primitives**: Dialog, Dropdown, Card, and Badge components are strictly from shadcn.
-- [ ] **English Microcopy**: All labels (`Tasks`, `New Task`, `Assignee`, `Due Date`) are concise and in English.
+- [x] **Nullable Milestone Safety**: Tasks without a milestone (`milestone_id = null`) render and filter without runtime errors.
+- [x] **Realtime Cleanup**: Subscription channels are cleaned up on component unmount to prevent memory leaks.
+- [x] **Division by Zero Protection**: Progress calculations return 0% when zero tasks exist, avoiding `NaN` or crashes.
+- [x] **Responsive Kanban**: Columns stack gracefully on mobile screens without horizontal layout breaking.
+- [x] **Strict shadcn Primitives**: Dialog, Dropdown, Card, and Badge components are strictly from shadcn.
+- [x] **English Microcopy**: All labels (`Tasks`, `New Task`, `Assignee`, `Due Date`) are concise and in English.
 
 ---
 
