@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +24,8 @@ import {
 } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { EditTaskDialog } from './edit-task-dialog'
+import { TaskDetailDialog } from './task-detail-dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 export interface ProfileItem {
   id: string
@@ -69,7 +71,11 @@ export function TaskCard({
   onDragStart,
   onDragEnd,
 }: TaskCardProps) {
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const dragStartedRef = useRef(false)
 
   let isOverdue = false
   if (task.due_date && task.status !== 'done') {
@@ -79,6 +85,15 @@ export function TaskCard({
     dueDate.setHours(0, 0, 0, 0)
     if (dueDate < today) {
       isOverdue = true
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true)
+    try {
+      await onDelete(task.id)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -97,22 +112,30 @@ export function TaskCard({
         <div
           draggable
           onDragStart={(e) => {
+            dragStartedRef.current = true
             e.dataTransfer.setData('text/plain', task.id)
             e.dataTransfer.effectAllowed = 'move'
             onDragStart?.(e)
           }}
           onDragEnd={(e) => {
+            setTimeout(() => {
+              dragStartedRef.current = false
+            }, 50)
             onDragEnd?.(e)
           }}
+          onClick={() => {
+            if (dragStartedRef.current || isDragging) return
+            setIsDetailOpen(true)
+          }}
           className={cn(
-            "cursor-grab active:cursor-grabbing select-none transition-opacity",
-            isDragging && "opacity-40"
+            "cursor-pointer select-none transition-opacity",
+            isDragging && "opacity-40 cursor-grabbing"
           )}
         >
           <Card
             size="sm"
             className={cn(
-              "group flex flex-col justify-between gap-2 shadow-xs transition-all duration-200 hover:border-primary/40 hover:shadow-sm bg-card",
+              "group flex flex-col justify-between gap-2 shadow-xs transition-all duration-200 hover:border-primary/40 hover:shadow-sm bg-card hover:bg-accent/[0.02]",
               isDragging && "border-dashed border-primary/50 bg-primary/5 shadow-none"
             )}
           >
@@ -120,47 +143,95 @@ export function TaskCard({
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-1.5 min-w-0 flex-1">
                   <DotsSixVertical className="size-3.5 mt-0.5 shrink-0 text-muted-foreground/40 group-hover:text-muted-foreground/80 transition-colors" />
-                  <CardTitle className="text-xs font-semibold leading-snug break-words">{task.title}</CardTitle>
+                  <CardTitle className="text-xs font-semibold leading-snug break-words group-hover:text-primary transition-colors">
+                    {task.title}
+                  </CardTitle>
                 </div>
-                <div onMouseDown={(e) => e.stopPropagation()} draggable={false} className="shrink-0">
+                <div
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  draggable={false}
+                  className="shrink-0"
+                >
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       render={
-                        <Button variant="ghost" size="xs" className="size-6 p-0 text-muted-foreground">
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="size-6 p-0 text-muted-foreground hover:text-foreground"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <DotsThreeVertical className="size-3.5" />
                         </Button>
                       }
                     />
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setIsEditDialogOpen(true)}>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setIsDetailOpen(true)
+                        }}
+                      >
+                        View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setIsEditDialogOpen(true)
+                        }}
+                      >
                         <PencilSimple className="size-3.5" />
                         Edit Task
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {task.status !== 'todo' && (
-                        <DropdownMenuItem onClick={() => onStatusChange(task.id, 'todo')}>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onStatusChange(task.id, 'todo')
+                          }}
+                        >
                           Move to To Do
                         </DropdownMenuItem>
                       )}
                       {task.status !== 'in_progress' && (
-                        <DropdownMenuItem onClick={() => onStatusChange(task.id, 'in_progress')}>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onStatusChange(task.id, 'in_progress')
+                          }}
+                        >
                           Move to In Progress
                         </DropdownMenuItem>
                       )}
                       {task.status !== 'review' && (
-                        <DropdownMenuItem onClick={() => onStatusChange(task.id, 'review')}>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onStatusChange(task.id, 'review')
+                          }}
+                        >
                           Move to Review
                         </DropdownMenuItem>
                       )}
                       {task.status !== 'done' && (
-                        <DropdownMenuItem onClick={() => onStatusChange(task.id, 'done')}>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onStatusChange(task.id, 'done')
+                          }}
+                        >
                           Move to Done
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         variant="destructive"
-                        onClick={() => onDelete(task.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setIsConfirmDeleteDialogOpen(true)
+                        }}
                       >
                         <Trash className="size-3.5" />
                         Delete
@@ -170,7 +241,9 @@ export function TaskCard({
                 </div>
               </div>
               {task.description && (
-                <CardDescription className="line-clamp-2 text-xs pl-5">{task.description}</CardDescription>
+                <CardDescription className="line-clamp-2 text-xs pl-5">
+                  {task.description}
+                </CardDescription>
               )}
             </CardHeader>
 
@@ -219,6 +292,24 @@ export function TaskCard({
         </div>
       </motion.div>
 
+      {/* Task Detail Dialog */}
+      <TaskDetailDialog
+        task={task}
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+        onEdit={() => {
+          setIsDetailOpen(false)
+          setIsEditDialogOpen(true)
+        }}
+        onDelete={() => {
+          setIsDetailOpen(false)
+          setIsConfirmDeleteDialogOpen(true)
+        }}
+        onStatusChange={(taskId, newStatus) => {
+          onStatusChange(taskId, newStatus)
+        }}
+      />
+
       {/* Edit Task Dialog */}
       <EditTaskDialog
         task={task}
@@ -230,6 +321,20 @@ export function TaskCard({
         onSuccess={(updated) => {
           onUpdateTask?.(updated)
         }}
+      />
+
+      {/* Reusable Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={isConfirmDeleteDialogOpen}
+        onOpenChange={setIsConfirmDeleteDialogOpen}
+        title="Delete Task"
+        description={`Are you sure you want to delete "${task.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+        icon="trash"
+        isLoading={isDeleting}
+        onConfirm={handleDeleteConfirm}
       />
     </>
   )
