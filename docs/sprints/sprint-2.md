@@ -49,12 +49,12 @@ Implement core project management features:
 
 ## 3. Bug & Error Prevention Checklist
 
-- [ ] **Dual-Write Isolation**: If Google Drive fails, the DB record is preserved and an alert banner with a Retry button appears.
-- [ ] **No Duplicate Root Folder**: The `/GameDev Team/` root folder is created once and reused for all subsequent projects.
-- [ ] **Strict shadcn**: No custom hand-rolled buttons, inputs, or cards; only official shadcn primitives are used.
-- [ ] **Clean Microcopy**: Labels contain zero parenthetical clarifications (e.g. `Type`, not `Type (Jam/Competition)`).
-- [ ] **Hydration Safety**: Dates are formatted safely without SSR/client hydration mismatches.
-- [ ] **Soft-Delete Integrity**: Archiving only alters `status` to `archived` without dropping DB rows or Drive files.
+- [x] **Dual-Write Isolation**: If Google Drive fails, the DB record is preserved and an alert banner with a Retry button appears.
+- [x] **No Duplicate Root Folder**: The `/GameDev Team/` root folder is created once and reused for all subsequent projects.
+- [x] **Strict shadcn**: No custom hand-rolled buttons, inputs, or cards; only official shadcn primitives are used.
+- [x] **Clean Microcopy**: Labels contain zero parenthetical clarifications (e.g. `Type`, not `Type (Jam/Competition)`).
+- [x] **Hydration Safety**: Dates are formatted safely without SSR/client hydration mismatches.
+- [x] **Soft-Delete Integrity**: Archiving only alters `status` to `archived` without dropping DB rows or Drive files.
 
 ---
 
