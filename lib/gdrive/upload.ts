@@ -1,6 +1,7 @@
 import { Readable } from 'stream'
 import { drive_v3 } from 'googleapis'
 import { getGoogleDriveClient } from './client'
+import { getValidGoogleAuthClient } from './tokens'
 
 export type ProjectSubfolder = 'Assets' | 'Builds' | 'GDD' | 'Design' | 'Credits'
 
@@ -82,3 +83,63 @@ export async function uploadFileToSubfolder(
     viewUrl,
   }
 }
+
+/**
+ * Initiates a Google Drive resumable upload session.
+ * Returns the unique upload session URL for direct browser-to-Drive uploading (0 MB Vercel payload).
+ */
+export async function createResumableUploadSession(
+  userId: string,
+  parentFolderId: string,
+  subfolderName: ProjectSubfolder,
+  fileName: string,
+  mimeType: string,
+  fileSize?: number
+): Promise<{ uploadUrl: string; subfolderId: string }> {
+  const drive = await getGoogleDriveClient(userId)
+  const subfolderId = await getOrCreateSubfolder(drive, parentFolderId, subfolderName)
+
+  const auth = await getValidGoogleAuthClient(userId)
+  const tokenResponse = await auth.getAccessToken()
+  const accessToken = tokenResponse.token
+  if (!accessToken) {
+    throw new Error('Failed to obtain Google OAuth access token')
+  }
+
+  const metadata = {
+    name: fileName,
+    parents: [subfolderId],
+  }
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    'Content-Type': 'application/json; charset=UTF-8',
+    'X-Upload-Content-Type': mimeType || 'application/octet-stream',
+  }
+
+  if (fileSize && fileSize > 0) {
+    headers['X-Upload-Content-Length'] = fileSize.toString()
+  }
+
+  const response = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(metadata),
+    }
+  )
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Google Drive resumable upload initialization failed: ${response.status} ${errorText}`)
+  }
+
+  const uploadUrl = response.headers.get('location')
+  if (!uploadUrl) {
+    throw new Error('Google Drive API did not return a resumable upload location header')
+  }
+
+  return { uploadUrl, subfolderId }
+}
+

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { UploadSimple } from '@phosphor-icons/react'
-import { uploadArtifactFile } from '@/actions/artifacts'
+import { UploadSimple, CircleNotch } from '@phosphor-icons/react'
+import { getArtifactUploadSession, recordArtifactAfterUpload } from '@/actions/artifacts'
+import { uploadDirectToDrive } from '@/lib/gdrive/client-upload'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -30,32 +31,101 @@ interface UploadArtifactDialogProps {
 
 export function UploadArtifactDialog({ projectId }: UploadArtifactDialogProps) {
   const [open, setOpen] = useState(false)
-  const [isPending, startTransition] = useTransition()
+  const [isUploading, setIsUploading] = useState(false)
+  const [progress, setProgress] = useState<number | null>(null)
+  const [uploadStage, setUploadStage] = useState<'idle' | 'initiating' | 'uploading' | 'recording'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [type, setType] = useState<'build' | 'gdd'>('build')
+  const [label, setLabel] = useState('')
+  const [file, setFile] = useState<File | null>(null)
   const router = useRouter()
+
+  function resetState() {
+    setIsUploading(false)
+    setProgress(null)
+    setUploadStage('idle')
+    setError(null)
+    setLabel('')
+    setFile(null)
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
 
-    const formData = new FormData(e.currentTarget)
-    formData.set('projectId', projectId)
-    formData.set('type', type)
+    if (!file) {
+      setError('Please select a file to upload')
+      return
+    }
 
-    startTransition(async () => {
-      const res = await uploadArtifactFile(formData)
-      if (res.success) {
-        setOpen(false)
-        router.refresh()
-      } else {
-        setError(res.error || 'Failed to upload artifact file')
+    try {
+      setIsUploading(true)
+      setUploadStage('initiating')
+      setProgress(0)
+
+      // Step 1: Initialize Resumable Upload Session on server
+      const sessionRes = await getArtifactUploadSession({
+        projectId,
+        fileName: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        fileSize: file.size,
+        targetType: type,
+      })
+
+      if (!sessionRes.success || !sessionRes.uploadUrl) {
+        setError(sessionRes.error || 'Failed to initialize Google Drive upload session')
+        setIsUploading(false)
+        return
       }
-    })
+
+      // Step 2: Stream file directly from browser to Google Drive (0 MB Vercel payload)
+      setUploadStage('uploading')
+      const driveResult = await uploadDirectToDrive(sessionRes.uploadUrl, file, (percent) => {
+        setProgress(percent)
+      })
+
+      if (!driveResult.id) {
+        throw new Error('Google Drive upload did not return a valid file ID')
+      }
+
+      // Step 3: Record metadata in Supabase
+      setUploadStage('recording')
+      const recordRes = await recordArtifactAfterUpload({
+        projectId,
+        label: label.trim() || file.name,
+        type,
+        driveFileId: driveResult.id,
+        fileName: file.name,
+      })
+
+      if (!recordRes.success) {
+        setError(recordRes.error || 'Failed to record artifact details in database')
+        setIsUploading(false)
+        return
+      }
+
+      // Done
+      resetState()
+      setOpen(false)
+      router.refresh()
+    } catch (err: unknown) {
+      console.error('Direct-to-Drive upload error:', err)
+      setError(err instanceof Error ? err.message : 'Direct upload failed. Please try again.')
+      setIsUploading(false)
+      setProgress(null)
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!isUploading) {
+          setOpen(next)
+          if (!next) resetState()
+        }
+      }}
+    >
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
         <UploadSimple className="size-4" />
         Upload File
@@ -65,7 +135,7 @@ export function UploadArtifactDialog({ projectId }: UploadArtifactDialogProps) {
         <DialogHeader>
           <DialogTitle>Upload Build or Document</DialogTitle>
           <DialogDescription>
-            Directly upload playable builds or design docs to Google Drive.
+            Streams large builds and design docs directly to Google Drive (no file size limits).
           </DialogDescription>
         </DialogHeader>
 
@@ -80,13 +150,29 @@ export function UploadArtifactDialog({ projectId }: UploadArtifactDialogProps) {
             <label htmlFor="file" className="text-sm font-medium">
               Select File
             </label>
-            <Input id="file" name="file" type="file" required />
+            <Input
+              id="file"
+              name="file"
+              type="file"
+              disabled={isUploading}
+              onChange={(e) => {
+                const selected = e.target.files?.[0] || null
+                setFile(selected)
+              }}
+              required
+            />
+            {file && (
+              <span className="text-[11px] font-mono text-muted-foreground">
+                {(file.size / (1024 * 1024)).toFixed(2)} MB
+              </span>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Destination Folder</label>
             <Select
               value={type}
+              disabled={isUploading}
               onValueChange={(val) => val && setType(val as 'build' | 'gdd')}
             >
               <SelectTrigger>
@@ -106,22 +192,55 @@ export function UploadArtifactDialog({ projectId }: UploadArtifactDialogProps) {
             <Input
               id="label"
               name="label"
+              value={label}
+              disabled={isUploading}
+              onChange={(e) => setLabel(e.target.value)}
               placeholder="Leave blank to use filename"
             />
           </div>
+
+          {/* Upload Progress Bar */}
+          {isUploading && (
+            <div className="flex flex-col gap-1.5 rounded-lg border border-border/80 bg-secondary/30 p-3 text-xs">
+              <div className="flex items-center justify-between font-medium">
+                <span className="flex items-center gap-1.5 text-foreground">
+                  <CircleNotch className="size-3.5 animate-spin text-primary" />
+                  {uploadStage === 'initiating' && 'Connecting to Google Drive...'}
+                  {uploadStage === 'uploading' && `Uploading to Drive (${progress ?? 0}%)...`}
+                  {uploadStage === 'recording' && 'Finalizing metadata in database...'}
+                </span>
+                <span className="font-mono text-muted-foreground">{progress ?? 0}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full bg-primary transition-all duration-200"
+                  style={{ width: `${progress ?? 5}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           <DialogFooter className="pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
-              disabled={isPending}
+              disabled={isUploading}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending}>
-              <UploadSimple className="size-4" />
-              {isPending ? 'Uploading...' : 'Upload'}
+            <Button type="submit" disabled={isUploading || !file}>
+              {isUploading ? (
+                <>
+                  <CircleNotch className="size-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <UploadSimple className="size-4" />
+                  Upload
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>
