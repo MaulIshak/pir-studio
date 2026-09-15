@@ -173,7 +173,7 @@ export function AssetDetailDialog({
 
         <div className="flex flex-col gap-4">
           {/* Metadata Grid */}
-          <div className="grid grid-cols-2 gap-3 rounded-lg border border-border/60 bg-secondary/20 p-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-border/60 bg-secondary/20 p-3 text-xs">
             {/* Connected Task */}
             <div className="flex flex-col gap-1">
               <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
@@ -343,7 +343,7 @@ export function AssetDetailDialog({
                     onManageReferences?.()
                   }
                 }}
-                className="grid grid-cols-4 gap-2 cursor-pointer group"
+                className="grid grid-cols-2 sm:grid-cols-4 gap-2 cursor-pointer group"
                 title="Click to view references gallery"
               >
                 {asset.asset_references?.slice(0, 4).map((ref, idx) => (

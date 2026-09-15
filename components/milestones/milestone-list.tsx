@@ -121,6 +121,13 @@ export function MilestoneList({
   const [isDeleting, setIsDeleting] = useState(false)
   const [isHoveringDeadline, setIsHoveringDeadline] = useState(false)
 
+  // Switch to timeline by default on mobile screens after mounting to prevent SSR hydration mismatch
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setViewMode('timeline')
+    }
+  }, [])
+
   // Keep local state in sync whenever server component re-fetches initialMilestones
   useEffect(() => {
     setMilestones(initialMilestones)
@@ -338,7 +345,7 @@ export function MilestoneList({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center rounded-lg border bg-muted/30 p-0.5">
             <Button
               variant={viewMode === 'gantt' ? 'secondary' : 'ghost'}
@@ -381,26 +388,26 @@ export function MilestoneList({
           className="rounded-lg border bg-card shadow-xs overflow-hidden"
         >
           {/* Quick Toolbar (Jump Controls & Timeline Info) */}
-          <div className="flex items-center justify-between border-b px-4 py-2 bg-muted/20 text-xs text-muted-foreground">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 sm:px-4 py-2 bg-muted/20 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 sm:gap-3">
               <span className="font-mono text-[11px] text-foreground">
-                {calendarDays.length} days grid
+                {calendarDays.length} days
               </span>
-              <span className="hidden sm:inline">•</span>
-              <span className="hidden sm:inline text-[11px]">
+              <span>•</span>
+              <span className="text-[11px] truncate max-w-[160px] sm:max-w-none">
                 {calendarDays[0]?.dateStr} – {calendarDays[calendarDays.length - 1]?.dateStr}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {todayIndex >= 0 && (
                 <Button
                   variant="outline"
                   size="xs"
                   onClick={scrollToToday}
-                  className="h-6 text-[11px] gap-1 border-primary/30 text-primary hover:bg-primary/10"
+                  className="h-6 text-[10px] sm:text-[11px] px-2 gap-1 border-primary/30 text-primary hover:bg-primary/10"
                 >
                   <Crosshair className="size-3" />
-                  Jump to Today
+                  Today
                 </Button>
               )}
               {deadlineIndex >= 0 && (
@@ -408,10 +415,10 @@ export function MilestoneList({
                   variant="outline"
                   size="xs"
                   onClick={scrollToDeadline}
-                  className="h-6 text-[11px] gap-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                  className="h-6 text-[10px] sm:text-[11px] px-2 gap-1 border-destructive/30 text-destructive hover:bg-destructive/10"
                 >
                   <Flag className="size-3" />
-                  Jump to Deadline
+                  Deadline
                 </Button>
               )}
             </div>
@@ -427,9 +434,9 @@ export function MilestoneList({
               {/* Header: Left Pinned Title + Right Days Ruler */}
               <div className="flex border-b bg-muted/60 sticky top-0 z-30">
                 {/* Pinned Left Header Column: Phase / Milestone */}
-                <div className="w-72 shrink-0 border-r px-4 py-3 font-semibold text-xs text-foreground bg-muted sticky left-0 z-40 flex items-center justify-between shadow-[2px_0_8px_-2px_rgba(0,0,0,0.1)]">
-                  <span>Phase / Milestone</span>
-                  <span className="text-[10px] font-mono font-normal text-muted-foreground">
+                <div className="w-36 sm:w-72 shrink-0 border-r px-2.5 sm:px-4 py-3 font-semibold text-xs text-foreground bg-muted sticky left-0 z-40 flex items-center justify-between shadow-[2px_0_8px_-2px_rgba(0,0,0,0.1)]">
+                  <span className="truncate">Phase</span>
+                  <span className="text-[10px] font-mono font-normal text-muted-foreground hidden sm:inline">
                     {milestones.length} phases
                   </span>
                 </div>
@@ -557,10 +564,10 @@ export function MilestoneList({
                       }`}
                     >
                       {/* Pinned Left Details Column */}
-                      <div className="w-72 shrink-0 border-r px-4 py-2 bg-card sticky left-0 z-30 flex items-center justify-between shadow-[4px_0_12px_-2px_rgba(0,0,0,0.12)]">
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="w-36 sm:w-72 shrink-0 border-r px-2.5 sm:px-4 py-2 bg-card sticky left-0 z-30 flex items-center justify-between shadow-[4px_0_12px_-2px_rgba(0,0,0,0.12)]">
+                        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1">
                           <span
-                            className={`size-2.5 rounded-full shrink-0 ${
+                            className={`size-2 sm:size-2.5 rounded-full shrink-0 ${
                               isDone
                                 ? 'bg-emerald-500'
                                 : isInProgress
@@ -569,20 +576,20 @@ export function MilestoneList({
                             }`}
                           />
                           <div className="flex flex-col min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="flex items-center gap-1 min-w-0">
                               <span className="truncate text-xs font-semibold text-foreground">
                                 {milestone.title}
                               </span>
                               {isActiveToday && (
                                 <Badge
                                   variant="outline"
-                                  className="border-primary/40 bg-primary/10 text-primary text-[9px] h-3.5 px-1 font-medium shrink-0 animate-pulse"
+                                  className="border-primary/40 bg-primary/10 text-primary text-[9px] h-3.5 px-1 font-medium shrink-0 animate-pulse hidden sm:inline-flex"
                                 >
-                                  Active Today
+                                  Active
                                 </Badge>
                               )}
                             </div>
-                            <span className="text-[11px] text-muted-foreground font-mono truncate">
+                            <span className="text-[10px] sm:text-[11px] text-muted-foreground font-mono truncate">
                               {formatDateRange(milestone.start_date, milestone.due_date)}
                             </span>
                           </div>
@@ -595,7 +602,7 @@ export function MilestoneList({
                               <Button
                                 variant="ghost"
                                 size="xs"
-                                className="size-6 p-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="size-6 p-0 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0"
                               >
                                 <DotsThreeVertical className="size-3.5" />
                               </Button>
@@ -797,7 +804,7 @@ export function MilestoneList({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1 font-mono text-[11px]">
                           <CalendarBlank className="size-3 text-muted-foreground" />
                           {formatDateRange(milestone.start_date, milestone.due_date)}
@@ -810,7 +817,7 @@ export function MilestoneList({
                     </div>
 
                     {/* Right side: Tasks link & Dropdown */}
-                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <div className="flex items-center gap-2 self-start sm:self-auto pt-1 sm:pt-0">
                       <Button
                         variant="ghost"
                         size="xs"

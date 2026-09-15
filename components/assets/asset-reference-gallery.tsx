@@ -217,7 +217,7 @@ export function AssetReferenceGallery({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
           {/* Header */}
-          <DialogHeader className="flex flex-row items-center justify-between pb-3 border-b border-border/60 shrink-0">
+          <DialogHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-border/60 shrink-0">
             <div className="flex flex-col gap-0.5 min-w-0 pr-4">
               <div className="flex items-center gap-2 min-w-0">
                 <DialogTitle className="text-base font-semibold truncate">

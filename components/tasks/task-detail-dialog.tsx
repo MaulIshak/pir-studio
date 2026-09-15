@@ -191,7 +191,7 @@ export function TaskDetailDialog({
         </DialogHeader>
 
         {/* Metadata Grid */}
-        <div className="grid grid-cols-2 gap-3 rounded-lg border border-border/60 bg-secondary/20 p-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-border/60 bg-secondary/20 p-3 text-xs">
           {/* Assignee */}
           <div className="flex flex-col gap-1">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">

@@ -75,6 +75,7 @@ export function KanbanBoard({
   const [selectedMilestone, setSelectedMilestone] = useState<string>('all')
   const [selectedAssignee, setSelectedAssignee] = useState<string>('all')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
+  const [mobileColumn, setMobileColumn] = useState<string>('all')
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [activeDropColId, setActiveDropColId] = useState<string | null>(null)
   const supabase = createClient()
@@ -244,12 +245,12 @@ export function KanbanBoard({
   })
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5 sm:gap-6">
       {/* Top Filter and Action Bar */}
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 min-w-0">
           {/* View Mode Switcher */}
-          <div className="flex items-center rounded-md border border-border p-0.5 bg-muted/40">
+          <div className="flex items-center rounded-md border border-border p-0.5 bg-muted/40 shrink-0 w-fit">
             <Button
               type="button"
               variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
@@ -282,78 +283,123 @@ export function KanbanBoard({
             </Button>
           </div>
 
-          {/* Milestone Filter */}
-          <div className="flex items-center gap-1.5">
-            <Funnel className="size-3.5 text-muted-foreground" />
-            <Select value={selectedMilestone} onValueChange={(val) => val && setSelectedMilestone(val)}>
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="All milestones" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" label="All milestones">All milestones</SelectItem>
-                {milestones.map((m) => (
-                  <SelectItem key={m.id} value={m.id} label={m.title}>
-                    {m.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Assignee Filter */}
-          <div className="flex items-center gap-1.5">
-            <User className="size-3.5 text-muted-foreground" />
-            <Select value={selectedAssignee} onValueChange={(val) => val && setSelectedAssignee(val)}>
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="All assignees" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" label="All assignees">All assignees</SelectItem>
-                <SelectItem value="unassigned" label="Unassigned">Unassigned</SelectItem>
-                {profiles.map((p) => (
-                  <SelectItem key={p.id} value={p.id} label={p.name || p.email || 'Member'}>
-                    {p.name || p.email || 'Member'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Status Filter (Active in Table View) */}
-          {viewMode === 'table' && (
-            <div className="flex items-center gap-1.5">
-              <CircleDashed className="size-3.5 text-muted-foreground" />
-              <Select value={selectedStatus} onValueChange={(val) => val && setSelectedStatus(val)}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="All statuses" />
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 flex-1">
+            {/* Milestone Filter */}
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Select value={selectedMilestone} onValueChange={(val) => val && setSelectedMilestone(val)}>
+                <SelectTrigger className="w-full sm:w-36 text-xs">
+                  <SelectValue placeholder="All milestones" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="todo">To Do</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="review">Review</SelectItem>
-                  <SelectItem value="done">Done</SelectItem>
+                  <SelectItem value="all" label="All milestones">All milestones</SelectItem>
+                  {milestones.map((m) => (
+                    <SelectItem key={m.id} value={m.id} label={m.title}>
+                      {m.title}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-          )}
+
+            {/* Assignee Filter */}
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Select value={selectedAssignee} onValueChange={(val) => val && setSelectedAssignee(val)}>
+                <SelectTrigger className="w-full sm:w-36 text-xs">
+                  <SelectValue placeholder="All assignees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" label="All assignees">All assignees</SelectItem>
+                  <SelectItem value="unassigned" label="Unassigned">Unassigned</SelectItem>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id} label={p.name || p.email || 'Member'}>
+                      {p.name || p.email || 'Member'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Status Filter (Active in Table View) */}
+            {viewMode === 'table' && (
+              <div className="col-span-2 sm:col-span-1 flex items-center gap-1.5 min-w-0">
+                <Select value={selectedStatus} onValueChange={(val) => val && setSelectedStatus(val)}>
+                  <SelectTrigger className="w-full sm:w-32 text-xs">
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="todo">To Do</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
         </div>
 
-        <CreateTaskDialog
-          projectId={projectId}
-          milestones={milestones}
-          profiles={profiles}
-          onSuccess={(newTask) => {
-            if (newTask) {
-              setTasks((prev) => {
-                if (prev.some((t) => t.id === newTask.id)) return prev
-                return [newTask, ...prev]
-              })
-            }
-            router.refresh()
-          }}
-        />
+        <div className="shrink-0 w-full sm:w-auto">
+          <CreateTaskDialog
+            projectId={projectId}
+            milestones={milestones}
+            profiles={profiles}
+            onSuccess={(newTask) => {
+              if (newTask) {
+                setTasks((prev) => {
+                  if (prev.some((t) => t.id === newTask.id)) return prev
+                  return [newTask, ...prev]
+                })
+              }
+              router.refresh()
+            }}
+          />
+        </div>
       </div>
+
+      {/* Mobile Column Segmented Control (Visible only in Kanban view on mobile) */}
+      {viewMode === 'kanban' && (
+        <div className="flex md:hidden items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+          <button
+            type="button"
+            onClick={() => setMobileColumn('all')}
+            className={cn(
+              "px-3 py-1 rounded-full text-xs font-medium shrink-0 transition-all cursor-pointer",
+              mobileColumn === 'all'
+                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            )}
+          >
+            All ({displayedTasks.length})
+          </button>
+          {COLUMNS.map((col) => {
+            const count = displayedTasks.filter((t) => t.status === col.id).length
+            const isSelected = mobileColumn === col.id
+            return (
+              <button
+                key={col.id}
+                type="button"
+                onClick={() => setMobileColumn(col.id)}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-medium shrink-0 transition-all cursor-pointer flex items-center gap-1.5",
+                  isSelected
+                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <col.icon className={cn("size-3", isSelected ? "text-primary-foreground" : col.color)} />
+                <span>{col.label}</span>
+                <span className={cn(
+                  "px-1 py-0.2 rounded-full text-[10px] font-mono",
+                  isSelected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-background text-muted-foreground"
+                )}>
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* View Content (Kanban or Table) */}
       {viewMode === 'kanban' ? (
@@ -364,6 +410,7 @@ export function KanbanBoard({
           const isDropTarget = activeDropColId === col.id
           const draggedTask = draggedTaskId ? tasks.find((t) => t.id === draggedTaskId) : null
           const isSourceCol = draggedTask?.status === col.id
+          const isHiddenOnMobile = mobileColumn !== 'all' && mobileColumn !== col.id
 
           return (
             <Card
@@ -397,8 +444,9 @@ export function KanbanBoard({
                 setDraggedTaskId(null)
               }}
               className={cn(
-                "flex min-h-[500px] flex-col rounded-lg transition-all duration-200",
+                "flex min-h-[140px] md:min-h-[500px] flex-col rounded-lg transition-all duration-200",
                 col.cardBorder,
+                isHiddenOnMobile && "hidden md:flex",
                 isDropTarget && !isSourceCol && "ring-2 ring-primary/40 border-primary/60 bg-primary/[0.04] shadow-md"
               )}
             >
@@ -420,7 +468,7 @@ export function KanbanBoard({
                 {colTasks.length === 0 ? (
                   <div
                     className={cn(
-                      "flex flex-1 flex-col items-center justify-center border border-dashed rounded-md py-8 text-center text-xs transition-all gap-1.5",
+                      "flex flex-1 flex-col items-center justify-center border border-dashed rounded-md py-6 md:py-8 text-center text-xs transition-all gap-1.5",
                       isDropTarget && !isSourceCol
                         ? "border-primary/60 bg-primary/10 text-primary font-medium scale-[1.01]"
                         : "border-border/60 text-muted-foreground"

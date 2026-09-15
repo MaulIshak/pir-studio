@@ -172,7 +172,7 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       {/* Chart 1: Task Status Comparison */}
       <Card className="flex flex-col justify-between">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -217,7 +217,7 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
             </BarChart>
           </ChartContainer>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-xs">
+          <div className="mt-4 grid grid-cols-2 sm:flex sm:flex-wrap items-center sm:justify-between gap-2 border-t pt-3 text-xs">
             {statusData.map((item) => (
               <div key={item.key} className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-xs" style={{ backgroundColor: item.fill }} />
@@ -231,7 +231,7 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
 
       {/* Chart 2: Task Completion Activity with Daily / Weekly filter */}
       <Card className="flex flex-col justify-between">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <div className="flex size-7 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">

@@ -40,11 +40,11 @@ export default async function DashboardPage() {
   }).length
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 p-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 sm:gap-8 px-3.5 py-4 sm:p-6">
       {/* Dashboard Top Header */}
-      <div className="flex flex-col justify-between gap-4 border-b pb-6 sm:flex-row sm:items-center">
+      <div className="flex flex-col justify-between gap-4 border-b pb-4 sm:pb-6 sm:flex-row sm:items-center">
         <div className="flex flex-col gap-1">
-          <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
+          <h1 className="font-heading text-xl font-bold tracking-tight sm:text-3xl">
             Dashboard
           </h1>
           <p className="text-xs text-muted-foreground">

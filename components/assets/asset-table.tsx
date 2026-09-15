@@ -145,7 +145,7 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
     ? assets.find((a) => a.id === galleryAsset.id) || galleryAsset
     : null
 
-  const [, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
   const filteredAssets = assets.filter((asset) => {
@@ -206,10 +206,10 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
             {/* Type Filter */}
             <Select value={typeFilter} onValueChange={(val) => val && setTypeFilter(val)}>
-              <SelectTrigger className="w-[125px]">
+              <SelectTrigger className="w-full sm:w-[125px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -225,7 +225,7 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
 
             {/* Status Filter */}
             <Select value={statusFilter} onValueChange={(val) => val && setStatusFilter(val)}>
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger className="w-full sm:w-[130px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -239,7 +239,7 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
 
             {/* Task Filter */}
             <Select value={taskFilter} onValueChange={(val) => val && setTaskFilter(val)}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -255,7 +255,7 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
 
             {/* File Source Filter */}
             <Select value={fileFilter} onValueChange={(val) => val && setFileFilter(val)}>
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger className="w-full sm:w-[130px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -290,13 +290,172 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
           }
         />
       ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          className="rounded-md border bg-card/60 overflow-hidden"
-        >
-          <Table>
+        <>
+          {/* Mobile View: Asset Card List (< md) */}
+          <div className="flex md:hidden flex-col gap-3">
+            {filteredAssets.map((asset) => {
+              const driveLink = asset.drive_file_id
+                ? `https://drive.google.com/file/d/${asset.drive_file_id}/view`
+                : null
+              const details = getTypeDetails(asset.type)
+              const statusInfo = getStatusBadge(asset.status)
+              const refCount = asset.asset_references?.length || 0
+              const firstRef = asset.asset_references?.[0]
+
+              return (
+                <div
+                  key={asset.id}
+                  className="flex flex-col gap-2.5 rounded-lg border bg-card p-3.5 shadow-2xs"
+                >
+                  {/* Header: Name & Status */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDetailAsset(asset)}
+                        className="text-left font-medium text-foreground hover:text-primary transition-colors text-xs truncate cursor-pointer"
+                      >
+                        {asset.name}
+                      </button>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className={`flex items-center gap-1 w-fit capitalize text-[10px] h-4.5 px-1.5 ${details.bg}`}
+                        >
+                          {details.icon}
+                          {asset.type.replace('_', ' ')}
+                        </Badge>
+                        {asset.tasks && (
+                          <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 truncate max-w-[120px]">
+                            {asset.tasks.title}
+                          </Badge>
+                        )}
+                        {asset.needs_credit && (
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] h-4.5 px-1.5 border-amber-500/20 bg-amber-500/10 text-amber-500"
+                          >
+                            Attribution Req.
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <Select
+                      value={asset.status}
+                      disabled={isPending}
+                      onValueChange={(val) => val && handleStatusChange(asset.id, val as AssetStatus)}
+                    >
+                      <SelectTrigger className={`h-6 text-[11px] px-2 py-0 gap-1 shrink-0 ${statusInfo.class}`}>
+                        {statusInfo.icon}
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todo">To Do</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="done">Done</SelectItem>
+                        <SelectItem value="implemented">Implemented</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* References & Files row */}
+                  <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-border/50 text-xs">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {refCount > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setGalleryAsset(asset)}
+                          className="flex items-center gap-1.5 rounded border border-border/70 p-0.5 pr-1.5 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          {firstRef && (
+                            <div className="size-5 rounded overflow-hidden bg-muted">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={`/api/drive/file/${firstRef.drive_file_id}`}
+                                alt="Reference"
+                                className="size-full object-cover"
+                              />
+                            </div>
+                          )}
+                          <span>{refCount} {refCount === 1 ? 'Ref' : 'Refs'}</span>
+                        </button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setGalleryAsset(asset)}
+                          className="h-6 text-[11px] px-1.5 text-muted-foreground hover:text-foreground gap-1"
+                        >
+                          <ImageIcon className="size-3" />
+                          Add Ref
+                        </Button>
+                      )}
+
+                      {driveLink ? (
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          nativeButton={false}
+                          render={<a href={driveLink} target="_blank" rel="noopener noreferrer" />}
+                          className="h-6 text-[11px] px-2 text-primary border-primary/30 bg-primary/5 gap-1"
+                        >
+                          <ArrowSquareOut className="size-3" />
+                          Drive
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={() => setUploadSingleAsset(asset)}
+                          className="h-6 text-[11px] px-2 text-muted-foreground gap-1"
+                        >
+                          <UploadSimple className="size-3" />
+                          Upload
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setSelectedDetailAsset(asset)}
+                        className="size-6 p-0 text-muted-foreground"
+                      >
+                        <Eye className="size-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setSelectedEditAsset(asset)}
+                        className="size-6 p-0 text-muted-foreground"
+                      >
+                        <PencilSimple className="size-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setAssetToDelete(asset)}
+                        className="size-6 p-0 text-destructive"
+                      >
+                        <Trash className="size-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Desktop View: Table (md and up) */}
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="hidden md:block rounded-md border bg-card/60 overflow-hidden"
+          >
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[160px]">Asset</TableHead>
@@ -519,6 +678,7 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
             </TableBody>
           </Table>
         </motion.div>
+      </>
       )}
 
       {/* Asset Detail Dialog */}

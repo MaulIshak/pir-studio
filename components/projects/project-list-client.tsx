@@ -29,7 +29,7 @@ export function ProjectListClient({ initialProjects }: { initialProjects: Projec
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <Tabs value={tab} onValueChange={(val) => setTab(val as string)}>
-          <TabsList>
+          <TabsList className="w-full sm:w-fit justify-start overflow-x-auto no-scrollbar">
             <TabsTrigger value="active" className="flex items-center gap-1.5">
               <GameController className="size-3.5" />
               Active

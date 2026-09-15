@@ -33,7 +33,7 @@ export default async function CreditsPage({ params }: CreditsPageProps) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ExportCreditsButton projectId={project.id} hasCredits={credits.length > 0} />
           <CreateCreditDialog projectId={project.id} assets={assets} />
         </div>

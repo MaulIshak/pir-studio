@@ -23,6 +23,10 @@ import {
   ClockCountdown,
   Package,
   ListChecks,
+  Eye,
+  CircleDashed,
+  Play,
+  CheckCircle,
 } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -189,6 +193,7 @@ export function TaskCard({
                           setIsDetailOpen(true)
                         }}
                       >
+                        <Eye className="size-3.5" />
                         View Details
                       </DropdownMenuItem>
                       <DropdownMenuItem
@@ -208,6 +213,7 @@ export function TaskCard({
                             onStatusChange(task.id, 'todo')
                           }}
                         >
+                          <CircleDashed className="size-3.5 text-slate-400" />
                           Move to To Do
                         </DropdownMenuItem>
                       )}
@@ -218,6 +224,7 @@ export function TaskCard({
                             onStatusChange(task.id, 'in_progress')
                           }}
                         >
+                          <Play className="size-3.5 text-blue-400" />
                           Move to In Progress
                         </DropdownMenuItem>
                       )}
@@ -228,6 +235,7 @@ export function TaskCard({
                             onStatusChange(task.id, 'review')
                           }}
                         >
+                          <Eye className="size-3.5 text-amber-400" />
                           Move to Review
                         </DropdownMenuItem>
                       )}
@@ -238,6 +246,7 @@ export function TaskCard({
                             onStatusChange(task.id, 'done')
                           }}
                         >
+                          <CheckCircle className="size-3.5 text-emerald-400" />
                           Move to Done
                         </DropdownMenuItem>
                       )}

@@ -157,12 +157,232 @@ export function TaskTable({
           No tasks found matching your filters.
         </div>
       ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
-          className="rounded-md border bg-card/60 overflow-hidden"
-        >
+        <>
+          {/* Mobile View: Card List (< md) */}
+          <div className="flex md:hidden flex-col gap-3">
+        {tasks.map((task) => {
+          const currentStatus = statusConfig[task.status] || statusConfig.todo
+          const StatusIcon = currentStatus.icon
+          const isExpanded = expandedTaskIds.has(task.id)
+
+          const subtasks = task.subtasks || []
+          const totalSubtasks = subtasks.length
+          const completedSubtasks = subtasks.filter((s) => s.status === 'done').length
+          const progressPercent = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0
+
+          let isOverdue = false
+          if (task.due_date && task.status !== 'done') {
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            const dueDate = new Date(task.due_date)
+            dueDate.setHours(0, 0, 0, 0)
+            if (dueDate < today) {
+              isOverdue = true
+            }
+          }
+
+          const formattedDate = task.due_date
+            ? new Date(task.due_date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })
+            : null
+
+          const assetCount = task.assets?.length || 0
+
+          return (
+            <div
+              key={task.id}
+              className="flex flex-col gap-2.5 rounded-lg border bg-card p-3.5 shadow-2xs"
+            >
+              {/* Header: Title & Status */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDetailTask(task)}
+                    className="text-left font-medium text-foreground hover:text-primary transition-colors text-xs line-clamp-2 cursor-pointer"
+                  >
+                    {task.title}
+                  </button>
+                  {isOverdue && (
+                    <Badge variant="destructive" className="h-4 px-1 text-[10px] font-mono mt-1">
+                      Overdue
+                    </Badge>
+                  )}
+                </div>
+
+                <Select
+                  value={task.status}
+                  onValueChange={(val) =>
+                    val && onStatusChange(task.id, val as 'todo' | 'in_progress' | 'review' | 'done')
+                  }
+                >
+                  <SelectTrigger className={`h-6 text-[11px] px-2 py-0 gap-1 shrink-0 ${currentStatus.class}`}>
+                    <StatusIcon className="size-2.5" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todo">To Do</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Badges & Meta */}
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground pt-1 border-t border-border/50">
+                {/* Assignee */}
+                <div className="flex items-center gap-1">
+                  {task.profiles?.avatar_url ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={task.profiles.avatar_url}
+                      alt={task.profiles.name || 'Member'}
+                      className="size-4 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="flex size-4 items-center justify-center rounded-full bg-secondary text-muted-foreground shrink-0">
+                      <User className="size-2.5" />
+                    </div>
+                  )}
+                  <span className="text-[11px] truncate max-w-[100px]">{task.profiles?.name || 'Unassigned'}</span>
+                </div>
+
+                {/* Milestone */}
+                {task.milestones && (
+                  <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 gap-1 truncate max-w-[110px]">
+                    <Flag className="size-2.5 text-primary shrink-0" />
+                    <span className="truncate">{task.milestones.title}</span>
+                  </Badge>
+                )}
+
+                {/* Due date */}
+                {formattedDate && (
+                  <span className={cn("text-[11px] font-mono flex items-center gap-1", isOverdue ? "text-destructive font-medium" : "text-muted-foreground")}>
+                    <CalendarBlank className="size-3" />
+                    {formattedDate}
+                  </span>
+                )}
+
+                {/* Assets */}
+                {assetCount > 0 && (
+                  <Badge variant="outline" className="text-[10px] h-4.5 px-1.5 gap-1 border-purple-500/30 bg-purple-500/10 text-purple-400">
+                    <Package className="size-2.5" />
+                    {assetCount}
+                  </Badge>
+                )}
+              </div>
+
+              {/* Subtasks summary & trigger */}
+              <div className="flex items-center justify-between pt-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(task.id)}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-[11px] cursor-pointer"
+                >
+                  <CaretRight className={cn("size-3 transition-transform", isExpanded && "rotate-90 text-primary")} />
+                  <span>Subtasks {totalSubtasks > 0 ? `(${completedSubtasks}/${totalSubtasks})` : ''}</span>
+                </button>
+
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setSelectedDetailTask(task)}
+                    className="size-6 p-0 text-muted-foreground"
+                  >
+                    <Eye className="size-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setSelectedEditTask(task)}
+                    className="size-6 p-0 text-muted-foreground"
+                  >
+                    <PencilSimple className="size-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setTaskToDelete(task)}
+                    className="size-6 p-0 text-destructive"
+                  >
+                    <Trash className="size-3" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Inline subtasks for mobile */}
+              {isExpanded && (
+                <div className="flex flex-col gap-2 rounded-md bg-muted/40 p-2.5 border border-border/60 mt-1">
+                  {subtasks.length === 0 ? (
+                    <span className="text-[11px] text-muted-foreground italic">No subtasks yet.</span>
+                  ) : (
+                    subtasks.map((st) => (
+                      <div key={st.id} className="flex items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <Checkbox
+                            checked={st.status === 'done'}
+                            onCheckedChange={() => onToggleSubtask?.(st.id, st.status, task.id)}
+                            className="size-3.5"
+                          />
+                          <span className={cn("truncate text-xs", st.status === 'done' && "line-through text-muted-foreground")}>
+                            {st.title}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => handleInlineDeleteSubtask(st.id, task.id)}
+                          className="size-5 p-0 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash className="size-2.5" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <Input
+                      placeholder="Add subtask..."
+                      value={subtaskInputs[task.id] || ''}
+                      onChange={(e) => setSubtaskInputs((prev) => ({ ...prev, [task.id]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleInlineAddSubtask(task.id)
+                        }
+                      }}
+                      disabled={isAddingSubtask[task.id]}
+                      className="h-7 text-xs bg-background"
+                    />
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="secondary"
+                      onClick={() => handleInlineAddSubtask(task.id)}
+                      disabled={!subtaskInputs[task.id]?.trim() || isAddingSubtask[task.id]}
+                      className="h-7 text-xs px-2"
+                    >
+                      <Plus className="size-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Desktop View: Table (md and up) */}
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+        className="hidden md:block rounded-md border bg-card/60 overflow-hidden"
+      >
           <Table>
             <TableHeader>
               <TableRow>
@@ -540,6 +760,7 @@ export function TaskTable({
             </TableBody>
           </Table>
         </motion.div>
+      </>
       )}
 
       {/* Task Details Dialog */}

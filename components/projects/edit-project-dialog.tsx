@@ -144,7 +144,7 @@ export function EditProjectDialog({ project }: EditProjectDialogProps) {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-foreground">Type</label>
               <Select value={type} onValueChange={(val) => val && setType(val as string)}>
@@ -186,7 +186,7 @@ export function EditProjectDialog({ project }: EditProjectDialogProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="start_date" className="text-xs font-medium text-foreground">
                 Start Date

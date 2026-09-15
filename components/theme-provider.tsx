@@ -3,6 +3,24 @@
 import * as React from "react"
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
 
+// Suppress React 19 dev warning for inline script injected by next-themes for SSR theme matching
+if (process.env.NODE_ENV === "development") {
+  const originalError = console.error
+  if (!(console.error as { __themeProviderPatched?: boolean }).__themeProviderPatched) {
+    const patchedError = (...args: unknown[]) => {
+      if (
+        typeof args[0] === "string" &&
+        args[0].includes("Encountered a script tag while rendering React component")
+      ) {
+        return
+      }
+      originalError.apply(console, args)
+    }
+    ;(patchedError as { __themeProviderPatched?: boolean }).__themeProviderPatched = true
+    console.error = patchedError
+  }
+}
+
 function ThemeProvider({
   children,
   ...props

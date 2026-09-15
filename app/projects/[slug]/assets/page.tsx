@@ -38,7 +38,7 @@ export default async function AssetsPage({ params }: AssetsPageProps) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <UploadBundleDialog projectId={project.id} assets={assets} />
           <CreateAssetDialog projectId={project.id} tasks={tasks} />
         </div>

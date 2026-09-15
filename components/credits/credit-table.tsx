@@ -91,7 +91,7 @@ export function CreditTable({ credits, projectId, assets = [] }: CreditTableProp
         </div>
 
         <Select value={licenseFilter} onValueChange={(val) => val && setLicenseFilter(val)}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -117,13 +117,71 @@ export function CreditTable({ credits, projectId, assets = [] }: CreditTableProp
           action={credits.length === 0 ? <CreateCreditDialog projectId={projectId} assets={assets} /> : undefined}
         />
       ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          className="rounded-md border bg-card/60 overflow-hidden"
-        >
-          <Table>
+        <>
+          {/* Mobile View: Credit Cards (< md) */}
+          <div className="flex md:hidden flex-col gap-3">
+            {filteredCredits.map((credit) => (
+              <div
+                key={credit.id}
+                className="flex flex-col gap-2 rounded-lg border bg-card p-3.5 shadow-2xs"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                    <span className="font-semibold text-xs text-foreground truncate">{credit.source_name}</span>
+                    {credit.author && (
+                      <span className="text-[11px] text-muted-foreground">by {credit.author}</span>
+                    )}
+                  </div>
+                  <Badge variant="outline" className={`uppercase text-[10px] font-mono font-medium shrink-0 ${getLicenseStyle(credit.license)}`}>
+                    {credit.license.replace('_', '-')}
+                  </Badge>
+                </div>
+
+                {credit.notes && (
+                  <p className="text-xs text-muted-foreground line-clamp-2">{credit.notes}</p>
+                )}
+
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50 text-xs">
+                  <span className="text-[11px] text-muted-foreground truncate max-w-[160px]">
+                    {credit.assets ? `Asset: ${credit.assets.name}` : 'General attribution'}
+                  </span>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {credit.source_url && (
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        nativeButton={false}
+                        render={<a href={credit.source_url} target="_blank" rel="noopener noreferrer" />}
+                        className="h-6 text-[11px] px-2 text-primary hover:text-primary gap-1"
+                      >
+                        <ArrowSquareOut className="size-3" />
+                        Source
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => setCreditToDelete(credit)}
+                      className="size-6 p-0 text-destructive hover:text-destructive"
+                      title="Delete Credit"
+                    >
+                      <Trash className="size-3" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop View: Table (md and up) */}
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="hidden md:block rounded-md border bg-card/60 overflow-hidden"
+          >
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Source Name</TableHead>
@@ -206,6 +264,7 @@ export function CreditTable({ credits, projectId, assets = [] }: CreditTableProp
             </TableBody>
           </Table>
         </motion.div>
+      </>
       )}
 
       {/* Reusable Confirm Delete Dialog */}

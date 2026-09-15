@@ -192,7 +192,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Asset Type */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold">Type</label>
@@ -323,7 +323,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
                   <span>Credit Attribution</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="flex flex-col gap-1">
                     <label htmlFor="credit_source_name" className="text-[11px] font-medium text-foreground">
                       Source / Pack Name
@@ -355,7 +355,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="flex flex-col gap-1">
                     <label className="text-[11px] font-medium text-foreground">License</label>
                     <Select

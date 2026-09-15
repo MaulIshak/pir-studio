@@ -102,35 +102,39 @@ export function TopNavBar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-13 shrink-0 items-center justify-between border-b border-border/80 bg-background/95 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
-      <div className="flex items-center gap-2 text-xs">
-        <SidebarTrigger className="-ml-1 size-7 text-muted-foreground hover:text-foreground" />
-        <Separator orientation="vertical" className="mr-1 h-4" />
-        <div className="flex items-center gap-1.5 font-medium text-foreground">
-          <span className="text-muted-foreground">{segments.length > 0 && segments[0] === 'projects' ? 'Projects' : 'Dashboard'}</span>
-          {segments.length > 1 && (
+    <header className="sticky top-0 z-30 flex h-13 shrink-0 items-center justify-between border-b border-border/80 bg-background/95 px-3 sm:px-4 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 min-w-0 overflow-hidden">
+      <div className="flex items-center gap-1.5 sm:gap-2 text-xs min-w-0 flex-1 mr-2">
+        <SidebarTrigger className="-ml-1 size-7 shrink-0 text-muted-foreground hover:text-foreground" />
+        <Separator orientation="vertical" className="mr-0.5 sm:mr-1 h-4 shrink-0" />
+        <div className="flex items-center gap-1 sm:gap-1.5 font-medium text-foreground min-w-0 overflow-hidden">
+          {segments.length <= 1 ? (
+            <span className="text-muted-foreground truncate">
+              {segments.length === 0 ? 'Dashboard' : 'Projects'}
+            </span>
+          ) : (
             <>
-              <CaretRight className="size-3 text-muted-foreground" />
-              <span className="max-w-[150px] sm:max-w-xs truncate text-foreground font-semibold">
+              <span className="text-muted-foreground hidden md:inline shrink-0">Projects</span>
+              <CaretRight className="size-3 text-muted-foreground hidden md:inline shrink-0" />
+              <span className="max-w-[100px] xs:max-w-[140px] sm:max-w-xs truncate text-foreground font-semibold">
                 {breadcrumbTitle}
               </span>
             </>
           )}
           {subSection && (
             <>
-              <CaretRight className="size-3 text-muted-foreground" />
-              <span className="text-primary font-semibold">{subSection}</span>
+              <CaretRight className="size-3 text-muted-foreground shrink-0" />
+              <span className="text-primary font-semibold truncate">{subSection}</span>
             </>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
         {user && hasDriveToken !== null && (
           hasDriveToken ? (
             <Badge
               variant="outline"
-              className="hidden sm:inline-flex items-center gap-1 border-emerald-500/30 bg-emerald-500/10 font-mono text-[10px] text-emerald-400 py-0.5 px-2"
+              className="inline-flex items-center gap-1 border-emerald-500/30 bg-emerald-500/10 font-mono text-[10px] text-emerald-400 py-0.5 px-1.5 sm:px-2 shrink-0"
               title="Google Drive connected for file provisioning and storage"
             >
               <GoogleDriveLogo className="size-3 text-emerald-400" />
@@ -141,11 +145,12 @@ export function TopNavBar() {
               size="xs"
               variant="ghost"
               onClick={handleSignIn}
-              className="border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-[11px] py-0.5 px-2 gap-1.5"
+              className="border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-[11px] py-0.5 px-2 gap-1 sm:gap-1.5 shrink-0"
               title="Connect Google Drive to enable auto-provisioning and file uploads"
             >
               <GoogleDriveLogo className="size-3 text-amber-400" />
-              <span>Connect Drive</span>
+              <span className="hidden sm:inline">Connect Drive</span>
+              <span className="sm:hidden">Drive</span>
             </Button>
           )
         )}
@@ -156,14 +161,14 @@ export function TopNavBar() {
             render={<Link href="/projects/new" />}
             size="xs"
             variant="outline"
-            className="hidden sm:inline-flex gap-1"
+            className="hidden sm:inline-flex gap-1 shrink-0"
           >
             <Plus className="size-3" />
             <span>New Project</span>
           </Button>
         )}
 
-        <Separator orientation="vertical" className="hidden sm:block h-4 mx-0.5" />
+        <Separator orientation="vertical" className="hidden sm:block h-4 mx-0.5 shrink-0" />
 
         <ThemeToggle />
       </div>

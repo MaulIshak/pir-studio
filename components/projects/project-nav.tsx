@@ -30,7 +30,7 @@ export function ProjectNav({ projectSlug }: ProjectNavProps) {
   ]
 
   return (
-    <div className="flex items-center gap-1.5 border-b pb-2 overflow-x-auto">
+    <div className="flex items-center gap-1.5 border-b pb-2 overflow-x-auto no-scrollbar flex-nowrap px-1 -mx-1 scroll-smooth">
       {tabs.map((tab) => {
         const Icon = tab.icon
         const isActive =
@@ -39,13 +39,13 @@ export function ProjectNav({ projectSlug }: ProjectNavProps) {
             : pathname.startsWith(tab.href)
 
         return (
-          <div key={tab.href} className="relative">
+          <div key={tab.href} className="relative shrink-0">
             <Button
               variant={isActive ? 'secondary' : 'ghost'}
               size="sm"
               nativeButton={false}
               render={<Link href={tab.href} />}
-              className={`gap-1.5 transition-colors ${
+              className={`gap-1.5 transition-colors whitespace-nowrap h-8 px-3 text-xs ${
                 isActive
                   ? 'font-semibold text-primary bg-primary/10 border border-primary/20'
                   : 'text-muted-foreground hover:text-foreground'
