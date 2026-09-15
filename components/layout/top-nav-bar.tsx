@@ -134,7 +134,6 @@ export function TopNavBar() {
             >
               <GoogleDriveLogo className="size-3 text-emerald-400" />
               <CheckCircle className="size-2.5 text-emerald-400" />
-              <span>Drive Active</span>
             </Badge>
           ) : (
             <Button

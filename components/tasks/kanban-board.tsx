@@ -66,9 +66,11 @@ export function KanbanBoard({
   const router = useRouter()
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks)
 
-  useEffect(() => {
+  const [prevInitialTasks, setPrevInitialTasks] = useState(initialTasks)
+  if (prevInitialTasks !== initialTasks) {
+    setPrevInitialTasks(initialTasks)
     setTasks(initialTasks)
-  }, [initialTasks])
+  }
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
   const [selectedMilestone, setSelectedMilestone] = useState<string>('all')
   const [selectedAssignee, setSelectedAssignee] = useState<string>('all')

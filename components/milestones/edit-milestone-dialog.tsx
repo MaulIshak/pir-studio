@@ -1,10 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { createMilestone } from '@/actions/milestones'
+import { useState, useEffect } from 'react'
+import { updateMilestone } from '@/actions/milestones'
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -13,16 +12,23 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Plus } from '@phosphor-icons/react/dist/ssr'
+import type { MilestoneItem } from './milestone-list'
 
-interface CreateMilestoneDialogProps {
+interface EditMilestoneDialogProps {
+  milestone: MilestoneItem | null
   projectId: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
   onSuccess?: (milestone?: any) => void
-  trigger?: React.ReactNode
 }
 
-export function CreateMilestoneDialog({ projectId, onSuccess, trigger }: CreateMilestoneDialogProps) {
-  const [open, setOpen] = useState(false)
+export function EditMilestoneDialog({
+  milestone,
+  projectId,
+  open,
+  onOpenChange,
+  onSuccess,
+}: EditMilestoneDialogProps) {
   const [title, setTitle] = useState('')
   const [startDate, setStartDate] = useState('')
   const [dueDate, setDueDate] = useState('')
@@ -30,8 +36,20 @@ export function CreateMilestoneDialog({ projectId, onSuccess, trigger }: CreateM
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (milestone && open) {
+      setTitle(milestone.title)
+      setStartDate(milestone.start_date || '')
+      setDueDate(milestone.due_date || '')
+      setStatus(milestone.status)
+      setError(null)
+    }
+  }, [milestone, open])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!milestone) return
+
     if (!title.trim()) {
       setError('Title is required')
       return
@@ -45,8 +63,7 @@ export function CreateMilestoneDialog({ projectId, onSuccess, trigger }: CreateM
     setLoading(true)
     setError(null)
 
-    const res = await createMilestone({
-      project_id: projectId,
+    const res = await updateMilestone(milestone.id, projectId, {
       title: title.trim(),
       start_date: startDate || null,
       due_date: dueDate || null,
@@ -60,28 +77,17 @@ export function CreateMilestoneDialog({ projectId, onSuccess, trigger }: CreateM
       return
     }
 
-    setTitle('')
-    setStartDate('')
-    setDueDate('')
-    setStatus('not_started')
-    setOpen(false)
+    onOpenChange(false)
     onSuccess?.(res.milestone)
   }
 
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger ? (trigger as React.ReactElement) : <Button size="sm" />}>
-        {!trigger && (
-          <>
-            <Plus className="size-3.5" />
-            New Milestone
-          </>
-        )}
-      </DialogTrigger>
+  if (!milestone) return null
 
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold">New Milestone</DialogTitle>
+          <DialogTitle className="text-base font-semibold">Edit Milestone</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 pt-2">
@@ -150,13 +156,13 @@ export function CreateMilestoneDialog({ projectId, onSuccess, trigger }: CreateM
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange(false)}
               disabled={loading}
             >
               Cancel
             </Button>
             <Button type="submit" size="sm" disabled={loading}>
-              {loading ? 'Creating...' : 'Create'}
+              {loading ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </form>

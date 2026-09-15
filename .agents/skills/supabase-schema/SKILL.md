@@ -51,6 +51,7 @@ milestones (
   id uuid primary key default gen_random_uuid(),
   project_id uuid references projects(id) on delete cascade,
   title text not null,
+  start_date date,
   due_date date,
   status text check (status in ('not_started','in_progress','done')) default 'not_started'
 )

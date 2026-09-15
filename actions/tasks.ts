@@ -147,7 +147,7 @@ export async function updateTask(
   return { success: true, task: data }
 }
 
-export async function deleteTask(taskId: string, projectId: string) {
+export async function deleteTask(taskId: string, _projectId?: string) {
   const supabase = await createClient()
   const { error } = await supabase.from('tasks').delete().eq('id', taskId)
 
@@ -162,21 +162,31 @@ export async function deleteTask(taskId: string, projectId: string) {
   return { success: true }
 }
 
-export async function getTasksByProjectId(projectId: string) {
+import type { TaskItem } from '@/components/tasks/task-card'
+
+interface SubtaskSortItem {
+  created_at?: string
+  position?: number
+  [key: string]: unknown
+}
+
+interface TaskWithSubtasksRecord {
+  id: string
+  title: string
+  subtasks?: SubtaskSortItem[]
+  [key: string]: unknown
+}
+
+export async function getTasksByProjectId(projectId: string): Promise<TaskItem[]> {
   const supabase = await createClient()
+
   const { data, error } = await supabase
     .from('tasks')
     .select(`
       *,
       profiles:assignee_id(id, name, avatar_url),
       milestones:milestone_id(id, title),
-      subtasks (*),
-      assets(
-        *,
-        asset_bundles:bundle_id (id, name, drive_file_id, file_name),
-        asset_references (id, asset_id, drive_file_id, file_name, created_at),
-        profiles:uploaded_by (name, email, avatar_url)
-      )
+      subtasks(id, task_id, title, status, created_at, position)
     `)
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
@@ -190,17 +200,17 @@ export async function getTasksByProjectId(projectId: string) {
       .order('created_at', { ascending: false })
 
     if (!fallback.error && fallback.data) {
-      return (fallback.data as any[]).map((t) => ({
+      return ((fallback.data as unknown as TaskWithSubtasksRecord[]).map((t) => ({
         ...t,
-        subtasks: ((t as any).subtasks || []).sort(
-          (a: { created_at?: string; position?: number }, b: { created_at?: string; position?: number }) => {
+        subtasks: (t.subtasks || []).sort(
+          (a: SubtaskSortItem, b: SubtaskSortItem) => {
             if (a.position !== undefined && b.position !== undefined && a.position !== b.position) {
               return a.position - b.position
             }
             return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
           }
         ),
-      }))
+      })) as unknown as TaskItem[])
     }
 
     const basicFallback = await supabase
@@ -209,16 +219,16 @@ export async function getTasksByProjectId(projectId: string) {
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
 
-    return ((basicFallback.data as any[]) ?? []).map((t) => ({
+    return (((basicFallback.data as unknown as TaskWithSubtasksRecord[]) ?? []).map((t) => ({
       ...t,
       subtasks: [],
-    }))
+    })) as unknown as TaskItem[])
   }
 
-  const formatted = (data ?? []).map((t) => ({
+  const formatted = ((data as unknown as TaskWithSubtasksRecord[]) ?? []).map((t) => ({
     ...t,
-    subtasks: ((t as any).subtasks || []).sort(
-      (a: { created_at?: string; position?: number }, b: { created_at?: string; position?: number }) => {
+    subtasks: (t.subtasks || []).sort(
+      (a: SubtaskSortItem, b: SubtaskSortItem) => {
         if (a.position !== undefined && b.position !== undefined && a.position !== b.position) {
           return a.position - b.position
         }
@@ -227,10 +237,10 @@ export async function getTasksByProjectId(projectId: string) {
     ),
   }))
 
-  return formatted
+  return (formatted as unknown as TaskItem[])
 }
 
-export async function createSubtask(taskId: string, title: string, projectId?: string) {
+export async function createSubtask(taskId: string, title: string, _projectId?: string) {
   if (!title.trim()) {
     return { error: 'Subtask title is required' }
   }
@@ -260,7 +270,7 @@ export async function createSubtask(taskId: string, title: string, projectId?: s
 export async function updateSubtaskStatus(
   subtaskId: string,
   status: 'todo' | 'done',
-  projectId?: string
+  _projectId?: string
 ) {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -284,7 +294,7 @@ export async function updateSubtaskStatus(
 export async function updateSubtaskTitle(
   subtaskId: string,
   title: string,
-  projectId?: string
+  _projectId?: string
 ) {
   if (!title.trim()) {
     return { error: 'Title is required' }
@@ -306,7 +316,7 @@ export async function updateSubtaskTitle(
   return { success: true, subtask: data as SubtaskItem }
 }
 
-export async function deleteSubtask(subtaskId: string, projectId?: string) {
+export async function deleteSubtask(subtaskId: string, _projectId?: string) {
   const supabase = await createClient()
   const { error } = await supabase.from('subtasks').delete().eq('id', subtaskId)
 

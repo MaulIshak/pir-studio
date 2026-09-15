@@ -157,7 +157,7 @@ export async function getProjectById(projectId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('projects')
-    .select('*, tasks(*), milestones(*)')
+    .select('*, tasks(*), milestones(*), assets(id, status, type), credits(id, license), artifact_links(id, type)')
     .eq('id', projectId)
     .single()
 
@@ -172,7 +172,7 @@ export async function getProjectBySlug(slug: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('projects')
-    .select('*, tasks(*), milestones(*)')
+    .select('*, tasks(*), milestones(*), assets(id, status, type), credits(id, license), artifact_links(id, type)')
     .eq('slug', slug)
     .single()
 

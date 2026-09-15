@@ -16,6 +16,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -135,8 +136,6 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
 
     if (initialProjects.length === 0) {
       fetchNavProjects()
-    } else {
-      setIsLoadingProjects(false)
     }
 
     // Subscribe to realtime changes on projects table
@@ -165,10 +164,12 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
     const match = pathname.match(/^\/projects\/([^/]+)/)
     if (match && match[1] && match[1] !== 'new') {
       const activeSlug = match[1]
-      setOpenProjects((prev) => ({
-        ...prev,
-        [activeSlug]: true,
-      }))
+      queueMicrotask(() => {
+        setOpenProjects((prev) => (prev[activeSlug] ? prev : {
+          ...prev,
+          [activeSlug]: true,
+        }))
+      })
     }
   }, [pathname])
 
@@ -355,14 +356,21 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
                       className="group/collapsible"
                     >
                       <SidebarMenuItem>
-                        <CollapsibleTrigger
+                        <SidebarMenuButton
                           render={
-                            <SidebarMenuButton
-                              isActive={isProjectRoute}
-                              tooltip={project.name}
-                              className="w-full justify-between"
+                            <Link
+                              href={`/projects/${project.slug}`}
+                              onClick={() => {
+                                handleLinkClick()
+                                setOpenProjects((prev) => ({
+                                  ...prev,
+                                  [project.slug]: true,
+                                }))
+                              }}
                             />
                           }
+                          isActive={pathname === `/projects/${project.slug}`}
+                          tooltip={project.name}
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             {project.type === 'jam' ? (
@@ -376,22 +384,30 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
                               {project.name}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span
-                              className={`size-1.5 rounded-full ${
-                                project.status === 'active'
-                                  ? 'bg-emerald-500'
-                                  : project.status === 'completed'
-                                    ? 'bg-blue-500'
-                                    : 'bg-slate-400'
-                              }`}
-                            />
-                            <CaretRight
-                              className={`size-3 text-muted-foreground transition-transform duration-200 ${
+                          <span
+                            className={`size-1.5 rounded-full shrink-0 ${
+                              project.status === 'active'
+                                ? 'bg-emerald-500'
+                                : project.status === 'completed'
+                                  ? 'bg-blue-500'
+                                  : 'bg-slate-400'
+                            }`}
+                            title={`Status: ${project.status}`}
+                          />
+                        </SidebarMenuButton>
+
+                        <CollapsibleTrigger
+                          render={
+                            <SidebarMenuAction
+                              className={`transition-transform duration-200 ${
                                 isOpen ? 'rotate-90' : ''
                               }`}
+                              showOnHover={false}
                             />
-                          </div>
+                          }
+                        >
+                          <CaretRight className="size-3 text-muted-foreground" />
+                          <span className="sr-only">Toggle {project.name} menu</span>
                         </CollapsibleTrigger>
 
                         <CollapsibleContent>
