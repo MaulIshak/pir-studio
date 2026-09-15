@@ -102,6 +102,13 @@ function getDueInfo(dueDate: string | null, status: MilestoneItem['status']) {
   return { label: `Due in ${diffDays}d`, className: 'text-muted-foreground' }
 }
 
+function formatToLocalDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 const DAY_WIDTH = 48 // Width of each single day column in pixels
 const DAY_MS = 86400000
 
@@ -197,12 +204,16 @@ export function MilestoneList({
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayTime = today.getTime()
-  const todayStr = today.toISOString().split('T')[0]
+  const todayStr = formatToLocalDateStr(today)
 
   const deadlineDate = projectDeadline ? new Date(projectDeadline) : null
   if (deadlineDate) deadlineDate.setHours(0, 0, 0, 0)
   const deadlineTime = deadlineDate ? deadlineDate.getTime() : null
-  const deadlineStr = projectDeadline || null
+  const deadlineStr = projectDeadline
+    ? projectDeadline.includes('T')
+      ? formatToLocalDateStr(new Date(projectDeadline))
+      : projectDeadline
+    : null
 
   let minTime = projectStartDate ? new Date(projectStartDate).getTime() : todayTime - 7 * DAY_MS
   let maxTime = deadlineTime ? deadlineTime : todayTime + 30 * DAY_MS
@@ -251,7 +262,7 @@ export function MilestoneList({
 
   for (let i = 0; i < totalDays; i++) {
     const cur = new Date(minDate.getTime() + i * DAY_MS)
-    const curStr = cur.toISOString().split('T')[0]
+    const curStr = formatToLocalDateStr(cur)
     calendarDays.push({
       date: cur,
       dateStr: curStr,
@@ -319,7 +330,7 @@ export function MilestoneList({
   const scrollToDeadline = () => {
     if (scrollContainerRef.current && deadlineIndex >= 0) {
       scrollContainerRef.current.scrollTo({
-        left: Math.max(0, deadlineIndex * DAY_WIDTH - 200),
+        left: Math.max(0, (deadlineIndex + 1) * DAY_WIDTH - 200),
         behavior: 'smooth',
       })
       setIsHoveringDeadline(true)
@@ -385,7 +396,7 @@ export function MilestoneList({
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
-          className="rounded-lg border bg-card shadow-xs overflow-hidden"
+          className="w-full min-w-0 rounded-lg border bg-card shadow-xs overflow-hidden"
         >
           {/* Quick Toolbar (Jump Controls & Timeline Info) */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 sm:px-4 py-2 bg-muted/20 text-xs text-muted-foreground">
@@ -432,9 +443,9 @@ export function MilestoneList({
           >
             <div className="flex flex-col min-w-max">
               {/* Header: Left Pinned Title + Right Days Ruler */}
-              <div className="flex border-b bg-muted/60 sticky top-0 z-30">
+              <div className="flex border-b bg-muted/60 sticky top-0 z-10">
                 {/* Pinned Left Header Column: Phase / Milestone */}
-                <div className="w-36 sm:w-72 shrink-0 border-r px-2.5 sm:px-4 py-3 font-semibold text-xs text-foreground bg-muted sticky left-0 z-40 flex items-center justify-between shadow-[2px_0_8px_-2px_rgba(0,0,0,0.1)]">
+                <div className="w-36 sm:w-56 md:w-64 shrink-0 border-r px-2.5 sm:px-4 py-3 font-semibold text-xs text-foreground bg-muted sticky left-0 z-[11] flex items-center justify-between shadow-[2px_0_8px_-2px_rgba(0,0,0,0.1)]">
                   <span className="truncate">Phase</span>
                   <span className="text-[10px] font-mono font-normal text-muted-foreground hidden sm:inline">
                     {milestones.length} phases
@@ -462,21 +473,15 @@ export function MilestoneList({
                       <div
                         key={day.dateStr}
                         style={{ width: `${DAY_WIDTH}px` }}
-                        onMouseEnter={() => day.isDeadline && setIsHoveringDeadline(true)}
-                        onMouseLeave={() => day.isDeadline && setIsHoveringDeadline(false)}
                         className={`flex flex-col items-center justify-center py-1.5 border-r border-border/40 shrink-0 text-center transition-colors ${
                           day.isToday
                             ? 'bg-primary/10 font-bold text-primary'
-                            : day.isDeadline
-                            ? 'bg-destructive/10 font-bold text-destructive cursor-help'
                             : day.isWeekend
                             ? 'bg-muted/30 text-muted-foreground/70'
                             : 'text-muted-foreground'
                         }`}
                         title={
-                          day.isDeadline
-                            ? `Project Deadline: ${formatDate(projectDeadline)}`
-                            : day.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+                          day.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
                         }
                       >
                         <span className="text-[10px] uppercase font-mono tracking-tighter leading-none">
@@ -486,10 +491,6 @@ export function MilestoneList({
                           className={`mt-0.5 text-xs font-mono leading-none ${
                             day.isToday
                               ? 'flex size-4.5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px]'
-                              : day.isDeadline
-                              ? `flex size-4.5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] transition-all ${
-                                  isHoveringDeadline ? 'ring-2 ring-destructive ring-offset-2 scale-110 shadow-sm' : ''
-                                }`
                               : ''
                           }`}
                         >
@@ -498,24 +499,50 @@ export function MilestoneList({
                       </div>
                     ))}
 
-                    {/* Project Deadline Floating Badge in Header (Shown only on hover) */}
+                    {/* Project Deadline Marker in Header on the dividing line between deadline day and next day */}
                     {deadlineIndex >= 0 && (
-                      <div
-                        onMouseEnter={() => setIsHoveringDeadline(true)}
-                        onMouseLeave={() => setIsHoveringDeadline(false)}
-                        className={`absolute -top-3.5 -translate-x-1/2 flex flex-col items-center z-50 pointer-events-auto cursor-help transition-all duration-150 ${
-                          isHoveringDeadline
-                            ? 'opacity-100 translate-y-0 scale-100'
-                            : 'opacity-0 translate-y-1 scale-95 pointer-events-none'
-                        }`}
-                        style={{ left: `${deadlineIndex * DAY_WIDTH + DAY_WIDTH / 2}px` }}
-                      >
-                        <span className="flex items-center gap-1 rounded-md bg-destructive px-2 py-0.5 font-mono text-[10px] font-bold text-destructive-foreground shadow-md whitespace-nowrap">
-                          <Flag className="size-3 shrink-0" weight="fill" />
-                          Project Deadline ({formatDate(projectDeadline)})
-                        </span>
-                        <span className="size-1.5 rotate-45 bg-destructive -mt-0.5" />
-                      </div>
+                      <>
+                        {/* Floating tooltip badge */}
+                        <div
+                          onMouseEnter={() => setIsHoveringDeadline(true)}
+                          onMouseLeave={() => setIsHoveringDeadline(false)}
+                          className={`absolute -top-3.5 -translate-x-1/2 flex flex-col items-center z-50 pointer-events-auto cursor-help transition-all duration-150 ${
+                            isHoveringDeadline
+                              ? 'opacity-100 translate-y-0 scale-100'
+                              : 'opacity-0 translate-y-1 scale-95 pointer-events-none'
+                          }`}
+                          style={{ left: `${(deadlineIndex + 1) * DAY_WIDTH}px` }}
+                        >
+                          <span className="flex items-center gap-1 rounded-md bg-destructive px-2 py-0.5 font-mono text-[10px] font-bold text-destructive-foreground shadow-md whitespace-nowrap">
+                            <Flag className="size-3 shrink-0" weight="fill" />
+                            Project Deadline ({formatDate(projectDeadline)})
+                          </span>
+                          <span className="size-1.5 rotate-45 bg-destructive -mt-0.5" />
+                        </div>
+
+                        {/* Pin marker sitting right on the border line between days */}
+                        <div
+                          onMouseEnter={() => setIsHoveringDeadline(true)}
+                          onMouseLeave={() => setIsHoveringDeadline(false)}
+                          className="absolute top-1 bottom-0 -translate-x-1/2 z-20 flex flex-col items-center cursor-help pointer-events-auto"
+                          style={{ left: `${(deadlineIndex + 1) * DAY_WIDTH}px` }}
+                          title={`Project Deadline: ${formatDate(projectDeadline)}`}
+                        >
+                          <div
+                            className={`flex size-4.5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm transition-all ${
+                              isHoveringDeadline ? 'ring-2 ring-destructive ring-offset-2 scale-110 shadow-md' : ''
+                            }`}
+                          >
+                            <Flag className="size-2.5 shrink-0" weight="fill" />
+                          </div>
+                          {/* Dashed line continuing down through header */}
+                          <div
+                            className={`flex-1 w-0.5 border-l-2 border-dashed border-destructive transition-all ${
+                              isHoveringDeadline ? 'opacity-100 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'opacity-80'
+                            }`}
+                          />
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -532,26 +559,27 @@ export function MilestoneList({
                   const isActiveToday = isMilestoneActiveToday(milestone)
 
                   // Compute start & end index on the day grid
-                  const mStartTime = milestone.start_date
-                    ? new Date(milestone.start_date).getTime()
-                    : milestone.due_date
-                    ? new Date(milestone.due_date).getTime() - 7 * DAY_MS
-                    : minDate.getTime()
+                  const getDayIndex = (dateStr?: string | null) => {
+                    if (!dateStr) return -1
+                    const clean = dateStr.includes('T') ? formatToLocalDateStr(new Date(dateStr)) : dateStr
+                    return calendarDays.findIndex((d) => d.dateStr === clean)
+                  }
 
-                  const mEndTime = milestone.due_date
-                    ? new Date(milestone.due_date).getTime()
-                    : milestone.start_date
-                    ? new Date(milestone.start_date).getTime() + 7 * DAY_MS
-                    : mStartTime + 7 * DAY_MS
+                  let startDayIndex = getDayIndex(milestone.start_date)
+                  let endDayIndex = getDayIndex(milestone.due_date)
 
-                  const startDayIndex = Math.max(
-                    0,
-                    Math.min(calendarDays.length - 1, Math.floor((mStartTime - minDate.getTime()) / DAY_MS))
-                  )
-                  const endDayIndex = Math.max(
-                    startDayIndex,
-                    Math.min(calendarDays.length - 1, Math.floor((mEndTime - minDate.getTime()) / DAY_MS))
-                  )
+                  if (startDayIndex === -1 && endDayIndex === -1) {
+                    startDayIndex = 0
+                    endDayIndex = Math.min(6, calendarDays.length - 1)
+                  } else if (startDayIndex === -1 && endDayIndex !== -1) {
+                    startDayIndex = Math.max(0, endDayIndex - 7)
+                  } else if (startDayIndex !== -1 && endDayIndex === -1) {
+                    endDayIndex = Math.min(calendarDays.length - 1, startDayIndex + 7)
+                  }
+
+                  if (startDayIndex > endDayIndex) {
+                    endDayIndex = startDayIndex
+                  }
 
                   const barLeft = startDayIndex * DAY_WIDTH + 2
                   const barWidth = Math.max(DAY_WIDTH - 4, (endDayIndex - startDayIndex + 1) * DAY_WIDTH - 4)
@@ -564,7 +592,7 @@ export function MilestoneList({
                       }`}
                     >
                       {/* Pinned Left Details Column */}
-                      <div className="w-36 sm:w-72 shrink-0 border-r px-2.5 sm:px-4 py-2 bg-card sticky left-0 z-30 flex items-center justify-between shadow-[4px_0_12px_-2px_rgba(0,0,0,0.12)]">
+                      <div className="w-36 sm:w-56 md:w-64 shrink-0 border-r px-2.5 sm:px-4 py-2 bg-card sticky left-0 z-[9] flex items-center justify-between shadow-[4px_0_12px_-2px_rgba(0,0,0,0.12)]">
                         <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1">
                           <span
                             className={`size-2 sm:size-2.5 rounded-full shrink-0 ${
@@ -670,7 +698,7 @@ export function MilestoneList({
                             onMouseEnter={() => setIsHoveringDeadline(true)}
                             onMouseLeave={() => setIsHoveringDeadline(false)}
                             className="absolute top-0 bottom-0 -translate-x-1/2 z-2 cursor-help flex justify-center w-4"
-                            style={{ left: `${deadlineIndex * DAY_WIDTH + DAY_WIDTH / 2}px` }}
+                            style={{ left: `${(deadlineIndex + 1) * DAY_WIDTH}px` }}
                           >
                             <div
                               className={`h-full w-0.5 border-l-2 border-dashed border-destructive transition-all ${

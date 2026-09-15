@@ -23,7 +23,7 @@ export function AppShell({ children }: AppShellProps) {
         <AppSidebar />
         <SidebarInset>
           <TopNavBar />
-          <div className="flex-1 overflow-x-hidden">{children}</div>
+          <div className="flex-1 min-w-0 overflow-x-hidden">{children}</div>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

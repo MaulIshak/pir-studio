@@ -6,16 +6,20 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
+import { REMEMBER_ME_COOKIE_NAME, REMEMBER_ME_MAX_AGE } from '@/lib/supabase/constants'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   CircleNotch,
   WarningCircle,
+  ShieldCheck,
 } from '@phosphor-icons/react'
 
 function LoginContent() {
   const searchParams = useSearchParams()
   const errorParam = searchParams.get('error')
   const [loading, setLoading] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(
     errorParam ? 'Authentication failed. Please try again.' : null
   )
@@ -25,15 +29,18 @@ function LoginContent() {
     setErrorMessage(null)
 
     try {
+      // Store remember-me preference in cookie before redirecting
+      document.cookie = `${REMEMBER_ME_COOKIE_NAME}=${rememberMe ? 'true' : 'false'}; path=/; max-age=${rememberMe ? REMEMBER_ME_MAX_AGE : 86400}; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`
+
       const supabase = createClient()
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/api/auth/callback`,
+          redirectTo: `${window.location.origin}/api/auth/callback?remember=${rememberMe ? 'true' : 'false'}`,
           scopes: 'https://www.googleapis.com/auth/drive.file',
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent',
+            prompt: 'select_account',
           },
         },
       })
@@ -129,6 +136,25 @@ function LoginContent() {
               </>
             )}
           </button>
+
+          {/* Remember Me Option (3 Months) */}
+          <div className="flex items-center justify-between px-1 py-1">
+            <label
+              htmlFor="remember-me"
+              className="flex items-center gap-2.5 cursor-pointer text-xs text-muted-foreground select-none hover:text-foreground transition-colors"
+            >
+              <Checkbox
+                id="remember-me"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(!!checked)}
+              />
+              <span>Remember me for 3 months</span>
+            </label>
+            <span className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground/80 bg-muted/60 px-2 py-0.5 border border-border/50">
+              <ShieldCheck className="size-3 text-emerald-500 shrink-0" />
+              90 Days
+            </span>
+          </div>
         </div>
 
         {/* Legal Footer Links */}

@@ -29,7 +29,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 sm:gap-6 px-3.5 py-4 sm:p-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5 sm:gap-6 px-3.5 py-4 sm:p-6">
       {/* Top Header */}
       <div className="flex flex-col justify-between gap-4 border-b pb-4 sm:pb-6 sm:flex-row sm:items-center">
         <div className="flex flex-col gap-2 min-w-0">
