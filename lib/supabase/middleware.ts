@@ -33,6 +33,11 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
+  // Always pass through requests for files with extensions (public/ assets, robots.txt, sitemap, etc.)
+  if (/\.[a-zA-Z0-9]+$/.test(pathname)) {
+    return supabaseResponse
+  }
+
   // Public routes that don't require authentication
   const isPublicRoute =
     pathname === '/login' ||
