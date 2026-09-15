@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -17,12 +17,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Package, UploadSimple, MagnifyingGlass, CircleNotch } from '@phosphor-icons/react'
-import {
-  Asset,
-  getAssetUploadSession,
-  recordAssetBundleAfterUpload,
-} from '@/actions/assets'
-import { uploadDirectToDrive } from '@/lib/gdrive/client-upload'
+import { Asset, uploadAssetBundle } from '@/actions/assets'
+
+const MAX_FILE_SIZE = 4.5 * 1024 * 1024 // 4.5 MB Vercel Serverless limit
 
 interface UploadBundleDialogProps {
   projectId: string
@@ -37,8 +34,7 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
-  const [progress, setProgress] = useState<number | null>(null)
+  const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
   const filteredAssets = assets.filter((asset) => {
@@ -73,8 +69,19 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
     setFile(null)
     setSelectedAssetIds([])
     setError(null)
-    setIsUploading(false)
-    setProgress(null)
+    setSearchQuery('')
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setError(null)
+    const selected = e.target.files?.[0] || null
+    if (selected && selected.size > MAX_FILE_SIZE) {
+      setError(`File size (${(selected.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel limit of 4.5 MB.`)
+      setFile(null)
+      e.target.value = ''
+      return
+    }
+    setFile(selected)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -91,68 +98,38 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
       return
     }
 
+    if (file.size > MAX_FILE_SIZE) {
+      setError(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel limit of 4.5 MB.`)
+      return
+    }
+
     if (selectedAssetIds.length === 0) {
       setError('Please select at least one asset item to include in this bundle.')
       return
     }
 
-    try {
-      setIsUploading(true)
-      setProgress(0)
+    const formData = new FormData()
+    formData.set('name', name.trim())
+    formData.set('file', file)
+    selectedAssetIds.forEach((id) => formData.append('asset_ids', id))
 
-      // 1. Get Resumable Upload Session (0 MB Vercel payload)
-      const sessionRes = await getAssetUploadSession({
-        projectId,
-        fileName: file.name,
-        mimeType: file.type || 'application/octet-stream',
-        fileSize: file.size,
-        subfolder: 'Assets',
-      })
-
-      if (!sessionRes.success || !sessionRes.uploadUrl) {
-        throw new Error(sessionRes.error || 'Failed to initialize Google Drive upload session')
+    startTransition(async () => {
+      const res = await uploadAssetBundle(projectId, formData)
+      if (res.success) {
+        resetState()
+        setOpen(false)
+        router.refresh()
+      } else {
+        setError(res.error || 'Bundle upload failed')
       }
-
-      // 2. Direct upload from browser to Google Drive
-      const driveRes = await uploadDirectToDrive(sessionRes.uploadUrl, file, (p) => {
-        setProgress(p)
-      })
-
-      if (!driveRes.id) {
-        throw new Error('Google Drive upload did not return a valid file ID')
-      }
-
-      // 3. Record bundle in database and link selected assets
-      const recordRes = await recordAssetBundleAfterUpload({
-        projectId,
-        name: name.trim(),
-        driveFileId: driveRes.id,
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType: file.type,
-        assetIds: selectedAssetIds,
-      })
-
-      if (!recordRes.success) {
-        throw new Error(recordRes.error || 'Failed to record bundle in database')
-      }
-
-      resetState()
-      setOpen(false)
-      router.refresh()
-    } catch (err: unknown) {
-      console.error('Failed to upload atlas/bundle:', err)
-      setError(err instanceof Error ? err.message : 'Bundle upload failed')
-      setIsUploading(false)
-      setProgress(null)
-    }
+    })
   }
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!isUploading) {
+        if (!isPending) {
           setOpen(next)
           if (!next) resetState()
         }
@@ -174,7 +151,7 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
             <span>Upload Atlas / Asset Bundle</span>
           </DialogTitle>
           <DialogDescription>
-            Streams composite files (Texture Atlas, Sprite Sheet, or Sound Pack) directly to Google Drive.
+            Upload composite files (Texture Atlas, Sprite Sheet, or Sound Pack) to Google Drive (Max 4.5 MB).
           </DialogDescription>
         </DialogHeader>
 
@@ -194,7 +171,7 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
                 id="bundleName"
                 placeholder="e.g. UI Elements Texture Atlas"
                 value={name}
-                disabled={isUploading}
+                disabled={isPending}
                 onChange={(e) => setName(e.target.value)}
                 required
               />
@@ -207,8 +184,8 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
               <Input
                 id="bundleFile"
                 type="file"
-                disabled={isUploading}
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                disabled={isPending}
+                onChange={handleFileChange}
                 required
               />
               {file && (
@@ -234,7 +211,7 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
                 variant="ghost"
                 size="xs"
                 onClick={handleSelectAllFiltered}
-                disabled={isUploading}
+                disabled={isPending}
                 className="text-xs h-6 px-2"
               >
                 {filteredAssets.length > 0 &&
@@ -250,7 +227,7 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
               <Input
                 placeholder="Search assets by name, type, or task..."
                 value={searchQuery}
-                disabled={isUploading}
+                disabled={isPending}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 h-8 text-xs"
               />
@@ -277,7 +254,7 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
                       <div className="flex items-center gap-2.5">
                         <Checkbox
                           checked={isChecked}
-                          disabled={isUploading}
+                          disabled={isPending}
                           onCheckedChange={() => toggleAsset(asset.id)}
                         />
                         <div className="flex flex-col">
@@ -307,37 +284,18 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
             </div>
           </div>
 
-          {/* Progress bar */}
-          {isUploading && (
-            <div className="flex flex-col gap-1.5 rounded-lg border border-border/80 bg-secondary/30 p-3 text-xs">
-              <div className="flex items-center justify-between font-medium">
-                <span className="flex items-center gap-1.5 text-foreground">
-                  <CircleNotch className="size-3.5 animate-spin text-primary" />
-                  Streaming bundle to Google Drive ({progress ?? 0}%)...
-                </span>
-                <span className="font-mono text-muted-foreground">{progress ?? 0}%</span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                <div
-                  className="h-full bg-primary transition-all duration-200"
-                  style={{ width: `${progress ?? 5}%` }}
-                />
-              </div>
-            </div>
-          )}
-
           <DialogFooter className="pt-1">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setOpen(false)}
-              disabled={isUploading}
+              disabled={isPending}
             >
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={isUploading || selectedAssetIds.length === 0 || !file}>
-              {isUploading ? (
+            <Button type="submit" size="sm" disabled={isPending || selectedAssetIds.length === 0 || !file}>
+              {isPending ? (
                 <>
                   <CircleNotch className="size-4 animate-spin" />
                   Uploading to Drive...

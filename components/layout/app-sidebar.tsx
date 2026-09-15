@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useState, useRef, useTransition } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getAllProjectsForNav, type NavProject } from '@/actions/projects'
+import { PROJECTS_CHANGED_EVENT } from '@/lib/events'
 import {
   Sidebar,
   SidebarContent,
@@ -40,6 +41,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
 import {
   SquaresFour,
@@ -58,7 +62,12 @@ import {
   Trophy,
   Folder,
   CheckCircle,
+  Sun,
+  Moon,
+  Desktop,
+  Check,
 } from '@phosphor-icons/react'
+import { useTheme } from 'next-themes'
 import type { User } from '@supabase/supabase-js'
 
 interface AppSidebarProps {
@@ -69,6 +78,7 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { setOpenMobile, isMobile } = useSidebar()
+  const { theme, setTheme } = useTheme()
   const [user, setUser] = useState<User | null>(null)
   const [hasDriveToken, setHasDriveToken] = useState<boolean | null>(null)
   const [projects, setProjects] = useState<NavProject[]>(initialProjects)
@@ -76,6 +86,8 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [openProjects, setOpenProjects] = useState<Record<string, boolean>>({})
   const [, startTransition] = useTransition()
+  const projectsRef = useRef(projects)
+  projectsRef.current = projects
   const supabase = createClient()
 
   // Load user & Drive token
@@ -117,7 +129,7 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
     }
   }, [supabase])
 
-  // Fetch navigation projects & subscribe to realtime changes
+  // Fetch navigation projects & subscribe to realtime changes & local project events
   useEffect(() => {
     let isMounted = true
 
@@ -138,7 +150,35 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
       fetchNavProjects()
     }
 
-    // Subscribe to realtime changes on projects table
+    // 1. Instant local event synchronization (fired immediately on project create/edit/archive)
+    const handleProjectsChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<NavProject | undefined>
+      const newProject = customEvent.detail
+
+      if (newProject) {
+        // Optimistic instant addition to sidebar list
+        setProjects((prev) => {
+          if (prev.some((p) => p.id === newProject.id || p.slug === newProject.slug)) {
+            return prev.map((p) => (p.id === newProject.id ? newProject : p))
+          }
+          return [newProject, ...prev]
+        })
+        setOpenProjects((prev) => ({ ...prev, [newProject.slug]: true }))
+      }
+
+      // Re-fetch in background to ensure database consistency
+      startTransition(async () => {
+        const fresh = await getAllProjectsForNav()
+        if (isMounted) {
+          setProjects(fresh)
+          setIsLoadingProjects(false)
+        }
+      })
+    }
+
+    window.addEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged)
+
+    // 2. Subscribe to realtime changes on projects table (cross-tab / multi-user sync)
     const channel = supabase
       .channel('sidebar-projects-sync')
       .on(
@@ -147,7 +187,7 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
         () => {
           startTransition(async () => {
             const fresh = await getAllProjectsForNav()
-            setProjects(fresh)
+            if (isMounted) setProjects(fresh)
           })
         }
       )
@@ -156,10 +196,11 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
     return () => {
       isMounted = false
       supabase.removeChannel(channel)
+      window.removeEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged)
     }
   }, [supabase, initialProjects.length])
 
-  // Automatically expand project when route matches
+  // Automatically expand project when route matches, and fetch if active project is missing
   useEffect(() => {
     const match = pathname.match(/^\/projects\/([^/]+)/)
     if (match && match[1] && match[1] !== 'new') {
@@ -170,6 +211,15 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
           [activeSlug]: true,
         }))
       })
+
+      // If active project is not yet loaded into sidebar projects, fetch immediately
+      const currentList = projectsRef.current
+      if (currentList.length > 0 && !currentList.some((p) => p.slug === activeSlug || p.id === activeSlug)) {
+        startTransition(async () => {
+          const fresh = await getAllProjectsForNav()
+          setProjects(fresh)
+        })
+      }
     }
   }, [pathname])
 
@@ -509,6 +559,54 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
                       <CheckCircle className="ml-auto size-3 text-emerald-500" />
                     )}
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="flex items-center gap-2 text-xs cursor-pointer">
+                      {theme === 'dark' ? (
+                        <Moon className="size-3.5 text-muted-foreground" />
+                      ) : theme === 'light' ? (
+                        <Sun className="size-3.5 text-muted-foreground" />
+                      ) : (
+                        <Desktop className="size-3.5 text-muted-foreground" />
+                      )}
+                      <span>Theme</span>
+                      <span className="text-[10px] capitalize text-muted-foreground font-mono mr-1">
+                        {theme || 'system'}
+                      </span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-36">
+                      <DropdownMenuItem
+                        onClick={() => setTheme('light')}
+                        className="flex items-center justify-between text-xs cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Sun className="size-3.5" />
+                          <span>Light</span>
+                        </div>
+                        {theme === 'light' && <Check className="size-3 text-primary font-bold" />}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setTheme('dark')}
+                        className="flex items-center justify-between text-xs cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Moon className="size-3.5" />
+                          <span>Dark</span>
+                        </div>
+                        {theme === 'dark' && <Check className="size-3 text-primary font-bold" />}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setTheme('system')}
+                        className="flex items-center justify-between text-xs cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Desktop className="size-3.5" />
+                          <span>System</span>
+                        </div>
+                        {theme === 'system' && <Check className="size-3 text-primary font-bold" />}
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     variant="destructive"

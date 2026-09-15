@@ -1,16 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Scroll, CheckSquare, CircleNotch } from '@phosphor-icons/react'
-import {
-  getAssetUploadSession,
-  recordAssetAfterUpload,
-  AssetStatus,
-  AssetType,
-} from '@/actions/assets'
-import { uploadDirectToDrive } from '@/lib/gdrive/client-upload'
+import { createAsset, AssetStatus, AssetType } from '@/actions/assets'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -34,6 +28,8 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ClipboardImageZone } from './clipboard-image-zone'
 
+const MAX_FILE_SIZE = 4.5 * 1024 * 1024 // 4.5 MB Vercel Serverless limit
+
 interface CreateAssetDialogProps {
   projectId: string
   tasks?: Array<{ id: string; title: string }>
@@ -42,9 +38,7 @@ interface CreateAssetDialogProps {
 
 export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAssetDialogProps) {
   const [open, setOpen] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
-  const [uploadStage, setUploadStage] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
   const [name, setName] = useState('')
@@ -78,9 +72,18 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
     setCreditLicense('cc0')
     setCreditSourceUrl('')
     setError(null)
-    setIsUploading(false)
-    setUploadProgress(null)
-    setUploadStage(null)
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setError(null)
+    const selected = e.target.files?.[0] || null
+    if (selected && selected.size > MAX_FILE_SIZE) {
+      setError(`Asset file (${(selected.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel limit of 4.5 MB.`)
+      setAssetFile(null)
+      e.target.value = ''
+      return
+    }
+    setAssetFile(selected)
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -92,122 +95,58 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
       return
     }
 
-    try {
-      setIsUploading(true)
-
-      let uploadedDriveFileId: string | null = null
-      let uploadedFileName: string | null = null
-
-      // Step 1: If Asset File is attached, upload directly to Drive
-      if (assetFile) {
-        setUploadStage('Connecting to Google Drive for asset file...')
-        setUploadProgress(0)
-
-        const sessionRes = await getAssetUploadSession({
-          projectId,
-          fileName: assetFile.name,
-          mimeType: assetFile.type || 'application/octet-stream',
-          fileSize: assetFile.size,
-          subfolder: 'Assets',
-        })
-
-        if (!sessionRes.success || !sessionRes.uploadUrl) {
-          throw new Error(sessionRes.error || 'Failed to initialize Google Drive upload for asset file')
-        }
-
-        setUploadStage(`Uploading ${assetFile.name} directly to Drive...`)
-        const driveRes = await uploadDirectToDrive(sessionRes.uploadUrl, assetFile, (p) => {
-          setUploadProgress(p)
-        })
-
-        uploadedDriveFileId = driveRes.id
-        uploadedFileName = assetFile.name
-      }
-
-      // Step 2: If Reference Files are attached, upload each directly to Drive
-      const uploadedRefs: Array<{
-        driveFileId: string
-        fileName: string
-        fileSize?: number
-        mimeType?: string
-      }> = []
-
-      if (referenceFiles.length > 0) {
-        for (let i = 0; i < referenceFiles.length; i++) {
-          const refFile = referenceFiles[i]
-          setUploadStage(`Uploading reference image (${i + 1}/${referenceFiles.length})...`)
-          setUploadProgress(0)
-
-          const refSessionRes = await getAssetUploadSession({
-            projectId,
-            fileName: refFile.name || `reference_${Date.now()}_${i}.png`,
-            mimeType: refFile.type || 'image/png',
-            fileSize: refFile.size,
-            subfolder: 'Design',
-          })
-
-          if (refSessionRes.success && refSessionRes.uploadUrl) {
-            const refDriveRes = await uploadDirectToDrive(refSessionRes.uploadUrl, refFile, (p) => {
-              setUploadProgress(p)
-            })
-
-            if (refDriveRes.id) {
-              uploadedRefs.push({
-                driveFileId: refDriveRes.id,
-                fileName: refFile.name,
-                fileSize: refFile.size,
-                mimeType: refFile.type,
-              })
-            }
-          }
-        }
-      }
-
-      // Step 3: Record metadata in Supabase (tiny payload < 1KB)
-      setUploadStage('Saving asset deliverable to database...')
-      const recordRes = await recordAssetAfterUpload({
-        projectId,
-        name: name.trim(),
-        type,
-        taskId: taskId !== 'none' ? taskId : null,
-        status,
-        needsCredit,
-        notes: notes.trim() || null,
-        driveFileId: uploadedDriveFileId,
-        fileName: uploadedFileName,
-        referenceFiles: uploadedRefs,
-        creditInfo: needsCredit
-          ? {
-              sourceName: creditSourceName,
-              author: creditAuthor,
-              license: creditLicense,
-              sourceUrl: creditSourceUrl,
-            }
-          : null,
-      })
-
-      if (!recordRes.success) {
-        throw new Error(recordRes.error || 'Failed to save asset details in database')
-      }
-
-      // Success
-      resetForm()
-      setOpen(false)
-      router.refresh()
-    } catch (err: unknown) {
-      console.error('Asset creation error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to save asset. Please try again.')
-      setIsUploading(false)
-      setUploadProgress(null)
-      setUploadStage(null)
+    if (assetFile && assetFile.size > MAX_FILE_SIZE) {
+      setError(`Asset file (${(assetFile.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel limit of 4.5 MB.`)
+      return
     }
+
+    for (const refFile of referenceFiles) {
+      if (refFile.size > MAX_FILE_SIZE) {
+        setError(`Reference file "${refFile.name}" exceeds Vercel limit of 4.5 MB.`)
+        return
+      }
+    }
+
+    const formData = new FormData()
+    formData.set('projectId', projectId)
+    formData.set('name', name.trim())
+    formData.set('type', type)
+    formData.set('taskId', taskId !== 'none' ? taskId : '')
+    formData.set('status', status)
+    formData.set('needsCredit', needsCredit ? 'true' : 'false')
+    if (notes.trim()) {
+      formData.set('notes', notes.trim())
+    }
+    if (assetFile) {
+      formData.set('file', assetFile)
+    }
+    for (const refFile of referenceFiles) {
+      formData.append('reference_files', refFile)
+    }
+    if (needsCredit && creditSourceName.trim()) {
+      formData.set('credit_source_name', creditSourceName.trim())
+      formData.set('credit_author', creditAuthor.trim())
+      formData.set('credit_license', creditLicense)
+      formData.set('credit_source_url', creditSourceUrl.trim())
+    }
+
+    startTransition(async () => {
+      const res = await createAsset(formData)
+      if (res.success) {
+        resetForm()
+        setOpen(false)
+        router.refresh()
+      } else {
+        setError(res.error || 'Failed to create asset')
+      }
+    })
   }
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!isUploading) {
+        if (!isPending) {
           setOpen(next)
           if (!next) resetForm()
         }
@@ -226,7 +165,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
         <DialogHeader>
           <DialogTitle>New Asset</DialogTitle>
           <DialogDescription>
-            Add a game asset deliverable with optional visual references and direct Drive storage.
+            Add a game asset deliverable with optional visual references and Google Drive storage.
           </DialogDescription>
         </DialogHeader>
 
@@ -247,7 +186,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
               name="name"
               placeholder="e.g. Hero Walk Animation, Main Theme"
               value={name}
-              disabled={isUploading}
+              disabled={isPending}
               onChange={(e) => setName(e.target.value)}
               required
             />
@@ -259,7 +198,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
               <label className="text-xs font-semibold">Type</label>
               <Select
                 value={type}
-                disabled={isUploading}
+                disabled={isPending}
                 onValueChange={(val) => val && setType(val as AssetType)}
               >
                 <SelectTrigger>
@@ -281,7 +220,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
               <label className="text-xs font-semibold">Linked Task</label>
               <Select
                 value={taskId}
-                disabled={isUploading}
+                disabled={isPending}
                 onValueChange={(val) => val && setTaskId(val)}
               >
                 <SelectTrigger>
@@ -303,7 +242,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
               <label className="text-xs font-semibold">Status</label>
               <Select
                 value={status}
-                disabled={isUploading}
+                disabled={isPending}
                 onValueChange={(val) => val && setStatus(val as AssetStatus)}
               >
                 <SelectTrigger>
@@ -326,32 +265,29 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
                 Visual References (Optional)
               </label>
               <span className="text-[10px] text-muted-foreground">
-                Paste Ctrl+V or upload sketches
+                Paste Ctrl+V or upload sketches (Max 4.5 MB each)
               </span>
             </div>
 
             <ClipboardImageZone onFilesChange={setReferenceFiles} maxFiles={6} />
           </div>
 
-          {/* Direct-to-Drive Asset File */}
+          {/* Asset File */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <label htmlFor="file" className="text-xs font-semibold">
                 Asset File (Optional)
               </label>
               <span className="text-[10px] text-muted-foreground">
-                Streams directly to Google Drive (no size limit)
+                Google Drive storage (Max 4.5 MB)
               </span>
             </div>
             <Input
               id="file"
               name="file"
               type="file"
-              disabled={isUploading}
-              onChange={(e) => {
-                const f = e.target.files?.[0] || null
-                setAssetFile(f)
-              }}
+              disabled={isPending}
+              onChange={handleFileChange}
             />
             {assetFile && (
               <span className="text-[11px] font-mono text-muted-foreground">
@@ -365,7 +301,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
             <Checkbox
               id="needsCredit"
               checked={needsCredit}
-              disabled={isUploading}
+              disabled={isPending}
               onCheckedChange={(checked) => setNeedsCredit(checked === true)}
             />
             <label htmlFor="needsCredit" className="cursor-pointer text-xs font-medium">
@@ -397,7 +333,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
                       name="credit_source_name"
                       placeholder="e.g. Kenney Pixel UI"
                       value={creditSourceName}
-                      disabled={isUploading}
+                      disabled={isPending}
                       onChange={(e) => setCreditSourceName(e.target.value)}
                       className="h-8 text-xs"
                     />
@@ -412,7 +348,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
                       name="credit_author"
                       placeholder="e.g. Kenney"
                       value={creditAuthor}
-                      disabled={isUploading}
+                      disabled={isPending}
                       onChange={(e) => setCreditAuthor(e.target.value)}
                       className="h-8 text-xs"
                     />
@@ -424,7 +360,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
                     <label className="text-[11px] font-medium text-foreground">License</label>
                     <Select
                       value={creditLicense}
-                      disabled={isUploading}
+                      disabled={isPending}
                       onValueChange={(val) => val && setCreditLicense(val)}
                     >
                       <SelectTrigger className="h-8 text-xs">
@@ -449,7 +385,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
                       name="credit_source_url"
                       placeholder="https://..."
                       value={creditSourceUrl}
-                      disabled={isUploading}
+                      disabled={isPending}
                       onChange={(e) => setCreditSourceUrl(e.target.value)}
                       className="h-8 text-xs font-mono"
                     />
@@ -468,33 +404,12 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
               id="notes"
               name="notes"
               value={notes}
-              disabled={isUploading}
+              disabled={isPending}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Dimensions, style guidelines, color palette, or implementation details..."
               rows={2}
             />
           </div>
-
-          {/* Upload Progress Bar */}
-          {isUploading && (
-            <div className="flex flex-col gap-1.5 rounded-lg border border-border/80 bg-secondary/30 p-3 text-xs">
-              <div className="flex items-center justify-between font-medium">
-                <span className="flex items-center gap-1.5 text-foreground">
-                  <CircleNotch className="size-3.5 animate-spin text-primary" />
-                  {uploadStage || 'Processing...'}
-                </span>
-                {uploadProgress !== null && (
-                  <span className="font-mono text-muted-foreground">{uploadProgress}%</span>
-                )}
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                <div
-                  className="h-full bg-primary transition-all duration-200"
-                  style={{ width: `${uploadProgress ?? 10}%` }}
-                />
-              </div>
-            </div>
-          )}
 
           <DialogFooter className="pt-2">
             <Button
@@ -502,15 +417,15 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
               variant="outline"
               size="sm"
               onClick={() => setOpen(false)}
-              disabled={isUploading}
+              disabled={isPending}
             >
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={isUploading || !name.trim()}>
-              {isUploading ? (
+            <Button type="submit" size="sm" disabled={isPending || !name.trim()}>
+              {isPending ? (
                 <>
                   <CircleNotch className="size-4 animate-spin" />
-                  Uploading...
+                  Saving Asset...
                 </>
               ) : (
                 <>

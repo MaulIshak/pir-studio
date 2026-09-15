@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { uploadFileToSubfolder, createResumableUploadSession } from '@/lib/gdrive/upload'
+import { uploadFileToSubfolder } from '@/lib/gdrive/upload'
 
 function revalidateArtifacts(projectId: string) {
   revalidatePath('/projects/[slug]', 'layout')
@@ -168,109 +168,6 @@ export async function uploadArtifactFile(formData: FormData) {
       error: err instanceof Error ? err.message : 'Failed to upload file to Google Drive',
     }
   }
-}
-
-/**
- * Initiates a Direct-to-Drive upload session for an artifact (Builds or GDD).
- * The file is streamed directly from the client to Google Drive to bypass Vercel 4.5MB limits.
- */
-export async function getArtifactUploadSession({
-  projectId,
-  fileName,
-  mimeType,
-  fileSize,
-  targetType,
-}: {
-  projectId: string
-  fileName: string
-  mimeType: string
-  fileSize?: number
-  targetType: 'build' | 'gdd'
-}) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: 'Authentication required' }
-  }
-
-  const { data: project, error: projectError } = await supabase
-    .from('projects')
-    .select('drive_folder_id')
-    .eq('id', projectId)
-    .single()
-
-  if (projectError || !project || !project.drive_folder_id) {
-    return { success: false, error: 'Project Google Drive folder is not connected' }
-  }
-
-  const subfolder = targetType === 'build' ? 'Builds' : 'GDD'
-
-  try {
-    const { uploadUrl } = await createResumableUploadSession(
-      user.id,
-      project.drive_folder_id,
-      subfolder,
-      fileName,
-      mimeType,
-      fileSize
-    )
-
-    return { success: true, uploadUrl, subfolder }
-  } catch (err: unknown) {
-    console.error('Failed to get artifact upload session:', err)
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Failed to initialize Drive upload session',
-    }
-  }
-}
-
-/**
- * Records the uploaded artifact in Supabase after direct-to-drive completion.
- */
-export async function recordArtifactAfterUpload({
-  projectId,
-  label,
-  type,
-  driveFileId,
-  fileName,
-  notes,
-}: {
-  projectId: string
-  label?: string | null
-  type: 'build' | 'gdd'
-  driveFileId: string
-  fileName: string
-  notes?: string | null
-}) {
-  const supabase = await createClient()
-
-  const finalLabel = label?.trim() || fileName
-  const viewUrl = `https://drive.google.com/file/d/${driveFileId}/view`
-  const subfolderName = type === 'build' ? 'Builds' : 'GDD'
-
-  const { data, error } = await supabase
-    .from('artifact_links')
-    .insert({
-      project_id: projectId,
-      label: finalLabel,
-      type,
-      url: viewUrl,
-      notes: notes?.trim() || `Uploaded directly to Drive /${subfolderName}/: ${fileName}`,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Failed to record artifact after upload:', error)
-    return { success: false, error: error.message }
-  }
-
-  revalidateArtifacts(projectId)
-  return { success: true, data }
 }
 
 export async function deleteArtifactLink(linkId: string, projectId: string) {

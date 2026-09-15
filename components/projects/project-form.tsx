@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createProject } from '@/actions/projects'
+import { notifyProjectsChanged } from '@/lib/events'
 import { slugify } from '@/lib/slug'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -82,6 +83,17 @@ export function ProjectForm() {
 
     if (res.driveError) {
       setDriveWarning('Project created, but Drive folder setup was skipped or failed. You can retry anytime.')
+    }
+
+    if (res.project) {
+      notifyProjectsChanged({
+        id: res.project.id,
+        name: res.project.name,
+        slug: res.project.slug,
+        type: res.project.type,
+        status: res.project.status ?? 'active',
+      })
+      router.refresh()
     }
 
     if (res.project?.slug) {

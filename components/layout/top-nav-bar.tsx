@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { GoogleDriveLogo, Plus, CheckCircle, CaretRight } from '@phosphor-icons/react'
 import type { User } from '@supabase/supabase-js'
+import { ThemeToggle } from '@/components/layout/theme-toggle'
 
 export function TopNavBar() {
   const pathname = usePathname()
@@ -161,6 +162,10 @@ export function TopNavBar() {
             <span>New Project</span>
           </Button>
         )}
+
+        <Separator orientation="vertical" className="hidden sm:block h-4 mx-0.5" />
+
+        <ThemeToggle />
       </div>
     </header>
   )

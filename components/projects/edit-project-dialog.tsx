@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateProject, archiveProject } from '@/actions/projects'
+import { notifyProjectsChanged } from '@/lib/events'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -70,6 +71,7 @@ export function EditProjectDialog({ project }: EditProjectDialogProps) {
 
       if (res.success) {
         setOpen(false)
+        notifyProjectsChanged()
         if (res.project?.slug && res.project.slug !== project.slug) {
           router.push(`/projects/${res.project.slug}`)
         } else {
@@ -95,6 +97,7 @@ export function EditProjectDialog({ project }: EditProjectDialogProps) {
 
       if (res.success) {
         setOpen(false)
+        notifyProjectsChanged()
         router.refresh()
       } else {
         setError(res.error || 'Failed to update project archive state')
