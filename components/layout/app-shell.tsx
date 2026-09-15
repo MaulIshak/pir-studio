@@ -13,7 +13,7 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname()
 
-  if (pathname === '/login') {
+  if (pathname === '/login' || pathname === '/privacy' || pathname === '/terms') {
     return <main className="min-h-screen w-full">{children}</main>
   }
 

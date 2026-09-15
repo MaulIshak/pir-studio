@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
@@ -130,8 +131,22 @@ function LoginContent() {
           </button>
         </div>
 
-
-
+        {/* Legal Footer Links */}
+        <div className="mt-5 flex items-center justify-center gap-3 text-[11px] text-muted-foreground/70">
+          <Link
+            href="/privacy"
+            className="transition-colors hover:text-muted-foreground"
+          >
+            Privacy Policy
+          </Link>
+          <span className="select-none opacity-40">·</span>
+          <Link
+            href="/terms"
+            className="transition-colors hover:text-muted-foreground"
+          >
+            Terms of Service
+          </Link>
+        </div>
       </div>
     </motion.div>
   )
