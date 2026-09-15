@@ -41,6 +41,7 @@ export interface MilestoneItem {
 
 interface MilestoneListProps {
   projectId: string
+  projectSlug?: string
   initialMilestones: MilestoneItem[]
   projectStartDate?: string | null
   projectDeadline?: string | null
@@ -74,7 +75,10 @@ function getDueInfo(dueDate: string | null, status: MilestoneItem['status']) {
     return { label: `${Math.abs(diffDays)}d overdue`, className: 'text-destructive font-semibold' }
   }
   if (diffDays === 0) {
-    return { label: 'Due today', className: 'text-amber-500 font-semibold' }
+    return { label: 'Due today', className: 'text-destructive font-semibold animate-pulse' }
+  }
+  if (diffDays === 1) {
+    return { label: 'Due tomorrow', className: 'text-amber-500 font-semibold' }
   }
   if (diffDays <= 3) {
     return { label: `Due in ${diffDays}d`, className: 'text-amber-500 font-medium' }
@@ -84,6 +88,7 @@ function getDueInfo(dueDate: string | null, status: MilestoneItem['status']) {
 
 export function MilestoneList({
   projectId,
+  projectSlug,
   initialMilestones,
   projectStartDate,
   projectDeadline,
@@ -471,7 +476,7 @@ export function MilestoneList({
                         variant="ghost"
                         size="xs"
                         nativeButton={false}
-                        render={<Link href={`/projects/${projectId}/tasks`} />}
+                        render={<Link href={`/projects/${projectSlug || projectId}/tasks`} />}
                         className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
                       >
                         <Kanban className="size-3" />

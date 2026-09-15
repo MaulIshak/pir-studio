@@ -22,12 +22,14 @@ import {
   User,
   ClockCountdown,
   Package,
+  ListChecks,
 } from '@phosphor-icons/react'
 import { cn } from 'cn'
+import { Checkbox } from '@/components/ui/checkbox'
 import { EditTaskDialog } from './edit-task-dialog'
 import { TaskDetailDialog } from './task-detail-dialog'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-
+import type { SubtaskItem } from '@/actions/tasks'
 import type { Asset } from '@/actions/assets'
 
 export interface ProfileItem {
@@ -49,6 +51,7 @@ export interface TaskItem {
   milestones?: { id: string; title: string } | null
   profiles?: { id: string; name: string; avatar_url?: string | null } | null
   assets?: Asset[]
+  subtasks?: SubtaskItem[]
 }
 
 interface TaskCardProps {
@@ -59,6 +62,7 @@ interface TaskCardProps {
   onStatusChange: (taskId: string, status: 'todo' | 'in_progress' | 'review' | 'done') => void
   onUpdateTask?: (updatedTask: TaskItem) => void
   onDelete: (taskId: string) => void
+  onToggleSubtask?: (subtaskId: string, currentStatus: 'todo' | 'done', taskId: string) => void
   isDragging?: boolean
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void
   onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void
@@ -72,6 +76,7 @@ export function TaskCard({
   onStatusChange,
   onUpdateTask,
   onDelete,
+  onToggleSubtask,
   isDragging = false,
   onDragStart,
   onDragEnd,
@@ -80,6 +85,7 @@ export function TaskCard({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showAllSubtasks, setShowAllSubtasks] = useState(false)
   const dragStartedRef = useRef(false)
 
   let isOverdue = false
@@ -101,6 +107,11 @@ export function TaskCard({
       setIsDeleting(false)
     }
   }
+
+  const subtasks = task.subtasks || []
+  const totalSubtasks = subtasks.length
+  const completedSubtasks = subtasks.filter((st) => st.status === 'done').length
+  const progressPercent = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0
 
   return (
     <>
@@ -252,31 +263,108 @@ export function TaskCard({
               )}
             </CardHeader>
 
-            <CardContent className="flex flex-wrap items-center gap-1.5 pt-0 pl-7">
-              {task.milestones?.title && (
-                <Badge variant="outline" className="gap-1 text-[10px] bg-primary/5 border-primary/20 text-primary">
-                  <Flag className="size-2.5" />
-                  {task.milestones.title}
-                </Badge>
-              )}
-              {task.due_date && (
-                <Badge
-                  variant={isOverdue ? 'destructive' : 'secondary'}
-                  className="gap-1 text-[10px] font-mono"
+            <CardContent className="flex flex-col gap-2 pt-0 pl-7 pr-3">
+              {/* Badges */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {task.milestones?.title && (
+                  <Badge variant="outline" className="gap-1 text-[10px] bg-primary/5 border-primary/20 text-primary">
+                    <Flag className="size-2.5" />
+                    {task.milestones.title}
+                  </Badge>
+                )}
+                {task.due_date && (
+                  <Badge
+                    variant={isOverdue ? 'destructive' : 'secondary'}
+                    className="gap-1 text-[10px] font-mono"
+                  >
+                    {isOverdue ? (
+                      <ClockCountdown className="size-2.5" />
+                    ) : (
+                      <CalendarBlank className="size-2.5" />
+                    )}
+                    {task.due_date}
+                  </Badge>
+                )}
+                {task.assets && task.assets.length > 0 && (
+                  <Badge variant="outline" className="gap-1 text-[10px] bg-purple-500/5 border-purple-500/20 text-purple-400">
+                    <Package className="size-2.5" />
+                    {task.assets.filter((a) => a.status === 'done' || a.status === 'implemented').length}/{task.assets.length} Assets
+                  </Badge>
+                )}
+              </div>
+
+              {/* Subtasks Hierarchy Block */}
+              {totalSubtasks > 0 && (
+                <div
+                  className="mt-0.5 flex flex-col gap-1.5 rounded-md border border-border/60 bg-secondary/30 p-2 text-xs"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  {isOverdue ? (
-                    <ClockCountdown className="size-2.5" />
-                  ) : (
-                    <CalendarBlank className="size-2.5" />
-                  )}
-                  {task.due_date}
-                </Badge>
-              )}
-              {task.assets && task.assets.length > 0 && (
-                <Badge variant="outline" className="gap-1 text-[10px] bg-purple-500/5 border-purple-500/20 text-purple-400">
-                  <Package className="size-2.5" />
-                  {task.assets.filter((a) => a.status === 'done' || a.status === 'implemented').length}/{task.assets.length} Assets
-                </Badge>
+                  <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                    <span className="flex items-center gap-1 text-foreground/80 font-medium">
+                      <ListChecks className="size-3 text-primary" />
+                      Subtasks
+                    </span>
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {completedSubtasks}/{totalSubtasks}
+                    </span>
+                  </div>
+
+                  {/* Mini Progress Bar */}
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className={cn(
+                        "h-full transition-all duration-300",
+                        completedSubtasks === totalSubtasks ? "bg-emerald-500" : "bg-primary"
+                      )}
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+
+                  {/* Checklist items */}
+                  <div className="flex flex-col gap-1 pt-0.5">
+                    {(showAllSubtasks ? subtasks : subtasks.slice(0, 3)).map((st) => {
+                      const isDone = st.status === 'done'
+                      return (
+                        <div
+                          key={st.id}
+                          className="group/st flex items-center gap-2 rounded px-1 py-0.5 hover:bg-background/60 transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onToggleSubtask?.(st.id, st.status, task.id)
+                          }}
+                        >
+                          <Checkbox
+                            checked={isDone}
+                            onCheckedChange={() => onToggleSubtask?.(st.id, st.status, task.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="size-3.5"
+                          />
+                          <span
+                            className={cn(
+                              "text-[11px] truncate flex-1 transition-all select-none",
+                              isDone ? "line-through text-muted-foreground" : "text-foreground"
+                            )}
+                            title={st.title}
+                          >
+                            {st.title}
+                          </span>
+                        </div>
+                      )
+                    })}
+                    {totalSubtasks > 3 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowAllSubtasks(!showAllSubtasks)
+                        }}
+                        className="text-[10px] text-primary/80 hover:text-primary font-medium text-left pl-1 pt-0.5 cursor-pointer"
+                      >
+                        {showAllSubtasks ? 'Show less' : `+ ${totalSubtasks - 3} more`}
+                      </button>
+                    )}
+                  </div>
+                </div>
               )}
             </CardContent>
 
@@ -320,6 +408,8 @@ export function TaskCard({
         onStatusChange={(taskId, newStatus) => {
           onStatusChange(taskId, newStatus)
         }}
+        onToggleSubtask={onToggleSubtask}
+        onUpdateTask={onUpdateTask}
       />
 
       {/* Edit Task Dialog */}

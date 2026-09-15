@@ -14,19 +14,19 @@ import {
 } from '@phosphor-icons/react'
 
 interface ProjectNavProps {
-  projectId: string
+  projectSlug: string
 }
 
-export function ProjectNav({ projectId }: ProjectNavProps) {
+export function ProjectNav({ projectSlug }: ProjectNavProps) {
   const pathname = usePathname()
 
   const tabs = [
-    { label: 'Overview', href: `/projects/${projectId}`, icon: Gauge },
-    { label: 'Tasks', href: `/projects/${projectId}/tasks`, icon: Kanban },
-    { label: 'Milestones', href: `/projects/${projectId}/milestones`, icon: Flag },
-    { label: 'Assets', href: `/projects/${projectId}/assets`, icon: Package },
-    { label: 'Credits', href: `/projects/${projectId}/credits`, icon: Certificate },
-    { label: 'Artifacts', href: `/projects/${projectId}/artifacts`, icon: LinkIcon },
+    { label: 'Overview', href: `/projects/${projectSlug}`, icon: Gauge },
+    { label: 'Tasks', href: `/projects/${projectSlug}/tasks`, icon: Kanban },
+    { label: 'Milestones', href: `/projects/${projectSlug}/milestones`, icon: Flag },
+    { label: 'Assets', href: `/projects/${projectSlug}/assets`, icon: Package },
+    { label: 'Credits', href: `/projects/${projectSlug}/credits`, icon: Certificate },
+    { label: 'Artifacts', href: `/projects/${projectSlug}/artifacts`, icon: LinkIcon },
   ]
 
   return (
@@ -34,7 +34,7 @@ export function ProjectNav({ projectId }: ProjectNavProps) {
       {tabs.map((tab) => {
         const Icon = tab.icon
         const isActive =
-          tab.href === `/projects/${projectId}`
+          tab.href === `/projects/${projectSlug}`
             ? pathname === tab.href
             : pathname.startsWith(tab.href)
 

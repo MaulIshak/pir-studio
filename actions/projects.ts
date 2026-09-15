@@ -3,20 +3,39 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { provisionProjectFolders } from '@/lib/gdrive/provisioning'
+import { slugify } from '@/lib/slug'
 import { z } from 'zod'
 
 const ProjectSchema = z.object({
   name: z.string().min(1, 'Project name is required').max(100),
+  slug: z
+    .string()
+    .min(1, 'Slug is required')
+    .max(100)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must only contain lowercase letters, numbers, and hyphens without consecutive or trailing hyphens')
+    .refine((val) => val !== 'new', 'Slug cannot be "new" (reserved keyword)'),
   type: z.enum(['jam', 'competition', 'internal']),
   start_date: z.string().optional().nullable(),
   deadline: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
 })
 
-export type ProjectInput = z.infer<typeof ProjectSchema>
+export type ProjectInput = {
+  name: string
+  slug?: string
+  type: 'jam' | 'competition' | 'internal'
+  start_date?: string | null
+  deadline?: string | null
+  description?: string | null
+}
 
 export async function createProject(input: ProjectInput) {
-  const validated = ProjectSchema.safeParse(input)
+  const resolvedSlug = (input.slug?.trim() ? slugify(input.slug) : slugify(input.name)) || `project-${Date.now().toString(36)}`
+  const validated = ProjectSchema.safeParse({
+    ...input,
+    slug: resolvedSlug,
+  })
+
   if (!validated.success) {
     return { error: validated.error.issues[0]?.message ?? 'Invalid input' }
   }
@@ -24,11 +43,23 @@ export async function createProject(input: ProjectInput) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Check if slug is already in use
+  const { data: existingProject } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('slug', validated.data.slug)
+    .maybeSingle()
+
+  if (existingProject) {
+    return { error: `The slug "${validated.data.slug}" is already in use. Please choose another slug.` }
+  }
+
   // 1. Insert row into database
   const { data: project, error: dbError } = await supabase
     .from('projects')
     .insert({
       name: validated.data.name,
+      slug: validated.data.slug,
       type: validated.data.type,
       start_date: validated.data.start_date || null,
       deadline: validated.data.deadline || null,
@@ -63,6 +94,7 @@ export async function createProject(input: ProjectInput) {
 
   revalidatePath('/')
   revalidatePath('/projects')
+  revalidatePath('/projects/[slug]', 'layout')
 
   return {
     success: true,
@@ -90,6 +122,37 @@ export async function getProjects(status: 'active' | 'completed' | 'archived' = 
   return data ?? []
 }
 
+export type NavProject = {
+  id: string
+  name: string
+  slug: string
+  type: 'jam' | 'competition' | 'internal'
+  status: 'active' | 'completed' | 'archived'
+}
+
+export async function getAllProjectsForNav(): Promise<NavProject[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id, name, slug, type, status')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching projects for navigation:', error)
+    return []
+  }
+
+  // Sort active projects first
+  const statusOrder: Record<string, number> = { active: 0, completed: 1, archived: 2 }
+  const sorted = ((data as NavProject[]) ?? []).sort((a, b) => {
+    const orderDiff = (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3)
+    if (orderDiff !== 0) return orderDiff
+    return a.name.localeCompare(b.name)
+  })
+
+  return sorted
+}
+
 export async function getProjectById(projectId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -105,8 +168,44 @@ export async function getProjectById(projectId: string) {
   return data
 }
 
-export async function updateProject(projectId: string, input: Partial<ProjectInput> & { status?: 'active' | 'completed' | 'archived' }) {
+export async function getProjectBySlug(slug: string) {
   const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('projects')
+    .select('*, tasks(*), milestones(*)')
+    .eq('slug', slug)
+    .single()
+
+  if (error) {
+    return null
+  }
+
+  return data
+}
+
+export async function updateProject(
+  projectId: string,
+  input: Partial<ProjectInput> & { status?: 'active' | 'completed' | 'archived' }
+) {
+  const supabase = await createClient()
+
+  if (input.slug) {
+    const cleanSlug = slugify(input.slug)
+    if (cleanSlug === 'new') {
+      return { error: 'Slug cannot be "new" (reserved keyword)' }
+    }
+    const { data: existing } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('slug', cleanSlug)
+      .neq('id', projectId)
+      .maybeSingle()
+
+    if (existing) {
+      return { error: `The slug "${cleanSlug}" is already in use. Please choose another slug.` }
+    }
+    input.slug = cleanSlug
+  }
 
   const { data, error } = await supabase
     .from('projects')
@@ -123,7 +222,10 @@ export async function updateProject(projectId: string, input: Partial<ProjectInp
 
   revalidatePath('/')
   revalidatePath('/projects')
-  revalidatePath(`/projects/${projectId}`)
+  revalidatePath('/projects/[slug]', 'layout')
+  if (data?.slug) {
+    revalidatePath(`/projects/${data.slug}`)
+  }
 
   return { success: true, project: data }
 }
@@ -159,7 +261,10 @@ export async function retryDriveProvisioning(projectId: string) {
 
     revalidatePath('/')
     revalidatePath('/projects')
-    revalidatePath(`/projects/${projectId}`)
+    revalidatePath('/projects/[slug]', 'layout')
+    if (project.slug) {
+      revalidatePath(`/projects/${project.slug}`)
+    }
 
     return { success: true, driveFolderId }
   } catch (err: unknown) {

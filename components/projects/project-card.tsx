@@ -19,6 +19,7 @@ import {
 interface ProjectCardProps {
   project: {
     id: string
+    slug: string
     name: string
     type: 'jam' | 'competition' | 'internal'
     status: 'active' | 'completed' | 'archived'
@@ -133,7 +134,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
           <CardTitle className="font-heading text-base font-semibold pt-1">
             <Link
-              href={`/projects/${project.id}`}
+              href={`/projects/${project.slug}`}
               className="hover:text-primary transition-colors hover:underline"
             >
               {project.name}
@@ -202,7 +203,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
             variant="outline"
             size="xs"
             nativeButton={false}
-            render={<Link href={`/projects/${project.id}`} />}
+            render={<Link href={`/projects/${project.slug}`} />}
             className="text-xs"
           >
             Overview

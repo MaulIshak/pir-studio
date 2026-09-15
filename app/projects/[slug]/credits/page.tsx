@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getProjectById } from '@/actions/projects'
+import { getProjectBySlug } from '@/actions/projects'
 import { getCreditsByProjectId } from '@/actions/credits'
 import { getAssetsByProjectId } from '@/actions/assets'
 import { CreateCreditDialog } from '@/components/credits/create-credit-dialog'
@@ -7,20 +7,20 @@ import { ExportCreditsButton } from '@/components/credits/export-credits-button'
 import { CreditTable } from '@/components/credits/credit-table'
 
 interface CreditsPageProps {
-  params: Promise<{ projectId: string }>
+  params: Promise<{ slug: string }>
 }
 
 export default async function CreditsPage({ params }: CreditsPageProps) {
-  const { projectId } = await params
-  const project = await getProjectById(projectId)
+  const { slug } = await params
+  const project = await getProjectBySlug(slug)
 
   if (!project) {
     notFound()
   }
 
   const [credits, assets] = await Promise.all([
-    getCreditsByProjectId(projectId),
-    getAssetsByProjectId(projectId),
+    getCreditsByProjectId(project.id),
+    getAssetsByProjectId(project.id),
   ])
 
   return (
@@ -34,12 +34,12 @@ export default async function CreditsPage({ params }: CreditsPageProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportCreditsButton projectId={projectId} hasCredits={credits.length > 0} />
-          <CreateCreditDialog projectId={projectId} assets={assets} />
+          <ExportCreditsButton projectId={project.id} hasCredits={credits.length > 0} />
+          <CreateCreditDialog projectId={project.id} assets={assets} />
         </div>
       </div>
 
-      <CreditTable credits={credits} projectId={projectId} assets={assets} />
+      <CreditTable credits={credits} projectId={project.id} assets={assets} />
     </div>
   )
 }

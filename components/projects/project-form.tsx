@@ -3,16 +3,20 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createProject } from '@/actions/projects'
+import { slugify } from '@/lib/slug'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { ArrowClockwise } from '@phosphor-icons/react'
 
 export function ProjectForm() {
   const router = useRouter()
   const [name, setName] = useState('')
+  const [slug, setSlug] = useState('')
+  const [isSlugTouched, setIsSlugTouched] = useState(false)
   const [type, setType] = useState<'jam' | 'competition' | 'internal'>('jam')
   const [startDate, setStartDate] = useState('')
   const [deadline, setDeadline] = useState('')
@@ -21,10 +25,38 @@ export function ProjectForm() {
   const [error, setError] = useState<string | null>(null)
   const [driveWarning, setDriveWarning] = useState<string | null>(null)
 
+  const handleNameChange = (val: string) => {
+    setName(val)
+    if (!isSlugTouched) {
+      setSlug(slugify(val))
+    }
+  }
+
+  const handleSlugChange = (val: string) => {
+    setIsSlugTouched(true)
+    setSlug(val.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+  }
+
+  const handleResetSlug = () => {
+    setIsSlugTouched(false)
+    setSlug(slugify(name))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) {
       setError('Project name is required')
+      return
+    }
+
+    const cleanSlug = (slug.trim() || slugify(name)).replace(/^-+|-+$/g, '')
+    if (!cleanSlug) {
+      setError('A valid project slug is required')
+      return
+    }
+
+    if (cleanSlug === 'new') {
+      setError('Slug cannot be "new"')
       return
     }
 
@@ -34,6 +66,7 @@ export function ProjectForm() {
 
     const res = await createProject({
       name: name.trim(),
+      slug: cleanSlug,
       type,
       start_date: startDate || null,
       deadline: deadline || null,
@@ -51,7 +84,9 @@ export function ProjectForm() {
       setDriveWarning('Project created, but Drive folder setup was skipped or failed. You can retry anytime.')
     }
 
-    if (res.project?.id) {
+    if (res.project?.slug) {
+      router.push(`/projects/${res.project.slug}`)
+    } else if (res.project?.id) {
       router.push(`/projects/${res.project.id}`)
     } else {
       router.push('/projects')
@@ -86,10 +121,42 @@ export function ProjectForm() {
               id="name"
               placeholder="Game Title"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => handleNameChange(e.target.value)}
               disabled={loading}
               required
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label htmlFor="slug" className="text-xs font-medium text-foreground">
+                Slug
+              </label>
+              {isSlugTouched && (
+                <button
+                  type="button"
+                  onClick={handleResetSlug}
+                  className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ArrowClockwise className="size-3" />
+                  Auto-generate
+                </button>
+              )}
+            </div>
+            <Input
+              id="slug"
+              placeholder="game-title"
+              value={slug}
+              onChange={(e) => handleSlugChange(e.target.value)}
+              disabled={loading}
+              required
+            />
+            <p className="text-[11px] text-muted-foreground">
+              URL preview:{' '}
+              <span className="font-mono text-foreground">
+                /projects/{slug || 'project-slug'}
+              </span>
+            </p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

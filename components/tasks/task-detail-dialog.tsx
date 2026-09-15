@@ -22,10 +22,15 @@ import {
   Eye,
   CheckCircle,
   Package,
+  ListChecks,
+  Plus,
 } from '@phosphor-icons/react'
 import { cn } from 'cn'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import { AssetDetailDialog } from '@/components/assets/asset-detail-dialog'
 import { Asset, getAssetById } from '@/actions/assets'
+import { createSubtask, deleteSubtask, updateSubtaskStatus } from '@/actions/tasks'
 import type { TaskItem } from './task-card'
 
 interface TaskDetailDialogProps {
@@ -36,6 +41,8 @@ interface TaskDetailDialogProps {
   onEdit: () => void
   onDelete: () => void
   onStatusChange?: (taskId: string, status: 'todo' | 'in_progress' | 'review' | 'done') => void
+  onToggleSubtask?: (subtaskId: string, currentStatus: 'todo' | 'done', taskId: string) => void
+  onUpdateTask?: (updatedTask: TaskItem) => void
 }
 
 const statusConfig = {
@@ -69,9 +76,62 @@ export function TaskDetailDialog({
   onEdit,
   onDelete,
   onStatusChange,
+  onToggleSubtask,
+  onUpdateTask,
 }: TaskDetailDialogProps) {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [loadingAssetId, setLoadingAssetId] = useState<string | null>(null)
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false)
+
+  const subtasks = task.subtasks || []
+  const totalSubtasks = subtasks.length
+  const completedSubtasks = subtasks.filter((st) => st.status === 'done').length
+  const progressPercent = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0
+
+  const handleAddSubtask = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (!newSubtaskTitle.trim() || isAddingSubtask) return
+    setIsAddingSubtask(true)
+    try {
+      const res = await createSubtask(task.id, newSubtaskTitle.trim(), projectId)
+      if (res.success && res.subtask) {
+        setNewSubtaskTitle('')
+        const updatedSubtasks = [...subtasks, res.subtask]
+        onUpdateTask?.({
+          ...task,
+          subtasks: updatedSubtasks,
+        })
+      }
+    } finally {
+      setIsAddingSubtask(false)
+    }
+  }
+
+  const handleToggle = async (subtaskId: string, currentStatus: 'todo' | 'done') => {
+    const nextStatus: 'todo' | 'done' = currentStatus === 'done' ? 'todo' : 'done'
+    const updatedSubtasks = subtasks.map((st) =>
+      st.id === subtaskId ? { ...st, status: nextStatus } : st
+    )
+    onUpdateTask?.({
+      ...task,
+      subtasks: updatedSubtasks,
+    })
+    if (onToggleSubtask) {
+      onToggleSubtask(subtaskId, currentStatus, task.id)
+    } else {
+      await updateSubtaskStatus(subtaskId, nextStatus, projectId)
+    }
+  }
+
+  const handleDeleteSubtask = async (subtaskId: string) => {
+    const updatedSubtasks = subtasks.filter((st) => st.id !== subtaskId)
+    onUpdateTask?.({
+      ...task,
+      subtasks: updatedSubtasks,
+    })
+    await deleteSubtask(subtaskId, projectId)
+  }
 
   const handleOpenAssetDetail = async (asset: Asset) => {
     setLoadingAssetId(asset.id)
@@ -176,6 +236,100 @@ export function TaskDetailDialog({
             ) : (
               <span className="italic text-muted-foreground">No description provided for this task.</span>
             )}
+          </div>
+        </div>
+
+        {/* Subtasks Section */}
+        <div className="flex flex-col gap-2 py-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <ListChecks className="size-3.5 text-primary" />
+              Subtasks {totalSubtasks > 0 && `(${completedSubtasks}/${totalSubtasks})`}
+            </span>
+            {totalSubtasks > 0 && (
+              <span className="text-[11px] font-mono text-muted-foreground">
+                {progressPercent}%
+              </span>
+            )}
+          </div>
+
+          {totalSubtasks > 0 && (
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+              <div
+                className={cn(
+                  "h-full transition-all duration-300",
+                  completedSubtasks === totalSubtasks ? "bg-emerald-500" : "bg-primary"
+                )}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          )}
+
+          {/* Subtasks List */}
+          <div className="flex flex-col gap-1.5 rounded-md border border-border/60 bg-muted/20 p-2.5 max-h-56 overflow-y-auto">
+            {subtasks.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-1 text-center italic">
+                No subtasks yet. Add one below.
+              </p>
+            ) : (
+              subtasks.map((st) => {
+                const isDone = st.status === 'done'
+                return (
+                  <div
+                    key={st.id}
+                    className="group/st flex items-center justify-between gap-2.5 rounded p-1.5 hover:bg-background/60 border border-transparent hover:border-border/40 transition-all"
+                  >
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <Checkbox
+                        checked={isDone}
+                        onCheckedChange={() => handleToggle(st.id, st.status)}
+                        className="size-4"
+                      />
+                      <span
+                        className={cn(
+                          "text-xs leading-snug break-words flex-1 select-none transition-all",
+                          isDone ? "line-through text-muted-foreground" : "text-foreground"
+                        )}
+                      >
+                        {st.title}
+                      </span>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => handleDeleteSubtask(st.id)}
+                      className="size-6 p-0 text-muted-foreground hover:text-destructive opacity-0 group-hover/st:opacity-100 transition-opacity"
+                      title="Delete subtask"
+                    >
+                      <Trash className="size-3" />
+                    </Button>
+                  </div>
+                )
+              })
+            )}
+
+            {/* Inline Quick Add Input */}
+            <form onSubmit={handleAddSubtask} className="flex items-center gap-1.5 pt-1.5 border-t border-border/40 mt-1">
+              <Input
+                placeholder="Add a subtask..."
+                value={newSubtaskTitle}
+                onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                disabled={isAddingSubtask}
+                className="h-7 text-xs bg-background"
+              />
+              <Button
+                type="submit"
+                variant="secondary"
+                size="xs"
+                disabled={!newSubtaskTitle.trim() || isAddingSubtask}
+                className="h-7 gap-1 px-2 text-xs"
+              >
+                <Plus className="size-3" />
+                Add
+              </Button>
+            </form>
           </div>
         </div>
 

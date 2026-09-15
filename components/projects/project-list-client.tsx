@@ -9,6 +9,7 @@ import { GameController, CheckCircle, Archive, FolderDashed } from '@phosphor-ic
 
 interface Project {
   id: string
+  slug: string
   name: string
   type: 'jam' | 'competition' | 'internal'
   status: 'active' | 'completed' | 'archived'

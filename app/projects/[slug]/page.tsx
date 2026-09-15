@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getProjectById } from '@/actions/projects'
+import { getProjectBySlug } from '@/actions/projects'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ProjectCharts } from '@/components/projects/project-charts'
@@ -14,14 +14,14 @@ import {
 } from '@phosphor-icons/react/dist/ssr'
 
 interface ProjectPageProps {
-  params: Promise<{ projectId: string }>
+  params: Promise<{ slug: string }>
 }
 
 export const dynamic = 'force-dynamic'
 
 export default async function ProjectOverviewPage({ params }: ProjectPageProps) {
-  const { projectId } = await params
-  const project = await getProjectById(projectId)
+  const { slug } = await params
+  const project = await getProjectBySlug(slug)
 
   if (!project) {
     notFound()
@@ -133,7 +133,7 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
                 variant="default"
                 size="sm"
                 nativeButton={false}
-                render={<Link href={`/projects/${projectId}/tasks`} />}
+                render={<Link href={`/projects/${project.slug}/tasks`} />}
               >
                 Open Kanban
                 <ArrowRight className="size-3" />
@@ -160,7 +160,7 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
                 variant="default"
                 size="sm"
                 nativeButton={false}
-                render={<Link href={`/projects/${projectId}/milestones`} />}
+                render={<Link href={`/projects/${project.slug}/milestones`} />}
               >
                 View Milestones
                 <ArrowRight className="size-3" />

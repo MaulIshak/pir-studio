@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
-import { updateTaskStatus, deleteTask } from '@/actions/tasks'
+import { updateTaskStatus, deleteTask, updateSubtaskStatus, type SubtaskItem } from '@/actions/tasks'
 import { TaskCard, type TaskItem, type ProfileItem } from './task-card'
 import { CreateTaskDialog } from './create-task-dialog'
 import { Badge } from '@/components/ui/badge'
@@ -62,7 +63,12 @@ export function KanbanBoard({
   milestones,
   profiles = [],
 }: KanbanBoardProps) {
+  const router = useRouter()
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks)
+
+  useEffect(() => {
+    setTasks(initialTasks)
+  }, [initialTasks])
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
   const [selectedMilestone, setSelectedMilestone] = useState<string>('all')
   const [selectedAssignee, setSelectedAssignee] = useState<string>('all')
@@ -71,7 +77,7 @@ export function KanbanBoard({
   const [activeDropColId, setActiveDropColId] = useState<string | null>(null)
   const supabase = createClient()
 
-  // Realtime subscription on tasks table
+  // Realtime subscription on tasks and subtasks tables
   useEffect(() => {
     const channel = supabase
       .channel(`tasks_realtime_${projectId}`)
@@ -88,16 +94,66 @@ export function KanbanBoard({
             const newTask = payload.new as TaskItem
             setTasks((prev) => {
               if (prev.some((t) => t.id === newTask.id)) return prev
-              return [newTask, ...prev]
+              return [{ ...newTask, subtasks: [] }, ...prev]
             })
           } else if (payload.eventType === 'UPDATE') {
             const updated = payload.new as TaskItem
             setTasks((prev) =>
-              prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t))
+              prev.map((t) =>
+                t.id === updated.id
+                  ? { ...t, ...updated, subtasks: t.subtasks || [] }
+                  : t
+              )
             )
           } else if (payload.eventType === 'DELETE') {
             const deletedId = (payload.old as { id: string }).id
             setTasks((prev) => prev.filter((t) => t.id !== deletedId))
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subtasks',
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newSubtask = payload.new as SubtaskItem
+            setTasks((prev) =>
+              prev.map((t) => {
+                if (t.id === newSubtask.task_id) {
+                  const currentSubtasks = t.subtasks || []
+                  if (currentSubtasks.some((s) => s.id === newSubtask.id)) return t
+                  return { ...t, subtasks: [...currentSubtasks, newSubtask] }
+                }
+                return t
+              })
+            )
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as SubtaskItem
+            setTasks((prev) =>
+              prev.map((t) => {
+                if (t.id === updated.task_id) {
+                  return {
+                    ...t,
+                    subtasks: (t.subtasks || []).map((s) =>
+                      s.id === updated.id ? { ...s, ...updated } : s
+                    ),
+                  }
+                }
+                return t
+              })
+            )
+          } else if (payload.eventType === 'DELETE') {
+            const deletedId = (payload.old as { id: string }).id
+            setTasks((prev) =>
+              prev.map((t) => ({
+                ...t,
+                subtasks: (t.subtasks || []).filter((s) => s.id !== deletedId),
+              }))
+            )
           }
         }
       )
@@ -120,6 +176,33 @@ export function KanbanBoard({
     const res = await updateTaskStatus(taskId, projectId, newStatus)
     if (res.error) {
       console.error('Failed to update task status:', res.error)
+    }
+  }
+
+  // Handle subtask status toggle (Optimistic)
+  const handleToggleSubtask = async (
+    subtaskId: string,
+    currentStatus: 'todo' | 'done',
+    taskId: string
+  ) => {
+    const nextStatus = currentStatus === 'done' ? 'todo' : 'done'
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === taskId) {
+          return {
+            ...t,
+            subtasks: (t.subtasks || []).map((s) =>
+              s.id === subtaskId ? { ...s, status: nextStatus } : s
+            ),
+          }
+        }
+        return t
+      })
+    )
+
+    const res = await updateSubtaskStatus(subtaskId, nextStatus, projectId)
+    if (res.error) {
+      console.error('Failed to update subtask status:', res.error)
     }
   }
 
@@ -258,7 +341,15 @@ export function KanbanBoard({
           projectId={projectId}
           milestones={milestones}
           profiles={profiles}
-          onSuccess={() => {}}
+          onSuccess={(newTask) => {
+            if (newTask) {
+              setTasks((prev) => {
+                if (prev.some((t) => t.id === newTask.id)) return prev
+                return [newTask, ...prev]
+              })
+            }
+            router.refresh()
+          }}
         />
       </div>
 
@@ -361,6 +452,7 @@ export function KanbanBoard({
                           onStatusChange={handleStatusChange}
                           onUpdateTask={handleUpdateTask}
                           onDelete={handleDelete}
+                          onToggleSubtask={handleToggleSubtask}
                         />
                       ))}
                     </AnimatePresence>
@@ -386,6 +478,7 @@ export function KanbanBoard({
           onStatusChange={handleStatusChange}
           onUpdateTask={handleUpdateTask}
           onDelete={handleDelete}
+          onToggleSubtask={handleToggleSubtask}
         />
       )}
     </div>

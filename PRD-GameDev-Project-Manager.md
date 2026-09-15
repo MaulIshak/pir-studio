@@ -116,10 +116,12 @@ Timeline dan pembagian task dibuat manual di spreadsheet setiap project, tidak k
 **Functional requirements**
 1. Milestone: judul, deadline, status (Belum Mulai / Berjalan / Selesai), terhubung ke satu project
 2. Task: judul, deskripsi (opsional), assignee (dari anggota tim), due date, status (To Do / In Progress / Review / Done), terhubung ke project dan opsional ke satu milestone
-3. Tampilan board (kanban sederhana: To Do → In Progress → Review → Done) per project, drag-and-drop untuk ubah status
-4. Tampilan list milestone dengan progress bar (jumlah task selesai / total task di bawah milestone tsb)
-5. Filter task: by assignee, by status, by milestone
-6. Update status task oleh siapa saja di tim (tanpa approval — tim kecil, saling percaya)
+3. Subtask: setiap task dapat memiliki breakdown subtask dengan checkbox untuk menandai status selesai (`todo` / `done`), mempermudah pelacakan micro-step tanpa membuat task baru yang mengotori kanban board
+4. Tampilan board (kanban sederhana: To Do → In Progress → Review → Done) per project dengan drag-and-drop dan checklist subtask interaktif pada card
+5. Tampilan Table View dengan expandable tree row yang memperjelas hierarki parent task dan subtask
+6. Tampilan list milestone dengan progress bar (jumlah task selesai / total task di bawah milestone tsb)
+7. Filter task: by assignee, by status, by milestone
+8. Update status task dan subtask oleh siapa saja di tim (tanpa approval — tim kecil, saling percaya)
 
 **Data model**
 ```sql
@@ -142,10 +144,21 @@ tasks (
   due_date date,
   created_at timestamptz default now()
 )
+
+subtasks (
+  id uuid primary key,
+  task_id uuid references tasks(id) on delete cascade,
+  title text not null,
+  status text check (status in ('todo','done')) default 'todo',
+  position integer default 0,
+  created_at timestamptz default now()
+)
 ```
 
 **Acceptance criteria**
 - Board menampilkan task real-time (via Supabase Realtime) — kalau anggota lain ubah status, langsung terlihat tanpa refresh
+- Subtask dapat dicentang via checkbox langsung pada Kanban Card, Table View, maupun Task Detail Dialog dengan update instan (optimistic UI)
+- Hirarki antarmuka jelas membedakan atribut parent task dengan checklist child subtask
 - Milestone menampilkan persentase task selesai secara akurat
 - Task tanpa milestone tetap valid (tidak wajib terikat milestone)
 

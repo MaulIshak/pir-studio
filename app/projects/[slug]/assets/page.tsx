@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getProjectById } from '@/actions/projects'
+import { getProjectBySlug } from '@/actions/projects'
 import { getAssetsByProjectId, checkAssetsMigrationStatus } from '@/actions/assets'
 import { getTasksByProjectId } from '@/actions/tasks'
 import { CreateAssetDialog } from '@/components/assets/create-asset-dialog'
@@ -9,20 +9,20 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { WarningCircle } from '@phosphor-icons/react/dist/ssr'
 
 interface AssetsPageProps {
-  params: Promise<{ projectId: string }>
+  params: Promise<{ slug: string }>
 }
 
 export default async function AssetsPage({ params }: AssetsPageProps) {
-  const { projectId } = await params
-  const project = await getProjectById(projectId)
+  const { slug } = await params
+  const project = await getProjectBySlug(slug)
 
   if (!project) {
     notFound()
   }
 
   const [assets, rawTasks, isMigrationApplied] = await Promise.all([
-    getAssetsByProjectId(projectId),
-    getTasksByProjectId(projectId),
+    getAssetsByProjectId(project.id),
+    getTasksByProjectId(project.id),
     checkAssetsMigrationStatus(),
   ])
 
@@ -39,8 +39,8 @@ export default async function AssetsPage({ params }: AssetsPageProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <UploadBundleDialog projectId={projectId} assets={assets} />
-          <CreateAssetDialog projectId={projectId} tasks={tasks} />
+          <UploadBundleDialog projectId={project.id} assets={assets} />
+          <CreateAssetDialog projectId={project.id} tasks={tasks} />
         </div>
       </div>
 
@@ -62,7 +62,7 @@ export default async function AssetsPage({ params }: AssetsPageProps) {
         </Alert>
       )}
 
-      <AssetTable assets={assets} projectId={projectId} tasks={tasks} />
+      <AssetTable assets={assets} projectId={project.id} tasks={tasks} />
     </div>
   )
 }

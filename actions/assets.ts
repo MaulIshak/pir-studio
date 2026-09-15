@@ -6,6 +6,14 @@ import { createClient } from '@/lib/supabase/server'
 import { uploadFileToSubfolder, createResumableUploadSession } from '@/lib/gdrive/upload'
 import { getGoogleDriveClient } from '@/lib/gdrive/client'
 
+function revalidateProjectAssets(projectId: string) {
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
+  revalidatePath(`/projects/${projectId}`)
+  revalidatePath(`/projects/${projectId}/assets`)
+}
+
 export type AssetStatus = 'todo' | 'in_progress' | 'done' | 'implemented'
 export type AssetType = 'sprite' | 'audio' | '3d_model' | 'font' | 'vfx' | 'other'
 
@@ -401,8 +409,7 @@ export async function createAsset(formData: FormData) {
     }
   }
 
-  revalidatePath(`/projects/${projectId}/assets`)
-  revalidatePath(`/projects/${projectId}`)
+  revalidateProjectAssets(projectId)
   return { success: true, data: assetData }
 }
 
@@ -460,8 +467,7 @@ export async function uploadSingleAssetFile(
       return { success: false, error: updateError.message }
     }
 
-    revalidatePath(`/projects/${projectId}/assets`)
-    revalidatePath(`/projects/${projectId}`)
+    revalidateProjectAssets(projectId)
     return { success: true, fileId: uploadRes.fileId }
   } catch (err: unknown) {
     console.error('Failed to upload single asset file:', err)
@@ -554,8 +560,7 @@ export async function uploadAssetBundle(projectId: string, formData: FormData) {
       return { success: false, error: updateAssetsError.message }
     }
 
-    revalidatePath(`/projects/${projectId}/assets`)
-    revalidatePath(`/projects/${projectId}`)
+    revalidateProjectAssets(projectId)
     return { success: true, bundle: bundleData }
   } catch (err: unknown) {
     console.error('Failed to upload atlas/bundle:', err)
@@ -625,7 +630,7 @@ export async function addAssetReferences(
       .eq('asset_id', assetId)
       .order('created_at', { ascending: false })
 
-    revalidatePath(`/projects/${projectId}/assets`)
+    revalidateProjectAssets(projectId)
     return {
       success: true,
       references: (updatedReferences as unknown as AssetReference[]) || [],
@@ -670,7 +675,7 @@ export async function deleteAssetReference(
     }
   }
 
-  revalidatePath(`/projects/${projectId}/assets`)
+  revalidateProjectAssets(projectId)
   return { success: true }
 }
 
@@ -691,8 +696,7 @@ export async function updateAssetStatus(
     return { success: false, error: error.message }
   }
 
-  revalidatePath(`/projects/${projectId}/assets`)
-  revalidatePath(`/projects/${projectId}`)
+  revalidateProjectAssets(projectId)
   return { success: true }
 }
 
@@ -757,8 +761,7 @@ export async function updateAsset(
     return { success: false, error: error.message }
   }
 
-  revalidatePath(`/projects/${projectId}/assets`)
-  revalidatePath(`/projects/${projectId}`)
+  revalidateProjectAssets(projectId)
   return { success: true, data: data as unknown as Asset }
 }
 
@@ -772,8 +775,7 @@ export async function deleteAsset(assetId: string, projectId: string) {
     return { success: false, error: error.message }
   }
 
-  revalidatePath(`/projects/${projectId}/assets`)
-  revalidatePath(`/projects/${projectId}`)
+  revalidateProjectAssets(projectId)
   return { success: true }
 }
 
@@ -928,8 +930,7 @@ export async function recordAssetAfterUpload({
     revalidatePath(`/projects/${projectId}/credits`)
   }
 
-  revalidatePath(`/projects/${projectId}/assets`)
-  revalidatePath(`/projects/${projectId}`)
+  revalidateProjectAssets(projectId)
   return { success: true, data: assetData }
 }
 
@@ -966,8 +967,7 @@ export async function recordSingleAssetFileUpload({
     return { success: false, error: error.message }
   }
 
-  revalidatePath(`/projects/${projectId}/assets`)
-  revalidatePath(`/projects/${projectId}`)
+  revalidateProjectAssets(projectId)
   return { success: true }
 }
 
@@ -1031,7 +1031,6 @@ export async function recordAssetBundleAfterUpload({
       .in('id', assetIds)
   }
 
-  revalidatePath(`/projects/${projectId}/assets`)
-  revalidatePath(`/projects/${projectId}`)
+  revalidateProjectAssets(projectId)
   return { success: true, bundle: bundleData }
 }

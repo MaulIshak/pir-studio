@@ -14,15 +14,15 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Plus } from '@phosphor-icons/react/dist/ssr'
-import type { ProfileItem } from './task-card'
+import { Plus, ListChecks, Trash } from '@phosphor-icons/react'
+import type { ProfileItem, TaskItem } from './task-card'
 
 interface CreateTaskDialogProps {
   projectId: string
   defaultStatus?: 'todo' | 'in_progress' | 'review' | 'done'
   milestones: Array<{ id: string; title: string }>
   profiles?: ProfileItem[]
-  onSuccess?: () => void
+  onSuccess?: (newTask?: TaskItem) => void
 }
 
 export function CreateTaskDialog({
@@ -39,8 +39,21 @@ export function CreateTaskDialog({
   const [assigneeId, setAssigneeId] = useState<string>('none')
   const [dueDate, setDueDate] = useState('')
   const [description, setDescription] = useState('')
+  const [subtasks, setSubtasks] = useState<string[]>([])
+  const [newSubtaskInput, setNewSubtaskInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const handleAddSubtaskItem = () => {
+    const trimmed = newSubtaskInput.trim()
+    if (!trimmed) return
+    setSubtasks((prev) => [...prev, trimmed])
+    setNewSubtaskInput('')
+  }
+
+  const handleRemoveSubtaskItem = (index: number) => {
+    setSubtasks((prev) => prev.filter((_, i) => i !== index))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -60,6 +73,7 @@ export function CreateTaskDialog({
       assignee_id: assigneeId === 'none' ? null : assigneeId,
       due_date: dueDate || null,
       description: description.trim() || null,
+      subtasks: subtasks.length > 0 ? subtasks : undefined,
     })
 
     setLoading(false)
@@ -75,8 +89,10 @@ export function CreateTaskDialog({
     setDueDate('')
     setMilestoneId('none')
     setAssigneeId('none')
+    setSubtasks([])
+    setNewSubtaskInput('')
     setOpen(false)
-    onSuccess?.()
+    onSuccess?.(res.task as unknown as TaskItem)
   }
 
   return (
@@ -191,6 +207,63 @@ export function CreateTaskDialog({
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <ListChecks className="size-3.5 text-primary" />
+              Subtasks {subtasks.length > 0 && `(${subtasks.length})`}
+            </label>
+
+            {/* List of pending subtasks */}
+            {subtasks.length > 0 && (
+              <div className="flex flex-col gap-1 rounded-md border border-border/60 bg-muted/20 p-2 max-h-32 overflow-y-auto">
+                {subtasks.map((st, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between gap-2 text-xs bg-card px-2 py-1 rounded border border-border/40"
+                  >
+                    <span className="truncate flex-1 font-medium">{st}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSubtaskItem(idx)}
+                      className="text-muted-foreground hover:text-destructive p-0.5 cursor-pointer"
+                      title="Remove subtask"
+                    >
+                      <Trash className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Input to add subtask */}
+            <div className="flex items-center gap-1.5">
+              <Input
+                placeholder="Add subtask and press enter..."
+                value={newSubtaskInput}
+                onChange={(e) => setNewSubtaskInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddSubtaskItem()
+                  }
+                }}
+                disabled={loading}
+                className="h-8 text-xs"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={handleAddSubtaskItem}
+                disabled={loading || !newSubtaskInput.trim()}
+                className="h-8 text-xs gap-1 shrink-0"
+              >
+                <Plus className="size-3" />
+                Add
+              </Button>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">

@@ -12,9 +12,19 @@ const TaskSchema = z.object({
   assignee_id: z.string().uuid().optional().nullable(),
   status: z.enum(['todo', 'in_progress', 'review', 'done']).default('todo'),
   due_date: z.string().optional().nullable(),
+  subtasks: z.array(z.string().min(1)).optional(),
 })
 
 export type TaskInput = z.infer<typeof TaskSchema>
+
+export interface SubtaskItem {
+  id: string
+  task_id: string
+  title: string
+  status: 'todo' | 'done'
+  position?: number
+  created_at?: string
+}
 
 export async function createTask(input: TaskInput) {
   const validated = TaskSchema.safeParse(input)
@@ -41,10 +51,36 @@ export async function createTask(input: TaskInput) {
     return { error: error.message }
   }
 
-  revalidatePath(`/projects/${input.project_id}`)
-  revalidatePath(`/projects/${input.project_id}/tasks`)
+  // If subtasks were provided, insert them
+  let createdSubtasks: SubtaskItem[] = []
+  if (validated.data.subtasks && validated.data.subtasks.length > 0) {
+    const subtaskRows = validated.data.subtasks.map((stTitle, index) => ({
+      task_id: data.id,
+      title: stTitle.trim(),
+      status: 'todo' as const,
+      position: index,
+    }))
+    const { data: insertedSubtasks, error: subtaskError } = await supabase
+      .from('subtasks')
+      .insert(subtaskRows)
+      .select()
 
-  return { success: true, task: data }
+    if (!subtaskError && insertedSubtasks) {
+      createdSubtasks = insertedSubtasks as SubtaskItem[]
+    }
+  }
+
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
+
+  return {
+    success: true,
+    task: {
+      ...data,
+      subtasks: createdSubtasks,
+    },
+  }
 }
 
 export async function updateTaskStatus(
@@ -57,15 +93,16 @@ export async function updateTaskStatus(
     .from('tasks')
     .update({ status: newStatus })
     .eq('id', taskId)
-    .select('*, profiles:assignee_id(id, name, avatar_url), milestones:milestone_id(id, title)')
+    .select('*, profiles:assignee_id(id, name, avatar_url), milestones:milestone_id(id, title), subtasks(*)')
     .single()
 
   if (error) {
     return { error: error.message }
   }
 
-  revalidatePath(`/projects/${projectId}`)
-  revalidatePath(`/projects/${projectId}/tasks`)
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
 
   return { success: true, task: data }
 }
@@ -96,15 +133,16 @@ export async function updateTask(
     .from('tasks')
     .update(updateData)
     .eq('id', taskId)
-    .select('*, profiles:assignee_id(id, name, avatar_url), milestones:milestone_id(id, title)')
+    .select('*, profiles:assignee_id(id, name, avatar_url), milestones:milestone_id(id, title), subtasks(*)')
     .single()
 
   if (error) {
     return { error: error.message }
   }
 
-  revalidatePath(`/projects/${projectId}`)
-  revalidatePath(`/projects/${projectId}/tasks`)
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
 
   return { success: true, task: data }
 }
@@ -117,8 +155,9 @@ export async function deleteTask(taskId: string, projectId: string) {
     return { error: error.message }
   }
 
-  revalidatePath(`/projects/${projectId}`)
-  revalidatePath(`/projects/${projectId}/tasks`)
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
 
   return { success: true }
 }
@@ -131,6 +170,7 @@ export async function getTasksByProjectId(projectId: string) {
       *,
       profiles:assignee_id(id, name, avatar_url),
       milestones:milestone_id(id, title),
+      subtasks (*),
       assets(
         *,
         asset_bundles:bundle_id (id, name, drive_file_id, file_name),
@@ -142,18 +182,143 @@ export async function getTasksByProjectId(projectId: string) {
     .order('created_at', { ascending: false })
 
   if (error) {
-    if (error.code === 'PGRST200') {
-      const fallback = await supabase
-        .from('tasks')
-        .select('*, profiles:assignee_id(id, name, avatar_url), milestones:milestone_id(id, title)')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-      return fallback.data ?? []
+    console.error('getTasksByProjectId error, falling back:', error)
+    const fallback = await supabase
+      .from('tasks')
+      .select('*, profiles:assignee_id(id, name, avatar_url), milestones:milestone_id(id, title), subtasks(*)')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+
+    if (!fallback.error && fallback.data) {
+      return (fallback.data as any[]).map((t) => ({
+        ...t,
+        subtasks: ((t as any).subtasks || []).sort(
+          (a: { created_at?: string; position?: number }, b: { created_at?: string; position?: number }) => {
+            if (a.position !== undefined && b.position !== undefined && a.position !== b.position) {
+              return a.position - b.position
+            }
+            return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+          }
+        ),
+      }))
     }
-    return []
+
+    const basicFallback = await supabase
+      .from('tasks')
+      .select('*, profiles:assignee_id(id, name, avatar_url), milestones:milestone_id(id, title)')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+
+    return ((basicFallback.data as any[]) ?? []).map((t) => ({
+      ...t,
+      subtasks: [],
+    }))
   }
 
-  return data ?? []
+  const formatted = (data ?? []).map((t) => ({
+    ...t,
+    subtasks: ((t as any).subtasks || []).sort(
+      (a: { created_at?: string; position?: number }, b: { created_at?: string; position?: number }) => {
+        if (a.position !== undefined && b.position !== undefined && a.position !== b.position) {
+          return a.position - b.position
+        }
+        return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+      }
+    ),
+  }))
+
+  return formatted
+}
+
+export async function createSubtask(taskId: string, title: string, projectId?: string) {
+  if (!title.trim()) {
+    return { error: 'Subtask title is required' }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('subtasks')
+    .insert({
+      task_id: taskId,
+      title: title.trim(),
+      status: 'todo',
+    })
+    .select()
+    .single()
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
+
+  return { success: true, subtask: data as SubtaskItem }
+}
+
+export async function updateSubtaskStatus(
+  subtaskId: string,
+  status: 'todo' | 'done',
+  projectId?: string
+) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('subtasks')
+    .update({ status })
+    .eq('id', subtaskId)
+    .select()
+    .single()
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
+
+  return { success: true, subtask: data as SubtaskItem }
+}
+
+export async function updateSubtaskTitle(
+  subtaskId: string,
+  title: string,
+  projectId?: string
+) {
+  if (!title.trim()) {
+    return { error: 'Title is required' }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('subtasks')
+    .update({ title: title.trim() })
+    .eq('id', subtaskId)
+    .select()
+    .single()
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/projects/[slug]', 'layout')
+  return { success: true, subtask: data as SubtaskItem }
+}
+
+export async function deleteSubtask(subtaskId: string, projectId?: string) {
+  const supabase = await createClient()
+  const { error } = await supabase.from('subtasks').delete().eq('id', subtaskId)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
+
+  return { success: true }
 }
 
 export async function getProfiles() {

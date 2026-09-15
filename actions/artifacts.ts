@@ -5,6 +5,14 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { uploadFileToSubfolder, createResumableUploadSession } from '@/lib/gdrive/upload'
 
+function revalidateArtifacts(projectId: string) {
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
+  revalidatePath(`/projects/${projectId}/artifacts`)
+  revalidatePath(`/projects/${projectId}`)
+}
+
 export interface ArtifactLink {
   id: string
   project_id: string
@@ -78,8 +86,7 @@ export async function createArtifactLink(formData: FormData) {
     return { success: false, error: error.message }
   }
 
-  revalidatePath(`/projects/${projectId}/artifacts`)
-  revalidatePath(`/projects/${projectId}`)
+  revalidateArtifacts(projectId)
   return { success: true, data }
 }
 
@@ -96,45 +103,36 @@ export async function uploadArtifactFile(formData: FormData) {
     return { success: false, error: 'Project ID is required' }
   }
 
+  if (!label) {
+    return { success: false, error: 'Label is required' }
+  }
+
   if (!file || file.size === 0) {
     return { success: false, error: 'File is required' }
   }
 
-  if (targetType !== 'build' && targetType !== 'gdd') {
-    return { success: false, error: 'Target type must be Build or GDD' }
-  }
-
-  // Fetch project to retrieve drive_folder_id
+  // 1. Verify Project & Drive folder
   const { data: project, error: projectError } = await supabase
     .from('projects')
     .select('drive_folder_id')
     .eq('id', projectId)
     .single()
 
-  if (projectError || !project) {
-    return { success: false, error: 'Project not found' }
-  }
-
-  if (!project.drive_folder_id) {
+  if (projectError || !project?.drive_folder_id) {
     return {
       success: false,
-      error: 'Project Google Drive folder is not connected. Retry Drive provisioning first.',
+      error: 'Google Drive folder not configured for this project',
     }
   }
-
-  if (!user) {
-    return {
-      success: false,
-      error: 'Authentication is required to upload files to Google Drive.',
-    }
-  }
-
-  const subfolderName = targetType === 'build' ? 'Builds' : 'GDD'
 
   try {
+    // 2. Select Subfolder
+    const subfolderName = targetType === 'build' ? 'Builds' : 'GDD'
+
+    // 3. Upload File to Google Drive
     const buffer = Buffer.from(await file.arrayBuffer())
     const uploadRes = await uploadFileToSubfolder(
-      user.id,
+      user?.id || '',
       project.drive_folder_id,
       subfolderName,
       file.name,
@@ -142,16 +140,17 @@ export async function uploadArtifactFile(formData: FormData) {
       buffer
     )
 
-    const finalLabel = label || file.name
+    const fileUrl = uploadRes.viewUrl
 
+    // 4. Save into artifact_links
     const { data, error } = await supabase
       .from('artifact_links')
       .insert({
         project_id: projectId,
-        label: finalLabel,
+        label,
         type: targetType,
-        url: uploadRes.viewUrl,
-        notes: `Uploaded to Drive /${subfolderName}/: ${file.name}`,
+        url: fileUrl,
+        notes: `Uploaded file: ${file.name} (${Math.round(file.size / 1024)} KB)`,
       })
       .select()
       .single()
@@ -160,8 +159,7 @@ export async function uploadArtifactFile(formData: FormData) {
       return { success: false, error: error.message }
     }
 
-    revalidatePath(`/projects/${projectId}/artifacts`)
-    revalidatePath(`/projects/${projectId}`)
+    revalidateArtifacts(projectId)
     return { success: true, data }
   } catch (err: unknown) {
     console.error('Failed to upload artifact file:', err)
@@ -271,8 +269,7 @@ export async function recordArtifactAfterUpload({
     return { success: false, error: error.message }
   }
 
-  revalidatePath(`/projects/${projectId}/artifacts`)
-  revalidatePath(`/projects/${projectId}`)
+  revalidateArtifacts(projectId)
   return { success: true, data }
 }
 
@@ -289,7 +286,6 @@ export async function deleteArtifactLink(linkId: string, projectId: string) {
     return { success: false, error: error.message }
   }
 
-  revalidatePath(`/projects/${projectId}/artifacts`)
-  revalidatePath(`/projects/${projectId}`)
+  revalidateArtifacts(projectId)
   return { success: true }
 }

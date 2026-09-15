@@ -29,8 +29,8 @@ This document serves as the **single architectural source of truth** for all dev
 | :--- | :--- | :--- |
 | **Framework** | Next.js (App Router, TypeScript) | Server Components by default; `"use client"` only when interactivity is required. |
 | **UI Library** | shadcn/ui (Preset `b7C9smijg`) + Tailwind CSS | Pointer interaction flag (`--pointer`), installed via shadcn CLI. |
-| **Icons** | Lucide React | Default icon set for shadcn/ui. |
-| **Database & Auth** | Supabase Postgres + Supabase Auth | `@supabase/supabase-js`, `@supabase/ssr`, `@supabase/supabase-client-nextjs`. |
+| **Icons** | Phosphor Icons (`@phosphor-icons/react`) | Default icon set for consistent visual language across the UI. |
+| **Database & Auth** | Supabase Postgres + Supabase Auth | `@supabase/supabase-js`, `@supabase/ssr`. |
 | **Drive Integration** | Google Drive API (`googleapis`) | Scope: `https://www.googleapis.com/auth/drive.file`. Tokens stored in database. |
 | **Forms & Validation** | React Hook Form + Zod | Composed with shadcn `Form` primitives. |
 | **Deployment** | Vercel + Supabase Cloud + GitHub Actions | Scheduled GitHub Actions workflow to keep the Supabase free-tier project active. |
@@ -48,7 +48,7 @@ GOOGLE_CLIENT_SECRET=...
 
 ## 3. Database Schema (Supabase Postgres)
 
-The application utilizes 10 core tables with Row Level Security (RLS) enabled on all tables, providing full read/write access to authenticated team members:
+The application utilizes 11 core tables with Row Level Security (RLS) enabled on all tables, providing full read/write access to authenticated team members:
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -64,20 +64,21 @@ The application utilizes 10 core tables with Row Level Security (RLS) enabled on
 |  +----------------+        +-----------------+              |     |        |      |
 |  |     tasks      |------->|   milestones    |              |     |        |      |
 |  +----------------+        +-----------------+              |     |        |      |
-|          ^                                                  |     |        |      |
-|          |                                                  |     |        |      |
-|          +--------------------------------------------+     |     |        |      |
-|                                                       |     |     |        |      |
-|  +----------------+        +-----------------+        +-----+     |        |      |
-|  |  asset_bundles |<-------|     assets      |--------------------+        |      |
+|     ^     |                                                 |     |        |      |
+|     |     |                                                 |     |        |      |
+|     |     +-------------------------------------------+     |     |        |      |
+|     |                                                 |     |     |        |      |
+|  +--+-------------+        +-----------------+        +-----+     |        |      |
+|  |    subtasks    |        |     assets      |--------------------+        |      |
 |  +----------------+        +-----------------+                             |      |
-|                               ^        ^                                   |      |
-|  +------------------+         |        |        +-----------------+        |      |
-|  | asset_references |---------+        +--------|     credits     |        |      |
-|  +------------------+                           +-----------------+        |      |
+|     |                         ^        ^                                   |      |
+|  +--+-------------+           |        |        +-----------------+        |      |
+|  |  asset_bundles |-----------+        +--------|     credits     |        |      |
+|  +----------------+                             +-----------------+        |      |
 |                                                 +-----------------+        |      |
-|                                                 |  artifact_links |<-------+      |
-|                                                 +-----------------+               |
+|  +------------------+                           |  artifact_links |<-------+      |
+|  | asset_references |                           +-----------------+               |
+|  +------------------+                                                             |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -90,25 +91,29 @@ The application utilizes 10 core tables with Row Level Security (RLS) enabled on
    - Stores Google OAuth tokens for Google Drive API calls (accommodating Vercel read-only runtime).
    - Columns: `id (uuid, PK)`, `user_id (uuid -> profiles.id)`, `provider (text, default 'google')`, `access_token (text)`, `refresh_token (text)`, `expires_at (timestamptz)`, `created_at (timestamptz)`, `updated_at (timestamptz)`.
 3. **`projects`**
-   - Columns: `id (uuid, PK)`, `name (text)`, `type (text: 'jam' | 'competition' | 'internal')`, `start_date (date)`, `deadline (date)`, `status (text: 'active' | 'completed' | 'archived', default 'active')`, `description (text)`, `drive_folder_id (text)`, `created_by (uuid -> profiles.id)`, `created_at (timestamptz)`.
+   - Columns: `id (uuid, PK)`, `name (text)`, `slug (text, unique)`, `type (text: 'jam' | 'competition' | 'internal')`, `start_date (date)`, `deadline (date)`, `status (text: 'active' | 'completed' | 'archived', default 'active')`, `description (text)`, `drive_folder_id (text)`, `created_by (uuid -> profiles.id)`, `created_at (timestamptz)`.
 4. **`milestones`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `title (text)`, `due_date (date)`, `status (text: 'not_started' | 'in_progress' | 'done', default 'not_started')`.
 5. **`tasks`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `milestone_id (uuid -> milestones.id on delete set null)`, `title (text)`, `description (text)`, `assignee_id (uuid -> profiles.id on delete set null)`, `status (text: 'todo' | 'in_progress' | 'review' | 'done', default 'todo')`, `due_date (date)`, `created_at (timestamptz)`.
    - *Note: Supabase Realtime is enabled specifically for this table.*
-6. **`asset_bundles`**
+6. **`subtasks`**
+   - Stores hierarchical checklist items belonging to a parent task, with checkbox completion status.
+   - Columns: `id (uuid, PK)`, `task_id (uuid -> tasks.id on delete cascade)`, `title (text)`, `status (text: 'todo' | 'done', default 'todo')`, `position (integer, default 0)`, `created_at (timestamptz)`.
+   - *Note: Supabase Realtime is enabled for this table.*
+7. **`asset_bundles`**
    - Stores composite asset files (texture atlases, sprite sheets, sound packages) that include multiple assets.
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `name (text)`, `drive_file_id (text)`, `file_name (text)`, `file_size (bigint)`, `mime_type (text)`, `uploaded_by (uuid -> profiles.id on delete set null)`, `created_at (timestamptz)`.
-7. **`assets`**
+8. **`assets`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `task_id (uuid -> tasks.id on delete set null)`, `name (text)`, `type (text: 'sprite' | 'audio' | '3d_model' | 'font' | 'vfx' | 'other')`, `uploaded_by (uuid -> profiles.id on delete set null)`, `drive_file_id (text)`, `bundle_id (uuid -> asset_bundles.id on delete set null)`, `file_name (text)`, `status (text: 'todo' | 'in_progress' | 'done' | 'implemented', default 'todo')`, `needs_credit (boolean, default false)`, `notes (text)`, `created_at (timestamptz)`.
-8. **`asset_references`**
+9. **`asset_references`**
    - Stores visual reference images attached to an asset, supporting Gallery Grid and Lightbox Zoom.
    - Columns: `id (uuid, PK)`, `asset_id (uuid -> assets.id on delete cascade)`, `drive_file_id (text)`, `file_name (text)`, `file_size (bigint)`, `mime_type (text)`, `uploaded_by (uuid -> profiles.id on delete set null)`, `created_at (timestamptz)`.
    - *Note: Hard delete policy enabled for references.*
-9. **`credits`**
+10. **`credits`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `asset_id (uuid -> assets.id on delete set null)`, `source_name (text)`, `author (text)`, `license (text: 'cc0' | 'cc_by' | 'royalty_free' | 'proprietary' | 'other')`, `source_url (text)`, `notes (text)`, `created_at (timestamptz)`.
    - *Note: `asset_id` on delete set null preserves credit history even if the source asset is deleted.*
-10. **`artifact_links`**
+11. **`artifact_links`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `label (text)`, `type (text: 'figma' | 'figjam' | 'gdd' | 'build' | 'other')`, `url (text)`, `notes (text)`, `created_at (timestamptz)`.
 
 ---
@@ -146,9 +151,9 @@ pir-project/
 │   ├── projects/
 │   │   ├── new/
 │   │   │   └── page.tsx               # Create project form
-│   │   └── [projectId]/
+│   │   └── [slug]/
 │   │       ├── page.tsx               # Project hub overview
-│   │       ├── tasks/page.tsx         # Realtime task kanban
+│   │       ├── tasks/page.tsx         # Realtime task kanban & table view
 │   │       ├── milestones/page.tsx    # Milestone list & timeline
 │   │       ├── assets/page.tsx        # Asset tracker & upload
 │   │       ├── credits/page.tsx       # Credit tracker & export

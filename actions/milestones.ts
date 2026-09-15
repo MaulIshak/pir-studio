@@ -35,8 +35,9 @@ export async function createMilestone(input: MilestoneInput) {
     return { error: error.message }
   }
 
-  revalidatePath(`/projects/${input.project_id}`)
-  revalidatePath(`/projects/${input.project_id}/milestones`)
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
 
   return { success: true, milestone: data }
 }
@@ -60,8 +61,9 @@ export async function updateMilestone(
     return { error: error.message }
   }
 
-  revalidatePath(`/projects/${projectId}`)
-  revalidatePath(`/projects/${projectId}/milestones`)
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
 
   return { success: true, milestone: data }
 }
@@ -74,8 +76,9 @@ export async function deleteMilestone(milestoneId: string, projectId: string) {
     return { error: error.message }
   }
 
-  revalidatePath(`/projects/${projectId}`)
-  revalidatePath(`/projects/${projectId}/milestones`)
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
 
   return { success: true }
 }

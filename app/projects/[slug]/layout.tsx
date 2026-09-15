@@ -1,21 +1,28 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
-import { getProjectById } from '@/actions/projects'
+import { notFound, redirect } from 'next/navigation'
+import { getProjectBySlug, getProjectById } from '@/actions/projects'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { RetryDriveButton } from '@/components/projects/retry-drive-button'
 import { EditProjectDialog } from '@/components/projects/edit-project-dialog'
-import { ProjectNav } from '@/components/projects/project-nav'
 import { CaretLeft, Folder } from '@phosphor-icons/react/dist/ssr'
 
 interface ProjectLayoutProps {
   children: React.ReactNode
-  params: Promise<{ projectId: string }>
+  params: Promise<{ slug: string }>
 }
 
 export default async function ProjectLayout({ children, params }: ProjectLayoutProps) {
-  const { projectId } = await params
-  const project = await getProjectById(projectId)
+  const { slug } = await params
+  let project = await getProjectBySlug(slug)
+
+  // Backward-compatibility: If param is a UUID, attempt to resolve by ID and redirect to canonical slug URL
+  if (!project && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug)) {
+    project = await getProjectById(slug)
+    if (project?.slug) {
+      redirect(`/projects/${project.slug}`)
+    }
+  }
 
   if (!project) {
     notFound()
@@ -95,9 +102,6 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
           )}
         </div>
       </div>
-
-      {/* Sub-Navigation Bar */}
-      <ProjectNav projectId={projectId} />
 
       {/* Page Content */}
       <div>{children}</div>

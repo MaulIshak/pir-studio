@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   CircleDashed,
@@ -14,9 +14,14 @@ import {
   PencilSimple,
   Trash,
   Package,
+  CaretRight,
+  ListChecks,
+  Plus,
 } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -35,6 +40,7 @@ import {
 import { TaskDetailDialog } from './task-detail-dialog'
 import { EditTaskDialog } from './edit-task-dialog'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { createSubtask, deleteSubtask } from '@/actions/tasks'
 import { cn } from 'cn'
 import type { TaskItem, ProfileItem } from './task-card'
 
@@ -46,6 +52,7 @@ interface TaskTableProps {
   onStatusChange: (taskId: string, status: 'todo' | 'in_progress' | 'review' | 'done') => void
   onUpdateTask?: (updatedTask: TaskItem) => void
   onDelete: (taskId: string) => void
+  onToggleSubtask?: (subtaskId: string, currentStatus: 'todo' | 'done', taskId: string) => void
 }
 
 const statusConfig = {
@@ -79,10 +86,61 @@ export function TaskTable({
   onStatusChange,
   onUpdateTask,
   onDelete,
+  onToggleSubtask,
 }: TaskTableProps) {
   const [selectedDetailTask, setSelectedDetailTask] = useState<TaskItem | null>(null)
   const [selectedEditTask, setSelectedEditTask] = useState<TaskItem | null>(null)
   const [taskToDelete, setTaskToDelete] = useState<TaskItem | null>(null)
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set())
+  const [subtaskInputs, setSubtaskInputs] = useState<Record<string, string>>({})
+  const [isAddingSubtask, setIsAddingSubtask] = useState<Record<string, boolean>>({})
+
+  const toggleExpand = (taskId: string) => {
+    setExpandedTaskIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(taskId)) {
+        next.delete(taskId)
+      } else {
+        next.add(taskId)
+      }
+      return next
+    })
+  }
+
+  const handleInlineAddSubtask = async (taskId: string) => {
+    const title = (subtaskInputs[taskId] || '').trim()
+    if (!title || isAddingSubtask[taskId]) return
+
+    setIsAddingSubtask((prev) => ({ ...prev, [taskId]: true }))
+    try {
+      const res = await createSubtask(taskId, title, projectId)
+      if (res.success && res.subtask) {
+        setSubtaskInputs((prev) => ({ ...prev, [taskId]: '' }))
+        const task = tasks.find((t) => t.id === taskId)
+        if (task) {
+          const updatedSubtasks = [...(task.subtasks || []), res.subtask]
+          onUpdateTask?.({
+            ...task,
+            subtasks: updatedSubtasks,
+          })
+        }
+      }
+    } finally {
+      setIsAddingSubtask((prev) => ({ ...prev, [taskId]: false }))
+    }
+  }
+
+  const handleInlineDeleteSubtask = async (subtaskId: string, taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId)
+    if (task) {
+      const updatedSubtasks = (task.subtasks || []).filter((st) => st.id !== subtaskId)
+      onUpdateTask?.({
+        ...task,
+        subtasks: updatedSubtasks,
+      })
+    }
+    await deleteSubtask(subtaskId, projectId)
+  }
 
   // Keep detail and edit references updated with active tasks state
   const activeDetailTask = selectedDetailTask
@@ -108,8 +166,10 @@ export function TaskTable({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[36px] px-2"></TableHead>
                 <TableHead className="min-w-[180px]">Task</TableHead>
-                <TableHead className="w-[130px]">Status</TableHead>
+                <TableHead className="w-[125px]">Status</TableHead>
+                <TableHead className="w-[130px]">Subtasks</TableHead>
                 <TableHead className="w-[140px]">Assignee</TableHead>
                 <TableHead className="w-[130px]">Milestone</TableHead>
                 <TableHead className="w-[125px]">Due Date</TableHead>
@@ -121,6 +181,12 @@ export function TaskTable({
               {tasks.map((task) => {
                 const currentStatus = statusConfig[task.status] || statusConfig.todo
                 const StatusIcon = currentStatus.icon
+                const isExpanded = expandedTaskIds.has(task.id)
+
+                const subtasks = task.subtasks || []
+                const totalSubtasks = subtasks.length
+                const completedSubtasks = subtasks.filter((s) => s.status === 'done').length
+                const progressPercent = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0
 
                 // Check overdue status
                 let isOverdue = false
@@ -145,158 +211,330 @@ export function TaskTable({
                 const assetCount = task.assets?.length || 0
 
                 return (
-                  <TableRow key={task.id} className="hover:bg-muted/40 transition-colors">
-                    {/* Task Title */}
-                    <TableCell className="font-medium max-w-[240px]">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDetailTask(task)}
-                        className="group flex items-center gap-1.5 text-left hover:opacity-80 transition-opacity cursor-pointer truncate max-w-full"
-                        title={task.title}
-                      >
-                        <span className="font-medium text-foreground group-hover:text-primary transition-colors truncate">
-                          {task.title}
-                        </span>
-                        {isOverdue && (
-                          <Badge
-                            variant="destructive"
-                            className="h-4 px-1 text-[10px] font-mono shrink-0"
-                          >
-                            Overdue
-                          </Badge>
-                        )}
-                      </button>
-                    </TableCell>
-
-                    {/* Status Dropdown */}
-                    <TableCell>
-                      <Select
-                        value={task.status}
-                        onValueChange={(val) =>
-                          val && onStatusChange(task.id, val as 'todo' | 'in_progress' | 'review' | 'done')
-                        }
-                      >
-                        <SelectTrigger className={`h-7 w-[125px] text-xs gap-1.5 ${currentStatus.class}`}>
-                          <StatusIcon className="size-3" />
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todo">To Do</SelectItem>
-                          <SelectItem value="in_progress">In Progress</SelectItem>
-                          <SelectItem value="review">Review</SelectItem>
-                          <SelectItem value="done">Done</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-
-                    {/* Assignee */}
-                    <TableCell>
-                      <div className="flex items-center gap-1.5 text-xs">
-                        {task.profiles?.avatar_url ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img
-                            src={task.profiles.avatar_url}
-                            alt={task.profiles.name || 'Member'}
-                            className="size-4 rounded-full object-cover shrink-0"
+                  <React.Fragment key={task.id}>
+                    <TableRow
+                      className={cn(
+                        "hover:bg-muted/40 transition-colors",
+                        isExpanded && "border-b-0 bg-muted/10"
+                      )}
+                    >
+                      {/* Expand / Collapse Button */}
+                      <TableCell className="p-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(task.id)}
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer inline-flex items-center justify-center"
+                          title={isExpanded ? "Collapse subtasks" : "Expand subtasks"}
+                        >
+                          <CaretRight
+                            className={cn(
+                              "size-3.5 transition-transform duration-200",
+                              isExpanded && "rotate-90 text-primary"
+                            )}
                           />
-                        ) : (
-                          <div className="flex size-4 items-center justify-center rounded-full bg-secondary text-muted-foreground shrink-0">
-                            <User className="size-2.5" />
-                          </div>
-                        )}
-                        <span className="truncate max-w-[110px]" title={task.profiles?.name || 'Unassigned'}>
-                          {task.profiles?.name || 'Unassigned'}
-                        </span>
-                      </div>
-                    </TableCell>
+                        </button>
+                      </TableCell>
 
-                    {/* Milestone */}
-                    <TableCell>
-                      {task.milestones ? (
-                        <Badge
-                          variant="secondary"
-                          className="flex items-center gap-1 text-xs font-normal max-w-[120px] truncate"
-                          title={task.milestones.title}
-                        >
-                          <Flag className="size-3 text-primary shrink-0" />
-                          <span className="truncate">{task.milestones.title}</span>
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-
-                    {/* Due Date */}
-                    <TableCell>
-                      {formattedDate ? (
-                        <div
-                          className={cn(
-                            'flex items-center gap-1 text-xs font-mono',
-                            isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'
-                          )}
-                        >
-                          {isOverdue ? (
-                            <ClockCountdown className="size-3 shrink-0" />
-                          ) : (
-                            <CalendarBlank className="size-3 shrink-0" />
-                          )}
-                          <span>{formattedDate}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-
-                    {/* Linked Assets */}
-                    <TableCell>
-                      {assetCount > 0 ? (
-                        <Badge
-                          variant="outline"
-                          className="flex items-center gap-1 w-fit text-xs border-purple-500/30 bg-purple-500/10 text-purple-400"
-                        >
-                          <Package className="size-3 shrink-0" />
-                          {assetCount} {assetCount === 1 ? 'Asset' : 'Assets'}
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-
-                    {/* Actions */}
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="xs"
+                      {/* Task Title */}
+                      <TableCell className="font-medium max-w-[240px]">
+                        <button
+                          type="button"
                           onClick={() => setSelectedDetailTask(task)}
-                          className="text-muted-foreground hover:text-foreground"
-                          title="View Details"
+                          className="group flex items-center gap-1.5 text-left hover:opacity-80 transition-opacity cursor-pointer truncate max-w-full"
+                          title={task.title}
                         >
-                          <Eye className="size-3.5" />
-                        </Button>
+                          <span className="font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                            {task.title}
+                          </span>
+                          {isOverdue && (
+                            <Badge
+                              variant="destructive"
+                              className="h-4 px-1 text-[10px] font-mono shrink-0"
+                            >
+                              Overdue
+                            </Badge>
+                          )}
+                        </button>
+                      </TableCell>
 
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setSelectedEditTask(task)}
-                          className="text-muted-foreground hover:text-foreground"
-                          title="Edit Task"
+                      {/* Status Dropdown */}
+                      <TableCell>
+                        <Select
+                          value={task.status}
+                          onValueChange={(val) =>
+                            val && onStatusChange(task.id, val as 'todo' | 'in_progress' | 'review' | 'done')
+                          }
                         >
-                          <PencilSimple className="size-3.5" />
-                        </Button>
+                          <SelectTrigger className={`h-7 w-[125px] text-xs gap-1.5 ${currentStatus.class}`}>
+                            <StatusIcon className="size-3" />
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="todo">To Do</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="review">Review</SelectItem>
+                            <SelectItem value="done">Done</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
 
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setTaskToDelete(task)}
-                          className="text-destructive hover:text-destructive"
-                          title="Delete Task"
-                        >
-                          <Trash className="size-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                      {/* Subtasks Progress */}
+                      <TableCell>
+                        {totalSubtasks > 0 ? (
+                          <div
+                            className="flex flex-col gap-1 w-24 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => toggleExpand(task.id)}
+                            title={`${completedSubtasks}/${totalSubtasks} subtasks completed`}
+                          >
+                            <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+                              <span className="flex items-center gap-1 font-sans">
+                                <ListChecks className="size-3 text-primary" />
+                                {completedSubtasks}/{totalSubtasks}
+                              </span>
+                              <span>{progressPercent}%</span>
+                            </div>
+                            <div className="h-1 w-full rounded-full bg-secondary overflow-hidden">
+                              <div
+                                className={cn(
+                                  "h-full transition-all duration-300",
+                                  completedSubtasks === totalSubtasks ? "bg-emerald-500" : "bg-primary"
+                                )}
+                                style={{ width: `${progressPercent}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(task.id)}
+                            className="text-[11px] text-muted-foreground/60 hover:text-primary transition-colors cursor-pointer"
+                          >
+                            + Add subtask
+                          </button>
+                        )}
+                      </TableCell>
+
+                      {/* Assignee */}
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-xs">
+                          {task.profiles?.avatar_url ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={task.profiles.avatar_url}
+                              alt={task.profiles.name || 'Member'}
+                              className="size-4 rounded-full object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className="flex size-4 items-center justify-center rounded-full bg-secondary text-muted-foreground shrink-0">
+                              <User className="size-2.5" />
+                            </div>
+                          )}
+                          <span className="truncate max-w-[110px]" title={task.profiles?.name || 'Unassigned'}>
+                            {task.profiles?.name || 'Unassigned'}
+                          </span>
+                        </div>
+                      </TableCell>
+
+                      {/* Milestone */}
+                      <TableCell>
+                        {task.milestones ? (
+                          <Badge
+                            variant="secondary"
+                            className="flex items-center gap-1 text-xs font-normal max-w-[120px] truncate"
+                            title={task.milestones.title}
+                          >
+                            <Flag className="size-3 text-primary shrink-0" />
+                            <span className="truncate">{task.milestones.title}</span>
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+
+                      {/* Due Date */}
+                      <TableCell>
+                        {formattedDate ? (
+                          <div
+                            className={cn(
+                              'flex items-center gap-1 text-xs font-mono',
+                              isOverdue ? 'text-destructive font-medium' : 'text-muted-foreground'
+                            )}
+                          >
+                            {isOverdue ? (
+                              <ClockCountdown className="size-3 shrink-0" />
+                            ) : (
+                              <CalendarBlank className="size-3 shrink-0" />
+                            )}
+                            <span>{formattedDate}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+
+                      {/* Linked Assets */}
+                      <TableCell>
+                        {assetCount > 0 ? (
+                          <Badge
+                            variant="outline"
+                            className="flex items-center gap-1 w-fit text-xs border-purple-500/30 bg-purple-500/10 text-purple-400"
+                          >
+                            <Package className="size-3 shrink-0" />
+                            {assetCount} {assetCount === 1 ? 'Asset' : 'Assets'}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setSelectedDetailTask(task)}
+                            className="text-muted-foreground hover:text-foreground"
+                            title="View Details"
+                          >
+                            <Eye className="size-3.5" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setSelectedEditTask(task)}
+                            className="text-muted-foreground hover:text-foreground"
+                            title="Edit Task"
+                          >
+                            <PencilSimple className="size-3.5" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setTaskToDelete(task)}
+                            className="text-destructive hover:text-destructive"
+                            title="Delete Task"
+                          >
+                            <Trash className="size-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Expandable Subtask Tree Row */}
+                    {isExpanded && (
+                      <TableRow className="bg-muted/20 hover:bg-muted/20 border-b border-border/80">
+                        <TableCell colSpan={9} className="p-0">
+                          <div className="py-2.5 px-8 ml-6 my-1 border-l-2 border-primary/40 flex flex-col gap-2 bg-background/50 rounded-r-md">
+                            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground pb-1 border-b border-border/40">
+                              <span className="flex items-center gap-1.5 text-foreground">
+                                <ListChecks className="size-3.5 text-primary" />
+                                Subtasks {totalSubtasks > 0 && `(${completedSubtasks}/${totalSubtasks})`}
+                              </span>
+                              {totalSubtasks > 0 && (
+                                <span className="text-[10px] font-mono text-muted-foreground">
+                                  {progressPercent}% Complete
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Subtasks List */}
+                            {totalSubtasks === 0 ? (
+                              <p className="text-xs text-muted-foreground italic py-1">
+                                No subtasks yet. Add one below.
+                              </p>
+                            ) : (
+                              <div className="flex flex-col gap-1.5">
+                                {subtasks.map((st) => {
+                                  const isDone = st.status === 'done'
+                                  return (
+                                    <div
+                                      key={st.id}
+                                      className="group/st flex items-center justify-between gap-2.5 rounded px-2 py-1 bg-card hover:bg-accent/40 border border-border/40 transition-colors"
+                                    >
+                                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                        <span className="text-muted-foreground/50 text-xs select-none">└</span>
+                                        <Checkbox
+                                          checked={isDone}
+                                          onCheckedChange={() => onToggleSubtask?.(st.id, st.status, task.id)}
+                                          className="size-3.5"
+                                        />
+                                        <span
+                                          className={cn(
+                                            "text-xs truncate flex-1 select-none",
+                                            isDone ? "line-through text-muted-foreground" : "text-foreground font-medium"
+                                          )}
+                                        >
+                                          {st.title}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-2">
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "text-[10px] font-mono h-5 px-1.5",
+                                            isDone
+                                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                              : "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                                          )}
+                                        >
+                                          {isDone ? 'Done' : 'To Do'}
+                                        </Badge>
+
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="xs"
+                                          onClick={() => handleInlineDeleteSubtask(st.id, task.id)}
+                                          className="size-5 p-0 text-muted-foreground hover:text-destructive opacity-0 group-hover/st:opacity-100 transition-opacity"
+                                          title="Delete subtask"
+                                        >
+                                          <Trash className="size-3" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+
+                            {/* Quick Add Subtask Input */}
+                            <div className="flex items-center gap-2 pt-1">
+                              <Input
+                                placeholder="Add subtask..."
+                                value={subtaskInputs[task.id] || ''}
+                                onChange={(e) =>
+                                  setSubtaskInputs((prev) => ({ ...prev, [task.id]: e.target.value }))
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    handleInlineAddSubtask(task.id)
+                                  }
+                                }}
+                                disabled={isAddingSubtask[task.id]}
+                                className="h-7 text-xs max-w-sm bg-background"
+                              />
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="secondary"
+                                onClick={() => handleInlineAddSubtask(task.id)}
+                                disabled={!subtaskInputs[task.id]?.trim() || isAddingSubtask[task.id]}
+                                className="h-7 text-xs gap-1 px-2.5"
+                              >
+                                <Plus className="size-3" />
+                                Add
+                              </Button>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
                 )
               })}
             </TableBody>
@@ -322,6 +560,8 @@ export function TaskTable({
             setTaskToDelete(current)
           }}
           onStatusChange={(taskId, newStatus) => onStatusChange(taskId, newStatus)}
+          onToggleSubtask={onToggleSubtask}
+          onUpdateTask={onUpdateTask}
         />
       )}
 

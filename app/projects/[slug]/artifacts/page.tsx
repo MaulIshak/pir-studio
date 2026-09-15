@@ -1,23 +1,23 @@
 import { notFound } from 'next/navigation'
-import { getProjectById } from '@/actions/projects'
+import { getProjectBySlug } from '@/actions/projects'
 import { getArtifactLinksByProjectId } from '@/actions/artifacts'
 import { CreateArtifactDialog } from '@/components/artifacts/create-artifact-dialog'
 import { UploadArtifactDialog } from '@/components/artifacts/upload-artifact-dialog'
 import { ArtifactList } from '@/components/artifacts/artifact-list'
 
 interface ArtifactsPageProps {
-  params: Promise<{ projectId: string }>
+  params: Promise<{ slug: string }>
 }
 
 export default async function ArtifactsPage({ params }: ArtifactsPageProps) {
-  const { projectId } = await params
-  const project = await getProjectById(projectId)
+  const { slug } = await params
+  const project = await getProjectBySlug(slug)
 
   if (!project) {
     notFound()
   }
 
-  const artifacts = await getArtifactLinksByProjectId(projectId)
+  const artifacts = await getArtifactLinksByProjectId(project.id)
 
   return (
     <div className="flex flex-col gap-6">
@@ -30,12 +30,12 @@ export default async function ArtifactsPage({ params }: ArtifactsPageProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <UploadArtifactDialog projectId={projectId} />
-          <CreateArtifactDialog projectId={projectId} />
+          <UploadArtifactDialog projectId={project.id} />
+          <CreateArtifactDialog projectId={project.id} />
         </div>
       </div>
 
-      <ArtifactList artifacts={artifacts} projectId={projectId} />
+      <ArtifactList artifacts={artifacts} projectId={project.id} />
     </div>
   )
 }

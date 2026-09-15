@@ -24,7 +24,7 @@ app/
     page.tsx                 -- main dashboard
   projects/
     new/page.tsx              -- create project form
-    [projectId]/
+    [slug]/
       page.tsx                -- project hub (tabs)
       tasks/                  -- kanban board
       milestones/

@@ -112,6 +112,9 @@ export async function createCredit(formData: FormData) {
     return { success: false, error: error.message }
   }
 
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
   revalidatePath(`/projects/${projectId}/credits`)
   revalidatePath(`/projects/${projectId}`)
   return { success: true, data }
@@ -130,6 +133,9 @@ export async function deleteCredit(creditId: string, projectId: string) {
     return { success: false, error: error.message }
   }
 
+  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects')
+  revalidatePath('/')
   revalidatePath(`/projects/${projectId}/credits`)
   revalidatePath(`/projects/${projectId}`)
   return { success: true }

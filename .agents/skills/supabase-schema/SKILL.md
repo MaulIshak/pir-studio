@@ -36,6 +36,7 @@ oauth_tokens (
 projects (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  slug text not null unique,
   type text check (type in ('jam','competition','internal')),
   start_date date,
   deadline date,
@@ -63,6 +64,15 @@ tasks (
   assignee_id uuid references profiles(id),
   status text check (status in ('todo','in_progress','review','done')) default 'todo',
   due_date date,
+  created_at timestamptz default now()
+)
+
+subtasks (
+  id uuid primary key default gen_random_uuid(),
+  task_id uuid references tasks(id) on delete cascade,
+  title text not null,
+  status text check (status in ('todo','done')) default 'todo',
+  position integer default 0,
   created_at timestamptz default now()
 )
 
@@ -167,4 +177,4 @@ Apply the same three-policy pattern (`select`, `insert`, `update`) to every tabl
 
 ## Realtime
 
-Enable Supabase Realtime only on `tasks` (for the live kanban board). Do not enable it broadly on all tables — unnecessary realtime subscriptions add complexity without a corresponding feature need in this app.
+Enable Supabase Realtime only on `tasks` and `subtasks` (for the live kanban board). Do not enable it broadly on all tables — unnecessary realtime subscriptions add complexity without a corresponding feature need in this app.

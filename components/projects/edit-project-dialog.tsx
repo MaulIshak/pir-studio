@@ -28,6 +28,7 @@ import { PencilSimple, Archive, ArrowCounterClockwise } from '@phosphor-icons/re
 interface EditProjectDialogProps {
   project: {
     id: string
+    slug: string
     name: string
     type: 'jam' | 'competition' | 'internal'
     status: 'active' | 'completed' | 'archived'
@@ -51,6 +52,7 @@ export function EditProjectDialog({ project }: EditProjectDialogProps) {
 
     const formData = new FormData(e.currentTarget)
     const name = formData.get('name') as string
+    const slug = (formData.get('slug') as string)?.trim()
     const startDate = (formData.get('start_date') as string) || null
     const deadline = (formData.get('deadline') as string) || null
     const description = (formData.get('description') as string) || null
@@ -58,6 +60,7 @@ export function EditProjectDialog({ project }: EditProjectDialogProps) {
     startTransition(async () => {
       const res = await updateProject(project.id, {
         name,
+        slug: slug || undefined,
         type: type as 'jam' | 'competition' | 'internal',
         status: status as 'active' | 'completed' | 'archived',
         start_date: startDate,
@@ -67,7 +70,11 @@ export function EditProjectDialog({ project }: EditProjectDialogProps) {
 
       if (res.success) {
         setOpen(false)
-        router.refresh()
+        if (res.project?.slug && res.project.slug !== project.slug) {
+          router.push(`/projects/${res.project.slug}`)
+        } else {
+          router.refresh()
+        }
       } else {
         setError(res.error || 'Failed to update project')
       }
@@ -122,6 +129,16 @@ export function EditProjectDialog({ project }: EditProjectDialogProps) {
               Project Name
             </label>
             <Input id="name" name="name" defaultValue={project.name} required />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="slug" className="text-xs font-medium text-foreground">
+              Slug
+            </label>
+            <Input id="slug" name="slug" defaultValue={project.slug} required />
+            <p className="text-[11px] text-muted-foreground">
+              URL path: /projects/{project.slug}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

@@ -3,7 +3,7 @@ import { Geist_Mono, Noto_Sans } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { AppHeader } from "@/components/layout/app-header"
+import { AppShell } from "@/components/layout/app-shell"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = {
@@ -38,8 +38,7 @@ export default function RootLayout({
     >
       <body className="min-h-screen bg-background font-sans text-foreground">
         <ThemeProvider>
-          <AppHeader />
-          <main className="flex-1">{children}</main>
+          <AppShell>{children}</AppShell>
         </ThemeProvider>
       </body>
     </html>
