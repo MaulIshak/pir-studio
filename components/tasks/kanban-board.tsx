@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { CircleDashed, Play, Eye, CheckCircle, Funnel, ArrowDown, User, Kanban, Table as TableIcon } from '@phosphor-icons/react'
+import { CircleDashed, Play, Eye, CheckCircle, ArrowDown, Kanban, Table as TableIcon } from '@phosphor-icons/react'
 import { TaskTable } from './task-table'
 import { cn } from 'cn'
 

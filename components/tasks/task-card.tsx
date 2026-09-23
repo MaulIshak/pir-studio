@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -380,9 +381,11 @@ export function TaskCard({
             <CardFooter className="flex items-center justify-between border-t pt-2 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1.5 font-medium">
                 {task.profiles?.avatar_url ? (
-                  <img
+                  <Image
                     src={task.profiles.avatar_url}
                     alt={task.profiles.name || 'Assignee'}
+                    width={14}
+                    height={14}
                     className="size-3.5 rounded-full object-cover"
                   />
                 ) : (

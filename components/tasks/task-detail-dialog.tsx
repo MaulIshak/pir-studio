@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import {
   Dialog,
   DialogContent,
@@ -199,9 +200,11 @@ export function TaskDetailDialog({
             </span>
             <div className="flex items-center gap-2 font-medium text-foreground">
               {task.profiles?.avatar_url ? (
-                <img
+                <Image
                   src={task.profiles.avatar_url}
                   alt={task.profiles.name || 'Member'}
+                  width={20}
+                  height={20}
                   className="size-5 rounded-full object-cover"
                 />
               ) : (

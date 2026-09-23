@@ -61,6 +61,7 @@ import {
   GameController,
   Trophy,
   Folder,
+  PlugsConnected,
   CheckCircle,
   Sun,
   Moon,
@@ -87,8 +88,11 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
   const [openProjects, setOpenProjects] = useState<Record<string, boolean>>({})
   const [, startTransition] = useTransition()
   const projectsRef = useRef(projects)
-  projectsRef.current = projects
   const supabase = createClient()
+
+  useEffect(() => {
+    projectsRef.current = projects
+  }, [projects])
 
   // Load user & Drive token
   useEffect(() => {
@@ -316,6 +320,16 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
               >
                 <SquaresFour className="size-4" />
                 <span className="font-medium">Dashboard</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<Link href="/mcp" onClick={handleLinkClick} />}
+                isActive={pathname.startsWith('/mcp')}
+                tooltip="MCP Setup"
+              >
+                <PlugsConnected className="size-4" />
+                <span className="font-medium">MCP Setup</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

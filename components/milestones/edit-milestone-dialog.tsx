@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { updateMilestone } from '@/actions/milestones'
 import {
   Dialog,
@@ -19,7 +19,7 @@ interface EditMilestoneDialogProps {
   projectId: string
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess?: (milestone?: any) => void
+  onSuccess?: (milestone?: MilestoneItem) => void
 }
 
 export function EditMilestoneDialog({
@@ -29,22 +29,44 @@ export function EditMilestoneDialog({
   onOpenChange,
   onSuccess,
 }: EditMilestoneDialogProps) {
-  const [title, setTitle] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [dueDate, setDueDate] = useState('')
-  const [status, setStatus] = useState<'not_started' | 'in_progress' | 'done'>('not_started')
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold">Edit Milestone</DialogTitle>
+        </DialogHeader>
+
+        {milestone && open && (
+          <EditMilestoneForm
+            key={milestone.id}
+            milestone={milestone}
+            projectId={projectId}
+            onOpenChange={onOpenChange}
+            onSuccess={onSuccess}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function EditMilestoneForm({
+  milestone,
+  projectId,
+  onOpenChange,
+  onSuccess,
+}: {
+  milestone: MilestoneItem
+  projectId: string
+  onOpenChange: (open: boolean) => void
+  onSuccess?: (milestone?: MilestoneItem) => void
+}) {
+  const [title, setTitle] = useState(milestone.title)
+  const [startDate, setStartDate] = useState(milestone.start_date || '')
+  const [dueDate, setDueDate] = useState(milestone.due_date || '')
+  const [status, setStatus] = useState<'not_started' | 'in_progress' | 'done'>(milestone.status)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (milestone && open) {
-      setTitle(milestone.title)
-      setStartDate(milestone.start_date || '')
-      setDueDate(milestone.due_date || '')
-      setStatus(milestone.status)
-      setError(null)
-    }
-  }, [milestone, open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -81,15 +103,7 @@ export function EditMilestoneDialog({
     onSuccess?.(res.milestone)
   }
 
-  if (!milestone) return null
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-base font-semibold">Edit Milestone</DialogTitle>
-        </DialogHeader>
-
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 pt-2">
           {error && (
             <Alert variant="destructive">
@@ -166,7 +180,5 @@ export function EditMilestoneDialog({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
   )
 }

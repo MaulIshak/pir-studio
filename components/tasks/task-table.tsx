@@ -168,7 +168,6 @@ export function TaskTable({
           const subtasks = task.subtasks || []
           const totalSubtasks = subtasks.length
           const completedSubtasks = subtasks.filter((s) => s.status === 'done').length
-          const progressPercent = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0
 
           let isOverdue = false
           if (task.due_date && task.status !== 'done') {

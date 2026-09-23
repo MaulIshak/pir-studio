@@ -604,12 +604,9 @@ function SidebarMenuSkeleton({
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean
 }) {
-  // Stable default width on initial render/SSR to prevent hydration mismatch
-  const [width, setWidth] = React.useState("70%")
-
-  React.useEffect(() => {
-    setWidth(`${Math.floor(Math.random() * 40) + 50}%`)
-  }, [])
+  // Random width per mount. Initializer runs on both server and client, so
+  // suppress the hydration warning on the styled element below.
+  const [width] = React.useState(() => `${Math.floor(Math.random() * 40) + 50}%`)
 
   return (
     <div
@@ -627,6 +624,7 @@ function SidebarMenuSkeleton({
       <Skeleton
         className="h-4 max-w-(--skeleton-width) flex-1"
         data-sidebar="menu-skeleton-text"
+        suppressHydrationWarning
         style={
           {
             "--skeleton-width": width,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -109,6 +109,12 @@ function formatToLocalDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
+function subscribeToViewport(onChange: () => void) {
+  const mql = window.matchMedia('(max-width: 767px)')
+  mql.addEventListener('change', onChange)
+  return () => mql.removeEventListener('change', onChange)
+}
+
 const DAY_WIDTH = 48 // Width of each single day column in pixels
 const DAY_MS = 86400000
 
@@ -122,23 +128,27 @@ export function MilestoneList({
   const router = useRouter()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [milestones, setMilestones] = useState<MilestoneItem[]>(initialMilestones)
-  const [viewMode, setViewMode] = useState<'gantt' | 'timeline'>('gantt')
+  const [viewOverride, setViewOverride] = useState<'gantt' | 'timeline' | null>(null)
   const [milestoneToEdit, setMilestoneToEdit] = useState<MilestoneItem | null>(null)
   const [milestoneToDelete, setMilestoneToDelete] = useState<MilestoneItem | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isHoveringDeadline, setIsHoveringDeadline] = useState(false)
 
-  // Switch to timeline by default on mobile screens after mounting to prevent SSR hydration mismatch
-  useEffect(() => {
-    if (window.innerWidth < 768) {
-      setViewMode('timeline')
-    }
-  }, [])
+  // Small screens default to timeline without a hydration mismatch. A manual
+  // toggle always wins via viewOverride.
+  const isSmallScreen = useSyncExternalStore(
+    subscribeToViewport,
+    () => window.innerWidth < 768,
+    () => false
+  )
+  const viewMode = viewOverride ?? (isSmallScreen ? 'timeline' : 'gantt')
 
   // Keep local state in sync whenever server component re-fetches initialMilestones
-  useEffect(() => {
+  const [prevInitialMilestones, setPrevInitialMilestones] = useState(initialMilestones)
+  if (prevInitialMilestones !== initialMilestones) {
+    setPrevInitialMilestones(initialMilestones)
     setMilestones(initialMilestones)
-  }, [initialMilestones])
+  }
 
   const handleMilestoneCreated = (newMilestone?: MilestoneItem) => {
     if (newMilestone) {
@@ -361,7 +371,7 @@ export function MilestoneList({
             <Button
               variant={viewMode === 'gantt' ? 'secondary' : 'ghost'}
               size="xs"
-              onClick={() => setViewMode('gantt')}
+              onClick={() => setViewOverride('gantt')}
               className="gap-1.5 text-xs font-medium"
             >
               <ChartBarHorizontal className="size-3.5" />
@@ -370,7 +380,7 @@ export function MilestoneList({
             <Button
               variant={viewMode === 'timeline' ? 'secondary' : 'ghost'}
               size="xs"
-              onClick={() => setViewMode('timeline')}
+              onClick={() => setViewOverride('timeline')}
               className="gap-1.5 text-xs font-medium"
             >
               <Rows className="size-3.5" />

@@ -14,10 +14,11 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Plus } from '@phosphor-icons/react/dist/ssr'
+import type { MilestoneItem } from './milestone-list'
 
 interface CreateMilestoneDialogProps {
   projectId: string
-  onSuccess?: (milestone?: any) => void
+  onSuccess?: (milestone?: MilestoneItem) => void
   trigger?: React.ReactNode
 }
 

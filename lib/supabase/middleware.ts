@@ -54,7 +54,8 @@ export async function updateSession(request: NextRequest) {
     pathname === '/privacy' ||
     pathname === '/terms' ||
     pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/api/ping')
+    pathname.startsWith('/api/ping') ||
+    pathname.startsWith('/api/mcp')
 
   // If user is not authenticated and trying to access any protected page (like dashboard /), redirect to /login
   if (!user && !isPublicRoute) {
