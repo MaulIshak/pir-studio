@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
-import { getProjectBySlug } from '@/actions/projects'
-import { getTasksByProjectId, getProfiles } from '@/actions/tasks'
+import { getProjectBySlug, getProjectMembers } from '@/actions/projects'
+import { getTasksByProjectId } from '@/actions/tasks'
 import { getMilestonesByProjectId } from '@/actions/milestones'
 import { KanbanBoard } from '@/components/tasks/kanban-board'
 import { TaskItem, ProfileItem } from '@/components/tasks/task-card'
@@ -19,11 +19,19 @@ export default async function ProjectTasksPage({ params }: TasksPageProps) {
     notFound()
   }
 
-  const [tasks, milestones, profiles] = await Promise.all([
+  const [tasks, milestones, projectMembers] = await Promise.all([
     getTasksByProjectId(project.id),
     getMilestonesByProjectId(project.id),
-    getProfiles(),
+    getProjectMembers(project.id),
   ])
+
+  const profiles: ProfileItem[] = projectMembers.map((m) => ({
+    id: m.userId,
+    name: m.name,
+    email: m.email,
+    avatar_url: m.avatarUrl,
+    role: m.role,
+  }))
 
   return (
     <div className="flex flex-col gap-6">
@@ -31,7 +39,7 @@ export default async function ProjectTasksPage({ params }: TasksPageProps) {
         projectId={project.id}
         initialTasks={tasks as unknown as TaskItem[]}
         milestones={milestones.map((m) => ({ id: m.id, title: m.title }))}
-        profiles={profiles as unknown as ProfileItem[]}
+        profiles={profiles}
       />
     </div>
   )

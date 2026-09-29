@@ -20,10 +20,30 @@ interface Project {
   tasks?: Array<{ id: string; status: string }>
 }
 
-export function ProjectListClient({ initialProjects }: { initialProjects: Project[] }) {
+export function ProjectListClient({
+  initialProjects,
+  canCreateProject = true,
+}: {
+  initialProjects: Project[]
+  canCreateProject?: boolean
+}) {
   const [tab, setTab] = useState<string>('active')
 
   const filteredProjects = initialProjects.filter((p) => p.status === tab)
+
+  const emptyTitle =
+    tab === 'active'
+      ? canCreateProject
+        ? 'No active projects'
+        : 'No assigned projects'
+      : `No ${tab} projects`
+
+  const emptyDescription =
+    tab === 'active'
+      ? canCreateProject
+        ? 'Start a new game jam or competition project.'
+        : 'You have not been assigned to any projects in this organization yet. Contact a leader or co-leader for access.'
+      : `No projects currently marked as ${tab}.`
 
   return (
     <div className="flex flex-col gap-6">
@@ -56,15 +76,11 @@ export function ProjectListClient({ initialProjects }: { initialProjects: Projec
             transition={{ duration: 0.2 }}
           >
             <EmptyState
-              title={`No ${tab} projects`}
-              description={
-                tab === 'active'
-                  ? 'Start a new game jam or competition project.'
-                  : `No projects currently marked as ${tab}.`
-              }
+              title={emptyTitle}
+              description={emptyDescription}
               icon={<FolderDashed className="size-7" />}
-              actionLabel={tab === 'active' ? 'New Project' : undefined}
-              actionHref={tab === 'active' ? '/projects/new' : undefined}
+              actionLabel={canCreateProject && tab === 'active' ? 'New Project' : undefined}
+              actionHref={canCreateProject && tab === 'active' ? '/projects/new' : undefined}
             />
           </motion.div>
         ) : (

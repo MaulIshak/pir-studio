@@ -8,6 +8,22 @@ GameDev Project Manager provides a unified execution workspace that links projec
 
 ## ⚡ Key Features
 
+- **Multi-Tenant Organizations & RBAC**:
+  - Full multi-tenancy hierarchy: $\text{Organization} \rightarrow \text{Project} \rightarrow \text{Tasks, Milestones, Assets, Credits}$.
+  - **Leader**: Organization owner with full authority (invite members, modify member roles, manage organization settings, full project access).
+  - **Co-Leader**: Appointed admin with automatic access to all projects in the organization and member invitation privileges.
+  - **Member**: Access strictly scoped to projects explicitly assigned to them by Leaders or Co-Leaders.
+  - Organization Switcher in sidebar to seamlessly toggle between multiple organizations.
+- **Invitations & In-App Notifications**:
+  - In-app notification center (bell in top navbar with badge count) for incoming invitations.
+  - Shareable invitation links (`/invite/[token]`) with auth redirect and confirmation screens showing org details, leader, and current active account.
+- **Personal Dashboard & Quick Actions**:
+  - Tailored personal dashboard showing tasks assigned to the user across all accessible projects.
+  - **Quick Action Bar**: One-click status change dropdowns (`Todo` $\to$ `In Progress` $\to$ `Review` $\to$ `Done`) and direct navigation to project boards.
+  - Dedicated Organization Dashboards (`/orgs/[slug]`) and Team Management (`/orgs/[slug]/members`).
+- **Project Members & Assignee Scoping**:
+  - Dedicated `Members` tab (`/projects/[slug]/members`) displaying accessible users with role badges.
+  - Task assignee dropdowns strictly filtered to users who have access to that specific project, displaying their role badge (`Leader`, `Co-Leader`, `Member`).
 - **Project Hub**:
   - Centralized overview of active, completed, and archived projects.
   - Game jam and competition countdown timers and deadline tracking.

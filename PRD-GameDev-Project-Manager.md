@@ -18,35 +18,34 @@ Membangun satu aplikasi web internal yang jadi *single source of truth* untuk se
 **Target pengguna**: 5-8 anggota tim internal, intensitas pemakaian tidak merata (aktif tinggi saat game jam, rendah di antaranya).
 
 **Prinsip desain**
-- Tidak overengineering — fitur dikunci sesuai pain point yang nyata, bukan "karena bisa"
-- Zero cost — Next.js (Vercel free), Supabase (free tier), Google Drive sebagai storage file
-- Semua anggota tim punya akses penuh (tanpa role/permission kompleks) di v1
-- Auth via Google OAuth (satu langkah, sekaligus untuk akses Drive API)
+- Multi-tenancy berbasis Organisasi: Organisasi $\rightarrow$ Project $\rightarrow$ Task, Milestone, Asset, Credit, Artifak.
+- Otorisasi dan Hak Akses (RBAC):
+  - **Leader**: Pembuat organisasi, memiliki semua hak akses (invite, ubah role member, kelola setting organisasi, akses ke semua project).
+  - **Co-Leader**: Dapat mengundang member, akses otomatis ke semua project di organisasi, dan dapat menentukan project yang bisa diakses oleh Member.
+  - **Member**: Hanya dapat mengakses project yang secara eksplisit diberikan oleh Leader/Co-Leader.
+- Link Undangan & Notifikasi: Undangan muncul di in-app notification center dan dapat dibagikan melalui link undangan (`/invite/[token]`).
+- Zero cost — Next.js (Vercel free), Supabase (free tier), Google Drive sebagai storage file.
+- Auth via Google OAuth (satu langkah, sekaligus untuk akses Drive API).
 
 **Stack teknis**
-- Frontend: Next.js (App Router), Tailwind CSS
-- Backend/DB: Supabase (Postgres, Auth, Realtime opsional)
+- Frontend: Next.js 16 (App Router), React 19, Tailwind CSS 4
+- Backend/DB: Supabase (Postgres, Auth, Realtime)
 - File storage: Google Drive API (folder auto-provisioned per project)
 - Auth: Supabase Auth + Google OAuth provider
 - Deploy: Vercel (frontend), Supabase Cloud (backend)
 - Uptime: cron ping (GitHub Actions) untuk mencegah Supabase free tier pause karena inaktivitas
 
-**Skema data inti**: `profiles`, `projects`, `milestones`, `tasks`, `assets`, `credits`, `artifact_links`
+**Skema data inti**: `organizations`, `organization_members`, `project_members`, `organization_invitations`, `notifications`, `profiles`, `projects`, `milestones`, `tasks`, `subtasks`, `asset_bundles`, `assets`, `asset_references`, `credits`, `artifact_links`, `mcp_tokens`.
 
-**Lingkup v1 (in-scope)**
-- CRUD project, milestone, task
-- Asset intake + tracking status
-- Credit/reference tracker terpusat + export
-- Link artifak eksternal (Figma, GDD, build, dll)
+**Lingkup Fitur Utama**
+- Multi-tenant Organization Management & Switcher
+- RBAC (Leader, Co-Leader, Member) & Project Access Assignment
+- Personal Dashboard dengan Quick Actions pada tugas pribadi
+- In-App Notifications & Shareable Invitation Links (`/invite/[token]`)
+- Project Members view & scoped task assignee dropdown dengan role badges
+- CRUD project, milestone, task & subtask kanban
+- Asset intake, bundle, reference gallery & credit tracker terpusat
 - Auto-provisioning folder Drive per project
-- Dashboard ringkas semua project aktif
-
-**Di luar lingkup v1 (out-of-scope, sengaja ditunda)**
-- Role & permission granular
-- Notifikasi push/email/Slack integration otomatis
-- Versioning build otomatis / CI-CD integration
-- Analytics/reporting mendalam
-- Mobile app native
 
 ---
 

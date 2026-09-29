@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getProjects } from '@/actions/projects'
+import { getActiveOrganization } from '@/lib/auth/active-org'
 import { Button } from '@/components/ui/button'
 import { ProjectListClient } from '@/components/projects/project-list-client'
 import { Plus } from '@phosphor-icons/react/dist/ssr'
@@ -18,10 +20,9 @@ export default async function ProjectsPage() {
     redirect('/login')
   }
 
-  const { data: projects } = await supabase
-    .from('projects')
-    .select('*, tasks(id, status)')
-    .order('deadline', { ascending: true, nullsFirst: false })
+  const activeOrg = await getActiveOrganization()
+  const canCreateProject = activeOrg?.role === 'leader' || activeOrg?.role === 'co_leader'
+  const projects = await getProjects()
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
@@ -30,13 +31,15 @@ export default async function ProjectsPage() {
           <h1 className="font-heading text-2xl font-bold tracking-tight">Projects</h1>
           <p className="text-xs text-muted-foreground">Manage active game jams, competitions, and internal projects.</p>
         </div>
-        <Button nativeButton={false} render={<Link href="/projects/new" />} size="sm">
-          <Plus className="size-3.5" />
-          New Project
-        </Button>
+        {canCreateProject && (
+          <Button nativeButton={false} render={<Link href="/projects/new" />} size="sm">
+            <Plus className="size-3.5" />
+            New Project
+          </Button>
+        )}
       </div>
 
-      <ProjectListClient initialProjects={projects ?? []} />
+      <ProjectListClient initialProjects={projects} canCreateProject={canCreateProject} />
     </div>
   )
 }

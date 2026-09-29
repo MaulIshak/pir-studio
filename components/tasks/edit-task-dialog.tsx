@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { updateTask } from '@/actions/tasks'
 import type { TaskItem, ProfileItem } from './task-card'
 
@@ -152,7 +153,23 @@ function EditTaskForm({
               </SelectItem>
               {profiles.map((p) => (
                 <SelectItem key={p.id} value={p.id} label={p.name || p.email || 'Member'}>
-                  {p.name || p.email || 'Member'}
+                  <div className="flex items-center justify-between w-full gap-2">
+                    <span className="truncate">{p.name || p.email || 'Member'}</span>
+                    {p.role && (
+                      <Badge
+                        variant="outline"
+                        className={
+                          p.role === 'leader'
+                            ? 'border-amber-500/30 bg-amber-500/10 text-amber-500 text-[10px] px-1 py-0 capitalize shrink-0'
+                            : p.role === 'co_leader'
+                            ? 'border-purple-500/30 bg-purple-500/10 text-purple-400 text-[10px] px-1 py-0 capitalize shrink-0'
+                            : 'border-muted-foreground/30 bg-muted/40 text-muted-foreground text-[10px] px-1 py-0 capitalize shrink-0'
+                        }
+                      >
+                        {p.role === 'co_leader' ? 'Co-Leader' : p.role}
+                      </Badge>
+                    )}
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>

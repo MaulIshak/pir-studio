@@ -48,73 +48,119 @@ GOOGLE_CLIENT_SECRET=...
 
 ## 3. Database Schema (Supabase Postgres)
 
-The application utilizes 11 core tables with Row Level Security (RLS) enabled on all tables, providing full read/write access to authenticated team members:
+The application utilizes 17 core tables with Row Level Security (RLS) enabled, enforcing Organization-level multi-tenancy and Role-Based Access Control (RBAC):
 
 ```
-+-----------------------------------------------------------------------------------+
-|                                  SUPABASE POSTGRES                                |
-|                                                                                   |
-|  +----------------+        +-----------------+        +------------------------+  |
-|  |    profiles    |<-------|   oauth_tokens  |        |        projects        |  |
-|  +----------------+        +-----------------+        +------------------------+  |
-|          ^                                                  ^     ^        ^      |
-|          |                                                  |     |        |      |
-|          +--------------------------+                       |     |        |      |
-|                                     |                       |     |        |      |
-|  +----------------+        +-----------------+              |     |        |      |
-|  |     tasks      |------->|   milestones    |              |     |        |      |
-|  +----------------+        +-----------------+              |     |        |      |
-|     ^     |                                                 |     |        |      |
-|     |     |                                                 |     |        |      |
-|     |     +-------------------------------------------+     |     |        |      |
-|     |                                                 |     |     |        |      |
-|  +--+-------------+        +-----------------+        +-----+     |        |      |
-|  |    subtasks    |        |     assets      |--------------------+        |      |
-|  +----------------+        +-----------------+                             |      |
-|     |                         ^        ^                                   |      |
-|  +--+-------------+           |        |        +-----------------+        |      |
-|  |  asset_bundles |-----------+        +--------|     credits     |        |      |
-|  +----------------+                             +-----------------+        |      |
-|                                                 +-----------------+        |      |
-|  +------------------+                           |  artifact_links |<-------+      |
-|  | asset_references |                           +-----------------+               |
-|  +------------------+                                                             |
-+-----------------------------------------------------------------------------------+
++---------------------------------------------------------------------------------------------------------+
+|                                            SUPABASE POSTGRES                                            |
+|                                                                                                         |
+|  +----------------+        +-----------------+        +------------------------+                        |
+|  |    profiles    |<-------|   oauth_tokens  |        |     organizations      |<---+                   |
+|  +----------------+        +-----------------+        +------------------------+    |                   |
+|     ^     ^     ^                                                  ^                |                   |
+|     |     |     |          +---------------------------------------+                |                   |
+|     |     |     |          |                                                        |                   |
+|     |     |     +----------+---------------+        +--------------------------+    |                   |
+|     |     |                | org_members   |        | organization_invitations |----+                   |
+|     |     |                +---------------+        +--------------------------+                        |
+|     |     |                        |                                                                    |
+|     |     |                        v                                                                    |
+|     |     |                +---------------+                                                            |
+|     |     +----------------| project_members|                                                           |
+|     |                      +---------------+                                                            |
+|     |                              |                                                                    |
+|     |                              v                                                                    |
+|     |                      +---------------+                                                            |
+|     +----------------------|   projects    |<-------+                                                   |
+|                            +---------------+        |                                                   |
+|                                    ^                |                                                   |
+|                                    |                |                                                   |
+|                            +---------------+        |                                                   |
+|                            |   milestones  |        |                                                   |
+|                            +---------------+        |                                                   |
+|                                    ^                |                                                   |
+|                                    |                |                                                   |
+|                            +---------------+        |                                                   |
+|                            |     tasks     |--------+                                                   |
+|                            +---------------+                                                            |
+|                               ^         ^                                                               |
+|                               |         |                                                               |
+|                   +-----------+         +-----------+                                                   |
+|                   |                                 |                                                   |
+|           +---------------+                 +---------------+                                           |
+|           |   subtasks    |                 |    assets     |                                           |
+|           +---------------+                 +---------------+                                           |
++---------------------------------------------------------------------------------------------------------+
 ```
 
 ### Table Definitions:
 
-1. **`profiles`**
+1. **`organizations`**
+   - Stores workspace/organization tenant metadata.
+   - Columns: `id (uuid, PK)`, `name (text)`, `slug (text, unique)`, `description (text)`, `created_by (uuid -> profiles.id on delete set null)`, `created_at (timestamptz)`, `updated_at (timestamptz)`.
+2. **`organization_members`**
+   - Maps user memberships and roles within an organization.
+   - Roles: `'leader'` (owner/admin), `'co_leader'` (admin/manager), `'member'` (standard contributor).
+   - Columns: `id (uuid, PK)`, `organization_id (uuid -> organizations.id on delete cascade)`, `user_id (uuid -> profiles.id on delete cascade)`, `role (text: 'leader' | 'co_leader' | 'member')`, `created_at (timestamptz)`, `updated_at (timestamptz)`.
+3. **`project_members`**
+   - Explicit project assignment mapping for `member` role users. Leaders and Co-Leaders inherit access to all projects in their organization automatically.
+   - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `user_id (uuid -> profiles.id on delete cascade)`, `created_at (timestamptz)`.
+4. **`organization_invitations`**
+   - Stores invitations for joining an organization via email and shareable token links.
+   - Columns: `id (uuid, PK)`, `token (text, unique)`, `organization_id (uuid -> organizations.id on delete cascade)`, `inviter_id (uuid -> profiles.id on delete cascade)`, `invitee_email (text)`, `invitee_id (uuid -> profiles.id on delete set null)`, `role (text: 'co_leader' | 'member')`, `status (text: 'pending' | 'accepted' | 'declined' | 'cancelled')`, `expires_at (timestamptz)`, `created_at (timestamptz)`, `updated_at (timestamptz)`.
+5. **`notifications`**
+   - Stores in-app user notifications (invitations, role updates, project assignments).
+   - Columns: `id (uuid, PK)`, `user_id (uuid -> profiles.id on delete cascade)`, `type (text: 'org_invitation' | 'role_changed' | 'project_assigned' | 'general')`, `title (text)`, `message (text)`, `data (jsonb)`, `is_read (boolean, default false)`, `created_at (timestamptz)`.
+6. **`profiles`**
    - Synchronized automatically from `auth.users` on first sign-in via trigger.
    - Columns: `id (uuid, PK -> auth.users.id)`, `name (text)`, `email (text)`, `avatar_url (text)`, `created_at (timestamptz)`.
-2. **`oauth_tokens`**
+7. **`oauth_tokens`**
    - Stores Google OAuth tokens for Google Drive API calls (accommodating Vercel read-only runtime).
    - Columns: `id (uuid, PK)`, `user_id (uuid -> profiles.id)`, `provider (text, default 'google')`, `access_token (text)`, `refresh_token (text)`, `expires_at (timestamptz)`, `created_at (timestamptz)`, `updated_at (timestamptz)`.
-3. **`projects`**
-   - Columns: `id (uuid, PK)`, `name (text)`, `slug (text, unique)`, `type (text: 'jam' | 'competition' | 'internal')`, `start_date (date)`, `deadline (date)`, `status (text: 'active' | 'completed' | 'archived', default 'active')`, `description (text)`, `drive_folder_id (text)`, `created_by (uuid -> profiles.id)`, `created_at (timestamptz)`.
-4. **`milestones`**
+8. **`projects`**
+   - Scoped to parent organization via `organization_id`.
+   - Columns: `id (uuid, PK)`, `organization_id (uuid -> organizations.id on delete cascade)`, `name (text)`, `slug (text, unique)`, `type (text: 'jam' | 'competition' | 'internal')`, `start_date (date)`, `deadline (date)`, `status (text: 'active' | 'completed' | 'archived', default 'active')`, `description (text)`, `drive_folder_id (text)`, `created_by (uuid -> profiles.id)`, `created_at (timestamptz)`.
+9. **`milestones`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `title (text)`, `due_date (date)`, `status (text: 'not_started' | 'in_progress' | 'done', default 'not_started')`.
-5. **`tasks`**
+10. **`tasks`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `milestone_id (uuid -> milestones.id on delete set null)`, `title (text)`, `description (text)`, `assignee_id (uuid -> profiles.id on delete set null)`, `status (text: 'todo' | 'in_progress' | 'review' | 'done', default 'todo')`, `due_date (date)`, `created_at (timestamptz)`.
    - *Note: Supabase Realtime is enabled specifically for this table.*
-6. **`subtasks`**
+11. **`subtasks`**
    - Stores hierarchical checklist items belonging to a parent task, with checkbox completion status.
    - Columns: `id (uuid, PK)`, `task_id (uuid -> tasks.id on delete cascade)`, `title (text)`, `status (text: 'todo' | 'done', default 'todo')`, `position (integer, default 0)`, `created_at (timestamptz)`.
    - *Note: Supabase Realtime is enabled for this table.*
-7. **`asset_bundles`**
+12. **`asset_bundles`**
    - Stores composite asset files (texture atlases, sprite sheets, sound packages) that include multiple assets.
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `name (text)`, `drive_file_id (text)`, `file_name (text)`, `file_size (bigint)`, `mime_type (text)`, `uploaded_by (uuid -> profiles.id on delete set null)`, `created_at (timestamptz)`.
-8. **`assets`**
+13. **`assets`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `task_id (uuid -> tasks.id on delete set null)`, `name (text)`, `type (text: 'sprite' | 'audio' | '3d_model' | 'font' | 'vfx' | 'other')`, `uploaded_by (uuid -> profiles.id on delete set null)`, `drive_file_id (text)`, `bundle_id (uuid -> asset_bundles.id on delete set null)`, `file_name (text)`, `status (text: 'todo' | 'in_progress' | 'done' | 'implemented', default 'todo')`, `needs_credit (boolean, default false)`, `notes (text)`, `created_at (timestamptz)`.
-9. **`asset_references`**
+14. **`asset_references`**
    - Stores visual reference images attached to an asset, supporting Gallery Grid and Lightbox Zoom.
    - Columns: `id (uuid, PK)`, `asset_id (uuid -> assets.id on delete cascade)`, `drive_file_id (text)`, `file_name (text)`, `file_size (bigint)`, `mime_type (text)`, `uploaded_by (uuid -> profiles.id on delete set null)`, `created_at (timestamptz)`.
    - *Note: Hard delete policy enabled for references.*
-10. **`credits`**
+15. **`credits`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `asset_id (uuid -> assets.id on delete set null)`, `source_name (text)`, `author (text)`, `license (text: 'cc0' | 'cc_by' | 'royalty_free' | 'proprietary' | 'other')`, `source_url (text)`, `notes (text)`, `created_at (timestamptz)`.
    - *Note: `asset_id` on delete set null preserves credit history even if the source asset is deleted.*
-11. **`artifact_links`**
+16. **`artifact_links`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `label (text)`, `type (text: 'figma' | 'figjam' | 'gdd' | 'build' | 'other')`, `url (text)`, `notes (text)`, `created_at (timestamptz)`.
+17. **`mcp_tokens`**
+   - Stores per-user API tokens for external AI agents with SHA-256 hashing.
+
+### RBAC Permission Matrix
+
+| Capability | Leader | Co-Leader | Member |
+| :--- | :---: | :---: | :---: |
+| **Manage Organization Settings** | Yes | No | No |
+| **Invite Members** | Yes | Yes | No |
+| **Change Member Roles** | Yes | No | No |
+| **Remove Members** | Yes | No | No |
+| **Access All Projects in Org** | Automatic | Automatic | Assigned Only |
+| **Create Project in Org** | Yes | Yes | No |
+| **Assign Member to Projects** | Yes | Yes | No |
+| **View Project Members** | Yes | Yes | Yes (if assigned) |
+| **Assign Tasks** | From project members | From project members | From project members |
+| **Execute Task Quick Actions** | Yes | Yes | Yes |
+
 
 ---
 

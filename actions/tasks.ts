@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getActiveOrganization } from '@/lib/auth/active-org'
 import { z } from 'zod'
 
 const TaskSchema = z.object({
@@ -345,4 +346,88 @@ export async function getProfiles() {
 
   return data ?? []
 }
+
+export interface MyTaskItem {
+  id: string
+  title: string
+  description: string | null
+  status: 'todo' | 'in_progress' | 'review' | 'done'
+  due_date: string | null
+  project_id: string
+  milestone_id: string | null
+  projects: {
+    id: string
+    name: string
+    slug: string
+  } | null
+  milestones: {
+    id: string
+    title: string
+  } | null
+  subtasks?: SubtaskItem[]
+}
+
+export async function getMyTasks(): Promise<MyTaskItem[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const activeOrg = await getActiveOrganization()
+  if (!activeOrg) return []
+
+  // Get accessible project IDs
+  let accessibleProjectIds: string[] = []
+  if (activeOrg.role === 'leader' || activeOrg.role === 'co_leader') {
+    const { data: orgProjects } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('organization_id', activeOrg.id)
+    accessibleProjectIds = orgProjects?.map((p) => p.id) ?? []
+  } else {
+    const { data: assigned } = await supabase
+      .from('project_members')
+      .select('project_id')
+      .eq('user_id', user.id)
+    accessibleProjectIds = assigned?.map((a) => a.project_id) ?? []
+  }
+
+  if (accessibleProjectIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .select(`
+      id,
+      title,
+      description,
+      status,
+      due_date,
+      project_id,
+      milestone_id,
+      projects:project_id (
+        id,
+        name,
+        slug
+      ),
+      milestones:milestone_id (
+        id,
+        title
+      ),
+      subtasks (
+        id,
+        task_id,
+        title,
+        status,
+        position,
+        created_at
+      )
+    `)
+    .eq('assignee_id', user.id)
+    .in('project_id', accessibleProjectIds)
+    .order('due_date', { ascending: true, nullsFirst: false })
+
+  if (error || !data) return []
+
+  return data as unknown as MyTaskItem[]
+}
+
 

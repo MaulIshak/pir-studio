@@ -58,13 +58,13 @@ proxy.ts                        # session refresh, do not bypass
 
 ## Data
 
-11 tables with RLS full access for authenticated users: `profiles`, `oauth_tokens`, `projects` with unique `slug`, `milestones`, `tasks` + `subtasks`, `asset_bundles`, `assets`, `asset_references` hard-delete, `credits` nullable `asset_id on delete set null`, `artifact_links`. Realtime only on `tasks`, `subtasks`, `projects`. See `.agents/skills/supabase-schema/SKILL.md` before any schema change. Child rows cascade on project delete except credit history and task assignee links which use `set null`.
+17 tables with RLS and organization-level RBAC: `organizations`, `organization_members` (`leader`, `co_leader`, `member`), `project_members`, `organization_invitations`, `notifications`, `profiles`, `oauth_tokens`, `projects` with `organization_id` and unique `slug`, `milestones`, `tasks` + `subtasks`, `asset_bundles`, `assets`, `asset_references` hard-delete, `credits` nullable `asset_id on delete set null`, `artifact_links`, `mcp_tokens`. Realtime on `tasks`, `subtasks`, `projects`, `notifications`, `organization_members`. See `.agents/skills/supabase-schema/SKILL.md` before any schema change. Child rows cascade on project delete except credit history and task assignee links which use `set null`.
 
 ## Scope
 
-In scope v1: project CRUD + Drive provisioning, task kanban + subtasks, milestones + progress, asset intake + bundles + references gallery, credits + export, artifacts, dashboard.
+In scope: multi-tenant organizations + RBAC (`leader`, `co_leader`, `member`), project CRUD + Drive provisioning, task kanban + subtasks, milestones + progress, asset intake + bundles + references gallery, credits + export, artifacts, notifications + invitation links, personal dashboard with quick actions.
 
-Out of scope, confirm before building: granular roles, notifications, build versioning or CI, analytics beyond progress, native mobile, Drive preview embed, multi-team support.
+Out of scope, confirm before building: granular custom permissions beyond the 3 roles, build versioning or CI, native mobile, Drive preview embed.
 
 ## Skills
 

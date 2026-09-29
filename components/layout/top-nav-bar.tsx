@@ -11,10 +11,15 @@ import { Badge } from '@/components/ui/badge'
 import { GoogleDriveLogo, Plus, CheckCircle, CaretRight } from '@phosphor-icons/react'
 import type { User } from '@supabase/supabase-js'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
+import { NotificationsPopover } from '@/components/notifications/notifications-popover'
+import { getActiveOrg } from '@/actions/organizations'
+import { ORG_CHANGED_EVENT } from '@/lib/events'
+import type { ActiveOrg } from '@/lib/auth/active-org'
 
 export function TopNavBar() {
   const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
+  const [activeOrg, setActiveOrg] = useState<ActiveOrg | null>(null)
   const [hasDriveToken, setHasDriveToken] = useState<boolean | null>(null)
   const supabase = createClient()
 
@@ -27,15 +32,20 @@ export function TopNavBar() {
       setUser(currentUser)
 
       if (currentUser) {
-        const { data: token } = await supabase
-          .from('oauth_tokens')
-          .select('id')
-          .eq('user_id', currentUser.id)
-          .eq('provider', 'google')
-          .maybeSingle()
-        setHasDriveToken(!!token)
+        const [tokenRes, org] = await Promise.all([
+          supabase
+            .from('oauth_tokens')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .eq('provider', 'google')
+            .maybeSingle(),
+          getActiveOrg(),
+        ])
+        setHasDriveToken(!!tokenRes.data)
+        setActiveOrg(org)
       } else {
         setHasDriveToken(false)
+        setActiveOrg(null)
       }
     }
 
@@ -50,8 +60,15 @@ export function TopNavBar() {
       }
     })
 
+    const handleOrgChanged = async () => {
+      const org = await getActiveOrg()
+      setActiveOrg(org)
+    }
+    window.addEventListener(ORG_CHANGED_EVENT, handleOrgChanged)
+
     return () => {
       subscription.unsubscribe()
+      window.removeEventListener(ORG_CHANGED_EVENT, handleOrgChanged)
     }
   }, [supabase])
 
@@ -155,7 +172,7 @@ export function TopNavBar() {
           )
         )}
 
-        {user && (
+        {user && (activeOrg?.role === 'leader' || activeOrg?.role === 'co_leader') && (
           <Button
             nativeButton={false}
             render={<Link href="/projects/new" />}
@@ -169,6 +186,8 @@ export function TopNavBar() {
         )}
 
         <Separator orientation="vertical" className="hidden sm:block h-4 mx-0.5 shrink-0" />
+
+        <NotificationsPopover />
 
         <ThemeToggle />
       </div>

@@ -11,6 +11,7 @@ import {
   Package,
   Certificate,
   Link as LinkIcon,
+  Users,
 } from '@phosphor-icons/react'
 
 interface ProjectNavProps {
@@ -27,6 +28,7 @@ export function ProjectNav({ projectSlug }: ProjectNavProps) {
     { label: 'Assets', href: `/projects/${projectSlug}/assets`, icon: Package },
     { label: 'Credits', href: `/projects/${projectSlug}/credits`, icon: Certificate },
     { label: 'Artifacts', href: `/projects/${projectSlug}/artifacts`, icon: LinkIcon },
+    { label: 'Members', href: `/projects/${projectSlug}/members`, icon: Users },
   ]
 
   return (

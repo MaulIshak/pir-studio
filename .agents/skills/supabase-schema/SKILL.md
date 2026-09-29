@@ -12,6 +12,64 @@ This skill defines the single source of truth for the database layer of the Game
 Always use these exact table and column names. Do not rename, pluralize differently, or restructure without explicit user confirmation.
 
 ```sql
+-- Organizations table (Tenancy container)
+organizations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text not null unique,
+  description text,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+
+-- Organization Members (Leader, Co-Leader, Member)
+organization_members (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
+  user_id uuid not null references profiles(id) on delete cascade,
+  role text not null check (role in ('leader', 'co_leader', 'member')),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique (organization_id, user_id)
+)
+
+-- Project Members (Explicit project assignment for Members)
+project_members (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references projects(id) on delete cascade,
+  user_id uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz default now(),
+  unique (project_id, user_id)
+)
+
+-- Organization Invitations (For shareable links & email invites)
+organization_invitations (
+  id uuid primary key default gen_random_uuid(),
+  token text not null unique,
+  organization_id uuid not null references organizations(id) on delete cascade,
+  inviter_id uuid not null references profiles(id) on delete cascade,
+  invitee_email text not null,
+  invitee_id uuid references profiles(id) on delete set null,
+  role text not null check (role in ('co_leader', 'member')),
+  status text not null check (status in ('pending', 'accepted', 'declined', 'cancelled')) default 'pending',
+  expires_at timestamptz default (now() + interval '7 days'),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+
+-- Notifications table
+notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  type text not null check (type in ('org_invitation', 'role_changed', 'project_assigned', 'general')),
+  title text not null,
+  message text,
+  data jsonb default '{}'::jsonb,
+  is_read boolean default false,
+  created_at timestamptz default now()
+)
+
 -- Synced automatically from Supabase Auth on first login (via trigger)
 profiles (
   id uuid primary key references auth.users(id),
@@ -35,6 +93,7 @@ oauth_tokens (
 
 projects (
   id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
   name text not null,
   slug text not null unique,
   type text check (type in ('jam','competition','internal')),
@@ -140,8 +199,9 @@ artifact_links (
 - `milestone_id` on `tasks` is nullable — a task does not have to belong to a milestone.
 - `asset_id` on `credits` is nullable and `on delete set null` — a credit entry must survive even if the underlying asset row is deleted. Never make this cascade-delete.
 - All child tables cascade-delete when their parent `project` is deleted, except `credits.asset_id` and `tasks.assignee_id`/`milestone_id`, which use `set null`.
-- Do not add a `teams` or `organizations` table in v1 unless the user explicitly asks for multi-team support — this is out of scope per the PRD.
-- Do not add role/permission columns (e.g. `role`, `is_admin`) unless explicitly requested. All authenticated users are equal.
+- Multi-tenancy follows the Organization -> Project -> Tasks/Milestones/Assets hierarchy.
+- Roles are strictly: `leader` (organization creator/owner), `co_leader` (admin with all projects access & invite capability), and `member` (assigned projects only).
+- Project creation inside an organization is strictly restricted to `leader` and `co_leader`. Regular `member` users cannot create projects.
 
 ## Row Level Security (RLS) policy pattern
 

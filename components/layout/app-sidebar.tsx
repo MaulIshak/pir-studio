@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getAllProjectsForNav, type NavProject } from '@/actions/projects'
-import { PROJECTS_CHANGED_EVENT } from '@/lib/events'
+import { PROJECTS_CHANGED_EVENT, ORG_CHANGED_EVENT } from '@/lib/events'
 import {
   Sidebar,
   SidebarContent,
@@ -67,9 +67,13 @@ import {
   Moon,
   Desktop,
   Check,
+  Users,
 } from '@phosphor-icons/react'
 import { useTheme } from 'next-themes'
 import type { User } from '@supabase/supabase-js'
+import { OrgSwitcher } from '@/components/layout/org-switcher'
+import { getActiveOrg } from '@/actions/organizations'
+import type { ActiveOrg } from '@/lib/auth/active-org'
 
 interface AppSidebarProps {
   initialProjects?: NavProject[]
@@ -81,6 +85,7 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
   const { setOpenMobile, isMobile } = useSidebar()
   const { theme, setTheme } = useTheme()
   const [user, setUser] = useState<User | null>(null)
+  const [activeOrg, setActiveOrg] = useState<ActiveOrg | null>(null)
   const [hasDriveToken, setHasDriveToken] = useState<boolean | null>(null)
   const [projects, setProjects] = useState<NavProject[]>(initialProjects)
   const [isLoadingProjects, setIsLoadingProjects] = useState(initialProjects.length === 0)
@@ -94,7 +99,7 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
     projectsRef.current = projects
   }, [projects])
 
-  // Load user & Drive token
+  // Load user, Drive token & active organization
   useEffect(() => {
     async function loadUser() {
       const {
@@ -104,15 +109,20 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
       setUser(currentUser)
 
       if (currentUser) {
-        const { data: token } = await supabase
-          .from('oauth_tokens')
-          .select('id')
-          .eq('user_id', currentUser.id)
-          .eq('provider', 'google')
-          .maybeSingle()
-        setHasDriveToken(!!token)
+        const [tokenRes, org] = await Promise.all([
+          supabase
+            .from('oauth_tokens')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .eq('provider', 'google')
+            .maybeSingle(),
+          getActiveOrg(),
+        ])
+        setHasDriveToken(!!tokenRes.data)
+        setActiveOrg(org)
       } else {
         setHasDriveToken(false)
+        setActiveOrg(null)
       }
       setIsAuthLoading(false)
     }
@@ -180,11 +190,27 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
       })
     }
 
-    window.addEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged)
+    // 2. Instant local organization change synchronization
+    const handleOrgChanged = () => {
+      startTransition(async () => {
+        const [freshOrg, freshProjects] = await Promise.all([
+          getActiveOrg(),
+          getAllProjectsForNav(),
+        ])
+        if (isMounted) {
+          setActiveOrg(freshOrg)
+          setProjects(freshProjects)
+          setIsLoadingProjects(false)
+        }
+      })
+    }
 
-    // 2. Subscribe to realtime changes on projects table (cross-tab / multi-user sync)
+    window.addEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged)
+    window.addEventListener(ORG_CHANGED_EVENT, handleOrgChanged)
+
+    // 3. Subscribe to realtime changes on projects and organization_members tables (cross-tab / multi-user sync)
     const channel = supabase
-      .channel('sidebar-projects-sync')
+      .channel('sidebar-realtime-sync')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'projects' },
@@ -195,12 +221,29 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
           })
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'organization_members' },
+        () => {
+          startTransition(async () => {
+            const [freshOrg, freshProjects] = await Promise.all([
+              getActiveOrg(),
+              getAllProjectsForNav(),
+            ])
+            if (isMounted) {
+              setActiveOrg(freshOrg)
+              setProjects(freshProjects)
+            }
+          })
+        }
+      )
       .subscribe()
 
     return () => {
       isMounted = false
       supabase.removeChannel(channel)
       window.removeEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged)
+      window.removeEventListener(ORG_CHANGED_EVENT, handleOrgChanged)
     }
   }, [supabase, initialProjects.length])
 
@@ -305,6 +348,9 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        <div className="pt-1">
+          <OrgSwitcher initialActiveOrg={activeOrg} />
+        </div>
       </SidebarHeader>
 
       {/* Navigation Content */}
@@ -340,13 +386,15 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
           <SidebarGroupLabel className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2">
             <span>Projects</span>
           </SidebarGroupLabel>
-          <SidebarGroupAction
-            render={<Link href="/projects/new" onClick={handleLinkClick} />}
-            title="New Project"
-          >
-            <Plus className="size-3.5" />
-            <span className="sr-only">New Project</span>
-          </SidebarGroupAction>
+          {(activeOrg?.role === 'leader' || activeOrg?.role === 'co_leader') && (
+            <SidebarGroupAction
+              render={<Link href="/projects/new" onClick={handleLinkClick} />}
+              title="New Project"
+            >
+              <Plus className="size-3.5" />
+              <span className="sr-only">New Project</span>
+            </SidebarGroupAction>
+          )}
 
           <SidebarGroupContent>
             <SidebarMenu>
@@ -359,14 +407,16 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
               ) : projects.length === 0 ? (
                 <div className="px-2 py-3 text-center">
                   <p className="text-[11px] text-muted-foreground">No projects yet</p>
-                  <Link
-                    href="/projects/new"
-                    onClick={handleLinkClick}
-                    className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
-                  >
-                    <Plus className="size-3" />
-                    Create project
-                  </Link>
+                  {(activeOrg?.role === 'leader' || activeOrg?.role === 'co_leader') && (
+                    <Link
+                      href="/projects/new"
+                      onClick={handleLinkClick}
+                      className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                    >
+                      <Plus className="size-3" />
+                      Create project
+                    </Link>
+                  )}
                 </div>
               ) : (
                 projects.map((project) => {
@@ -409,6 +459,12 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
                       href: `/projects/${project.slug}/artifacts`,
                       icon: LinkIcon,
                       isActive: pathname.startsWith(`/projects/${project.slug}/artifacts`),
+                    },
+                    {
+                      label: 'Members',
+                      href: `/projects/${project.slug}/members`,
+                      icon: Users,
+                      isActive: pathname.startsWith(`/projects/${project.slug}/members`),
                     },
                   ]
 
