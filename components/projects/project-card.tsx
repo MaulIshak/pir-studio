@@ -5,7 +5,6 @@ import { motion } from 'framer-motion'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { RetryDriveButton } from './retry-drive-button'
 import {
   ArrowSquareOut,
   Folder,
@@ -196,7 +195,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
               Drive
             </Button>
           ) : (
-            <RetryDriveButton projectId={project.id} />
+            <div />
           )}
 
           <Button

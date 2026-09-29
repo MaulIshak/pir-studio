@@ -415,7 +415,7 @@ export async function archiveProject(projectId: string) {
   return updateProject(projectId, { status: 'archived' })
 }
 
-export async function retryDriveProvisioning(projectId: string) {
+export async function syncProjectGoogleDrive(projectId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -425,12 +425,33 @@ export async function retryDriveProvisioning(projectId: string) {
 
   const { data: project, error } = await supabase
     .from('projects')
-    .select('*')
+    .select('id, name, slug, organization_id, drive_folder_id')
     .eq('id', projectId)
     .single()
 
   if (error || !project) {
     return { error: 'Project not found' }
+  }
+
+  // Strictly check that user is the leader of the organization
+  const role = await getUserOrgRole(project.organization_id, user.id)
+  if (role !== 'leader') {
+    return { error: 'Unauthorized: Only organization leaders can sync Google Drive storage' }
+  }
+
+  // Check if leader has connected Google Drive
+  const { data: token } = await supabase
+    .from('oauth_tokens')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('provider', 'google')
+    .maybeSingle()
+
+  if (!token) {
+    return {
+      error: 'Google Drive is not connected to your account. Please connect Google Drive first.',
+      needsDriveAuth: true,
+    }
   }
 
   try {
@@ -449,7 +470,50 @@ export async function retryDriveProvisioning(projectId: string) {
 
     return { success: true, driveFolderId }
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Drive provisioning retry failed'
+    const message = err instanceof Error ? err.message : 'Google Drive sync failed'
     return { error: message }
   }
+}
+
+export async function deleteProject(projectId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user?.id) {
+    return { error: 'Authentication required' }
+  }
+
+  const { data: project, error: fetchErr } = await supabase
+    .from('projects')
+    .select('id, slug, organization_id')
+    .eq('id', projectId)
+    .single()
+
+  if (fetchErr || !project) {
+    return { error: 'Project not found' }
+  }
+
+  // Strictly check that user is the leader of the organization
+  const role = await getUserOrgRole(project.organization_id, user.id)
+  if (role !== 'leader') {
+    return { error: 'Unauthorized: Only organization leaders can delete projects' }
+  }
+
+  const { error: deleteErr } = await supabase
+    .from('projects')
+    .delete()
+    .eq('id', projectId)
+
+  if (deleteErr) {
+    return { error: deleteErr.message }
+  }
+
+  revalidatePath('/')
+  revalidatePath('/projects')
+
+  return { success: true }
+}
+
+export async function retryDriveProvisioning(projectId: string) {
+  return syncProjectGoogleDrive(projectId)
 }

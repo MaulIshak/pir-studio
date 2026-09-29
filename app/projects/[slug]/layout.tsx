@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import { getProjectBySlug, getProjectById } from '@/actions/projects'
+import { getUserOrgRole } from '@/lib/auth/permissions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { RetryDriveButton } from '@/components/projects/retry-drive-button'
-import { EditProjectDialog } from '@/components/projects/edit-project-dialog'
+import { ProjectSettingsDialog } from '@/components/projects/project-settings-dialog'
 import { CaretLeft, Folder } from '@phosphor-icons/react/dist/ssr'
 
 interface ProjectLayoutProps {
@@ -27,6 +28,19 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
   if (!project) {
     notFound()
   }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  let userRole = null
+  if (user && project.organization_id) {
+    userRole = await getUserOrgRole(project.organization_id, user.id)
+  }
+
+  const isLeader = userRole === 'leader'
+  const canManage = isLeader || userRole === 'co_leader'
 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5 sm:gap-6 px-3.5 py-4 sm:p-6">
@@ -79,8 +93,15 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <EditProjectDialog project={project} />
-          {project.drive_folder_id ? (
+          {canManage && (
+            <ProjectSettingsDialog
+              project={project}
+              isLeader={isLeader}
+              canManage={canManage}
+            />
+          )}
+
+          {project.drive_folder_id && (
             <Button
               variant="outline"
               size="sm"
@@ -97,8 +118,6 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
               <Folder className="size-3.5 text-primary" />
               Open Drive
             </Button>
-          ) : (
-            <RetryDriveButton projectId={project.id} />
           )}
         </div>
       </div>
