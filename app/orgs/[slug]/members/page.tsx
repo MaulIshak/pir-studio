@@ -1,11 +1,8 @@
 import { notFound, redirect } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getOrganizationBySlug, getOrganizationMembers } from '@/actions/organizations'
 import { getUserOrgRole } from '@/lib/auth/permissions'
 import { MemberManagement } from '@/components/organizations/member-management'
-import { Button } from '@/components/ui/button'
-import { CaretLeft } from '@phosphor-icons/react/dist/ssr'
 
 interface OrgMembersPageProps {
   params: Promise<{ slug: string }>
@@ -35,6 +32,11 @@ export default async function OrgMembersPage({ params }: OrgMembersPageProps) {
     redirect('/')
   }
 
+  // Only Leader and Co-Leader can manage organization members
+  if (userRole !== 'leader' && userRole !== 'co_leader') {
+    redirect(`/orgs/${org.slug}`)
+  }
+
   const [members, { data: projects }] = await Promise.all([
     getOrganizationMembers(org.id),
     supabase
@@ -45,20 +47,7 @@ export default async function OrgMembersPage({ params }: OrgMembersPageProps) {
   ])
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-3.5 py-4 sm:p-6">
-      <div className="flex items-center gap-2 border-b pb-4">
-        <Button
-          variant="ghost"
-          size="xs"
-          nativeButton={false}
-          render={<Link href={`/orgs/${org.slug}`} />}
-          className="gap-1 text-xs"
-        >
-          <CaretLeft className="size-3" />
-          {org.name}
-        </Button>
-      </div>
-
+    <div className="flex flex-col gap-6">
       <MemberManagement
         organizationId={org.id}
         organizationName={org.name}

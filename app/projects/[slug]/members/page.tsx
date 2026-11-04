@@ -2,7 +2,6 @@ import { notFound, redirect } from 'next/navigation'
 import { getProjectBySlug, getProjectMembers } from '@/actions/projects'
 import { getOrganizationMembers } from '@/actions/organizations'
 import { hasProjectAccess } from '@/lib/auth/permissions'
-import { ProjectNav } from '@/components/projects/project-nav'
 import { ProjectMembersView } from '@/components/projects/project-members-view'
 import { createClient } from '@/lib/supabase/server'
 
@@ -34,6 +33,11 @@ export default async function ProjectMembersPage({ params }: ProjectMembersPageP
     redirect('/')
   }
 
+  // Only Leader and Co-Leader have access to Manage Project Members
+  if (access.role !== 'leader' && access.role !== 'co_leader') {
+    redirect(`/projects/${project.slug}`)
+  }
+
   const members = await getProjectMembers(project.id)
 
   let allOrgMembers: Array<{
@@ -44,7 +48,7 @@ export default async function ProjectMembersPage({ params }: ProjectMembersPageP
     role: 'leader' | 'co_leader' | 'member'
   }> = []
 
-  if (project.organization_id && (access.role === 'leader' || access.role === 'co_leader')) {
+  if (project.organization_id) {
     const orgMembers = await getOrganizationMembers(project.organization_id)
     allOrgMembers = orgMembers.map((m) => ({
       userId: m.userId,
@@ -57,8 +61,6 @@ export default async function ProjectMembersPage({ params }: ProjectMembersPageP
 
   return (
     <div className="flex flex-col gap-6">
-      <ProjectNav projectSlug={project.slug} />
-
       <ProjectMembersView
         projectId={project.id}
         projectName={project.name}

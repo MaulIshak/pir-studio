@@ -94,17 +94,18 @@ export function TopNavBar() {
 
   // Format breadcrumb segments
   const segments = pathname.split('/').filter(Boolean)
+  let sectionPrefix = ''
   let breadcrumbTitle = 'Dashboard'
   let subSection = ''
 
   if (segments.length === 0) {
     breadcrumbTitle = 'Dashboard'
   } else if (segments[0] === 'projects') {
+    sectionPrefix = 'Projects'
     if (segments.length === 1) {
       breadcrumbTitle = 'Projects'
     } else if (segments[1] === 'new') {
-      breadcrumbTitle = 'Projects'
-      subSection = 'New Project'
+      breadcrumbTitle = 'New Project'
     } else {
       breadcrumbTitle = segments[1]
         .split('-')
@@ -116,6 +117,27 @@ export function TopNavBar() {
         subSection = 'Overview'
       }
     }
+  } else if (segments[0] === 'orgs') {
+    sectionPrefix = 'Organization'
+    if (segments.length === 1) {
+      breadcrumbTitle = 'Organizations'
+    } else if (segments[1] === 'new') {
+      breadcrumbTitle = 'New Organization'
+    } else {
+      breadcrumbTitle =
+        activeOrg?.name ||
+        segments[1]
+          .split('-')
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ')
+      if (segments[2]) {
+        subSection = segments[2].charAt(0).toUpperCase() + segments[2].slice(1)
+      } else {
+        subSection = 'Overview'
+      }
+    }
+  } else if (segments[0] === 'mcp') {
+    breadcrumbTitle = 'MCP Setup'
   }
 
   return (
@@ -126,12 +148,16 @@ export function TopNavBar() {
         <div className="flex items-center gap-1 sm:gap-1.5 font-medium text-foreground min-w-0 overflow-hidden">
           {segments.length <= 1 ? (
             <span className="text-muted-foreground truncate">
-              {segments.length === 0 ? 'Dashboard' : 'Projects'}
+              {breadcrumbTitle}
             </span>
           ) : (
             <>
-              <span className="text-muted-foreground hidden md:inline shrink-0">Projects</span>
-              <CaretRight className="size-3 text-muted-foreground hidden md:inline shrink-0" />
+              {sectionPrefix && (
+                <>
+                  <span className="text-muted-foreground hidden md:inline shrink-0">{sectionPrefix}</span>
+                  <CaretRight className="size-3 text-muted-foreground hidden md:inline shrink-0" />
+                </>
+              )}
               <span className="max-w-[100px] xs:max-w-[140px] sm:max-w-xs truncate text-foreground font-semibold">
                 {breadcrumbTitle}
               </span>

@@ -2,10 +2,11 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getProjectBySlug, getProjectById } from '@/actions/projects'
-import { getUserOrgRole } from '@/lib/auth/permissions'
+import { hasProjectAccess } from '@/lib/auth/permissions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ProjectSettingsDialog } from '@/components/projects/project-settings-dialog'
+import { ProjectNav } from '@/components/projects/project-nav'
 import { CaretLeft, Folder } from '@phosphor-icons/react/dist/ssr'
 
 interface ProjectLayoutProps {
@@ -34,13 +35,17 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
     data: { user },
   } = await supabase.auth.getUser()
 
-  let userRole = null
-  if (user && project.organization_id) {
-    userRole = await getUserOrgRole(project.organization_id, user.id)
+  if (!user) {
+    redirect('/login')
   }
 
-  const isLeader = userRole === 'leader'
-  const canManage = isLeader || userRole === 'co_leader'
+  const access = await hasProjectAccess(project.id, user.id)
+  if (!access.hasAccess) {
+    redirect('/')
+  }
+
+  const isLeader = access.role === 'leader'
+  const canManage = isLeader || access.role === 'co_leader'
 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5 sm:gap-6 px-3.5 py-4 sm:p-6">
@@ -121,6 +126,9 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
           )}
         </div>
       </div>
+
+      {/* Navigation Tabs */}
+      <ProjectNav projectSlug={project.slug} canManageMembers={canManage} />
 
       {/* Page Content */}
       <div>{children}</div>

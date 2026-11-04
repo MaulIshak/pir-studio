@@ -70,6 +70,30 @@ notifications (
   created_at timestamptz default now()
 )
 
+-- Organization Milestones (Roadmap & timeline for whole organization, optional project connection)
+organization_milestones (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
+  project_id uuid references projects(id) on delete set null,
+  title text not null,
+  description text,
+  start_date date,
+  due_date date,
+  status text not null check (status in ('not_started', 'in_progress', 'done')) default 'not_started',
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+)
+
+-- Organization Milestone Members (Explicit member visibility when project_id is null)
+organization_milestone_members (
+  id uuid primary key default gen_random_uuid(),
+  milestone_id uuid not null references organization_milestones(id) on delete cascade,
+  user_id uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz default now(),
+  unique (milestone_id, user_id)
+)
+
 -- Synced automatically from Supabase Auth on first login (via trigger)
 profiles (
   id uuid primary key references auth.users(id),

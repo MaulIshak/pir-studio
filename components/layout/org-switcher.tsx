@@ -29,7 +29,13 @@ import {
   Buildings,
   Users,
   Gauge,
+  Flag,
 } from '@phosphor-icons/react'
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from '@/components/ui/sidebar'
 
 interface OrgSwitcherProps {
   initialActiveOrg?: ActiveOrg | null
@@ -145,108 +151,132 @@ export function OrgSwitcher({ initialActiveOrg = null }: OrgSwitcherProps) {
 
   if (!activeOrg) {
     return (
-      <Link
-        href="/orgs/new"
-        className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
-      >
-        <Plus className="size-3.5 text-primary" />
-        <span>Create Organization</span>
-      </Link>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            size="lg"
+            tooltip="New Organization"
+            render={<Link href="/orgs/new" />}
+            className="border border-dashed border-sidebar-border hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center text-muted-foreground hover:text-foreground"
+          >
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground">
+              <Plus className="size-4" />
+            </div>
+            <div className="grid flex-1 text-left text-xs leading-tight group-data-[collapsible=icon]:hidden">
+              <span className="font-medium text-foreground">New Organization</span>
+              <span className="truncate text-[10px] text-muted-foreground">Create workspace</span>
+            </div>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
     )
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            className="flex w-full items-center justify-between gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/50 p-2 text-left hover:bg-sidebar-accent transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sidebar-ring cursor-pointer"
-            disabled={isPending}
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <SidebarMenuButton
+                size="lg"
+                tooltip={activeOrg.name}
+                className="hover:bg-sidebar-accent cursor-pointer group-data-[collapsible=icon]:justify-center data-[state=open]:bg-sidebar-accent"
+                disabled={isPending}
+              />
+            }
           >
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 border border-primary/20 text-primary">
-                <Buildings className="size-4" />
-              </div>
-              <div className="flex flex-col min-w-0 flex-1 leading-none">
-                <div className="flex items-center gap-1.5">
-                  <span className="truncate text-xs font-semibold text-sidebar-foreground">
-                    {activeOrg.name}
-                  </span>
-                  {renderRoleBadge(activeOrg.role)}
-                </div>
-                <span className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                  Organization
-                </span>
-              </div>
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
+              <Buildings className="size-4" />
             </div>
-            <CaretUpDown className="size-3.5 shrink-0 text-muted-foreground" />
-          </button>
-        }
-      />
+            <div className="grid flex-1 text-left text-xs leading-tight group-data-[collapsible=icon]:hidden">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="truncate font-semibold text-sidebar-foreground">
+                  {activeOrg.name}
+                </span>
+                {renderRoleBadge(activeOrg.role)}
+              </div>
+              <span className="truncate text-[10px] text-muted-foreground">
+                Organization
+              </span>
+            </div>
+            <CaretUpDown className="ml-auto size-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
+          </DropdownMenuTrigger>
 
-      <DropdownMenuContent
-        align="start"
-        sideOffset={6}
-        className="w-64 p-1 shadow-lg border border-border bg-card"
-      >
-        <DropdownMenuLabel className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold px-2 py-1.5">
-          Organizations
-        </DropdownMenuLabel>
-
-        <DropdownMenuGroup>
-          {organizations.map((org) => {
-            const isSelected = org.id === activeOrg.id
-            return (
-              <DropdownMenuItem
-                key={org.id}
-                onClick={() => handleSwitch(org.id)}
-                className="flex items-center justify-between gap-2 px-2 py-1.5 cursor-pointer"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Buildings className="size-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate text-xs font-medium">{org.name}</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {renderRoleBadge(org.role)}
-                  {isSelected && <Check className="size-3 text-primary" />}
-                </div>
-              </DropdownMenuItem>
-            )
-          })}
-        </DropdownMenuGroup>
-
-        <DropdownMenuSeparator className="my-1" />
-
-        <DropdownMenuGroup>
-          <DropdownMenuItem
-            render={<Link href={`/orgs/${activeOrg.slug}`} />}
-            className="flex items-center gap-2 text-xs px-2 py-1.5 cursor-pointer"
+          <DropdownMenuContent
+            align="start"
+            side="bottom"
+            sideOffset={6}
+            className="w-64 p-1 shadow-lg border border-border bg-card"
           >
-            <Gauge className="size-3.5 text-muted-foreground" />
-            <span>Org Dashboard</span>
-          </DropdownMenuItem>
+            <DropdownMenuLabel className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold px-2 py-1.5">
+              Organizations
+            </DropdownMenuLabel>
 
-          {(activeOrg.role === 'leader' || activeOrg.role === 'co_leader') && (
+            <DropdownMenuGroup>
+              {organizations.map((org) => {
+                const isSelected = org.id === activeOrg.id
+                return (
+                  <DropdownMenuItem
+                    key={org.id}
+                    onClick={() => handleSwitch(org.id)}
+                    className="flex items-center justify-between gap-2 px-2 py-1.5 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Buildings className="size-3.5 text-muted-foreground shrink-0" />
+                      <span className="truncate text-xs font-medium">{org.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {renderRoleBadge(org.role)}
+                      {isSelected && <Check className="size-3 text-primary" />}
+                    </div>
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuGroup>
+
+            <DropdownMenuSeparator className="my-1" />
+
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                render={<Link href={`/orgs/${activeOrg.slug}`} />}
+                className="flex items-center gap-2 text-xs px-2 py-1.5 cursor-pointer"
+              >
+                <Gauge className="size-3.5 text-muted-foreground" />
+                <span>Org Dashboard</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                render={<Link href={`/orgs/${activeOrg.slug}/milestones`} />}
+                className="flex items-center gap-2 text-xs px-2 py-1.5 cursor-pointer"
+              >
+                <Flag className="size-3.5 text-muted-foreground" />
+                <span>Org Milestones</span>
+              </DropdownMenuItem>
+
+              {(activeOrg.role === 'leader' || activeOrg.role === 'co_leader') && (
+                <DropdownMenuItem
+                  render={<Link href={`/orgs/${activeOrg.slug}/members`} />}
+                  className="flex items-center gap-2 text-xs px-2 py-1.5 cursor-pointer"
+                >
+                  <Users className="size-3.5 text-muted-foreground" />
+                  <span>Manage Members</span>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuGroup>
+
+            <DropdownMenuSeparator className="my-1" />
+
             <DropdownMenuItem
-              render={<Link href={`/orgs/${activeOrg.slug}/members`} />}
-              className="flex items-center gap-2 text-xs px-2 py-1.5 cursor-pointer"
+              render={<Link href="/orgs/new" />}
+              className="flex items-center gap-2 text-xs font-medium px-2 py-1.5 cursor-pointer text-primary focus:text-primary"
             >
-              <Users className="size-3.5 text-muted-foreground" />
-              <span>Manage Members</span>
+              <Plus className="size-3.5" />
+              <span>New Organization</span>
             </DropdownMenuItem>
-          )}
-        </DropdownMenuGroup>
-
-        <DropdownMenuSeparator className="my-1" />
-
-        <DropdownMenuItem
-          render={<Link href="/orgs/new" />}
-          className="flex items-center gap-2 text-xs font-medium px-2 py-1.5 cursor-pointer text-primary focus:text-primary"
-        >
-          <Plus className="size-3.5" />
-          <span>New Organization</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
   )
 }

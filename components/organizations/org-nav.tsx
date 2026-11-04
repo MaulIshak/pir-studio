@@ -1,0 +1,60 @@
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { motion } from 'framer-motion'
+import { Button } from '@/components/ui/button'
+import { Gauge, Flag, Users } from '@phosphor-icons/react'
+
+interface OrgNavProps {
+  orgSlug: string
+  canManage?: boolean
+}
+
+export function OrgNav({ orgSlug, canManage = false }: OrgNavProps) {
+  const pathname = usePathname()
+
+  const tabs = [
+    { label: 'Overview', href: `/orgs/${orgSlug}`, icon: Gauge },
+    { label: 'Milestones', href: `/orgs/${orgSlug}/milestones`, icon: Flag },
+    ...(canManage ? [{ label: 'Members', href: `/orgs/${orgSlug}/members`, icon: Users }] : []),
+  ]
+
+  return (
+    <div className="flex items-center gap-1.5 border-b pb-2 overflow-x-auto no-scrollbar flex-nowrap px-1 -mx-1 scroll-smooth">
+      {tabs.map((tab) => {
+        const Icon = tab.icon
+        const isActive =
+          tab.href === `/orgs/${orgSlug}`
+            ? pathname === tab.href
+            : pathname.startsWith(tab.href)
+
+        return (
+          <div key={tab.href} className="relative shrink-0">
+            <Button
+              variant={isActive ? 'secondary' : 'ghost'}
+              size="sm"
+              nativeButton={false}
+              render={<Link href={tab.href} />}
+              className={`gap-1.5 transition-colors whitespace-nowrap h-8 px-3 text-xs ${
+                isActive
+                  ? 'font-semibold text-primary bg-primary/10 border border-primary/20'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Icon className={`size-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+              {tab.label}
+            </Button>
+            {isActive && (
+              <motion.div
+                layoutId="activeOrgTabUnderline"
+                className="absolute -bottom-2 left-0 right-0 h-0.5 bg-primary"
+                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+              />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}

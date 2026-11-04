@@ -16,9 +16,10 @@ import {
 
 interface ProjectNavProps {
   projectSlug: string
+  canManageMembers?: boolean
 }
 
-export function ProjectNav({ projectSlug }: ProjectNavProps) {
+export function ProjectNav({ projectSlug, canManageMembers = false }: ProjectNavProps) {
   const pathname = usePathname()
 
   const tabs = [
@@ -28,7 +29,9 @@ export function ProjectNav({ projectSlug }: ProjectNavProps) {
     { label: 'Assets', href: `/projects/${projectSlug}/assets`, icon: Package },
     { label: 'Credits', href: `/projects/${projectSlug}/credits`, icon: Certificate },
     { label: 'Artifacts', href: `/projects/${projectSlug}/artifacts`, icon: LinkIcon },
-    { label: 'Members', href: `/projects/${projectSlug}/members`, icon: Users },
+    ...(canManageMembers
+      ? [{ label: 'Members', href: `/projects/${projectSlug}/members`, icon: Users }]
+      : []),
   ]
 
   return (

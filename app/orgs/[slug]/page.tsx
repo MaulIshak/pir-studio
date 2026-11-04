@@ -5,15 +5,14 @@ import { getOrganizationBySlug } from '@/actions/organizations'
 import { getUserOrgRole } from '@/lib/auth/permissions'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { ProjectListClient } from '@/components/projects/project-list-client'
 import {
-  Buildings,
   Plus,
   Users,
   GameController,
-  CheckCircle,
   Kanban,
+  Flag,
+  ArrowRight,
 } from '@phosphor-icons/react/dist/ssr'
 
 interface OrgPageProps {
@@ -61,10 +60,14 @@ export default async function OrganizationDashboardPage({ params }: OrgPageProps
     projectQuery = projectQuery.in('id', allowedIds.length > 0 ? allowedIds : ['00000000-0000-0000-0000-000000000000'])
   }
 
-  const [{ data: projects }, { count: memberCount }] = await Promise.all([
+  const [{ data: projects }, { count: memberCount }, { count: milestoneCount }] = await Promise.all([
     projectQuery,
     supabase
       .from('organization_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', org.id),
+    supabase
+      .from('organization_milestones')
       .select('id', { count: 'exact', head: true })
       .eq('organization_id', org.id),
   ])
@@ -84,65 +87,9 @@ export default async function OrganizationDashboardPage({ params }: OrgPageProps
   const canManage = isLeader || isCoLeader
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 sm:gap-8 px-3.5 py-4 sm:p-6">
-      {/* Top Header */}
-      <div className="flex flex-col justify-between gap-4 border-b pb-4 sm:pb-6 sm:flex-row sm:items-center">
-        <div className="flex flex-col gap-1.5 min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Buildings className="size-4" />
-            </div>
-            <h1 className="font-heading text-xl font-bold tracking-tight sm:text-2xl truncate">
-              {org.name}
-            </h1>
-            <Badge
-              variant="outline"
-              className={
-                isLeader
-                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-500 text-[10px] capitalize'
-                  : isCoLeader
-                  ? 'border-purple-500/30 bg-purple-500/10 text-purple-400 text-[10px] capitalize'
-                  : 'border-muted-foreground/30 bg-muted/40 text-muted-foreground text-[10px] capitalize'
-              }
-            >
-              {userRole === 'co_leader' ? 'Co-Leader' : userRole}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {org.description || 'Organization dashboard and project management.'}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {canManage && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                render={<Link href={`/orgs/${org.slug}/members`} />}
-                className="gap-1.5 text-xs"
-              >
-                <Users className="size-3.5 text-primary" />
-                <span>Members ({memberCount ?? 0})</span>
-              </Button>
-
-              <Button
-                nativeButton={false}
-                render={<Link href="/projects/new" />}
-                size="sm"
-                className="gap-1 text-xs"
-              >
-                <Plus className="size-3.5" />
-                <span>New Project</span>
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-
+    <div className="flex flex-col gap-6">
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-border/80 bg-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground">Projects</CardTitle>
@@ -153,6 +100,28 @@ export default async function OrganizationDashboardPage({ params }: OrgPageProps
           <CardContent>
             <div className="font-mono text-2xl font-bold text-foreground">{allProjects.length}</div>
             <p className="text-[11px] text-muted-foreground pt-1">{activeProjects.length} active</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/80 bg-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-xs font-semibold text-muted-foreground">Roadmap Milestones</CardTitle>
+            <div className="flex size-7 items-center justify-center rounded-md bg-amber-500/10 text-amber-500">
+              <Flag className="size-3.5" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="font-mono text-2xl font-bold text-foreground">{milestoneCount ?? 0}</div>
+            <div className="pt-1 flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground">Org-wide targets</span>
+              <Link
+                href={`/orgs/${org.slug}/milestones`}
+                className="text-[11px] text-primary hover:underline inline-flex items-center gap-0.5"
+              >
+                <span>View</span>
+                <ArrowRight className="size-2.5" />
+              </Link>
+            </div>
           </CardContent>
         </Card>
 
@@ -178,20 +147,7 @@ export default async function OrganizationDashboardPage({ params }: OrgPageProps
           </CardHeader>
           <CardContent>
             <div className="font-mono text-2xl font-bold text-foreground">{activeTasksCount}</div>
-            <p className="text-[11px] text-muted-foreground pt-1">Across all projects</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/80 bg-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold text-muted-foreground">Completed</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-500">
-              <CheckCircle className="size-3.5" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="font-mono text-2xl font-bold text-emerald-500">{completedProjects.length}</div>
-            <p className="text-[11px] text-muted-foreground pt-1">Shipped games & jams</p>
+            <p className="text-[11px] text-muted-foreground pt-1">{completedProjects.length} shipped projects</p>
           </CardContent>
         </Card>
       </div>

@@ -68,6 +68,7 @@ import {
   Desktop,
   Check,
   Users,
+  Buildings,
 } from '@phosphor-icons/react'
 import { useTheme } from 'next-themes'
 import type { User } from '@supabase/supabase-js'
@@ -319,13 +320,14 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
       {/* Brand Header */}
-      <SidebarHeader className="border-b border-sidebar-border/60 px-3 py-3">
+      <SidebarHeader className="border-b border-sidebar-border/60 p-2 gap-1">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
+              tooltip="Pir Studio"
               render={<Link href="/" onClick={handleLinkClick} />}
-              className="hover:bg-sidebar-accent"
+              className="hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center"
             >
               <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 border border-primary/20">
                 <Image
@@ -337,7 +339,7 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
                   priority
                 />
               </div>
-              <div className="grid flex-1 text-left text-xs leading-tight">
+              <div className="grid flex-1 text-left text-xs leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="font-heading font-bold tracking-tight text-sidebar-foreground">
                   Pir Studio
                 </span>
@@ -348,14 +350,12 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        <div className="pt-1">
-          <OrgSwitcher initialActiveOrg={activeOrg} />
-        </div>
+        <OrgSwitcher initialActiveOrg={activeOrg} />
       </SidebarHeader>
 
       {/* Navigation Content */}
       <SidebarContent className="px-2 py-2">
-        {/* Dashboard Group */}
+        {/* Core Apps Group */}
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -381,6 +381,51 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
           </SidebarMenu>
         </SidebarGroup>
 
+        {/* Organization Group */}
+        {activeOrg && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2">
+              <span>Organization</span>
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href={`/orgs/${activeOrg.slug}`} onClick={handleLinkClick} />}
+                    isActive={pathname === `/orgs/${activeOrg.slug}`}
+                    tooltip="Org Overview"
+                  >
+                    <Buildings className="size-4" />
+                    <span className="font-medium">Overview</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href={`/orgs/${activeOrg.slug}/milestones`} onClick={handleLinkClick} />}
+                    isActive={pathname.startsWith(`/orgs/${activeOrg.slug}/milestones`)}
+                    tooltip="Org Milestones"
+                  >
+                    <Flag className="size-4" />
+                    <span className="font-medium">Milestones</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                {(activeOrg.role === 'leader' || activeOrg.role === 'co_leader') && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      render={<Link href={`/orgs/${activeOrg.slug}/members`} onClick={handleLinkClick} />}
+                      isActive={pathname.startsWith(`/orgs/${activeOrg.slug}/members`)}
+                      tooltip="Manage Members"
+                    >
+                      <Users className="size-4" />
+                      <span className="font-medium">Members</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         {/* Projects Tree Group */}
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2">
@@ -405,7 +450,7 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
                   <SidebarMenuSkeleton showIcon />
                 </>
               ) : projects.length === 0 ? (
-                <div className="px-2 py-3 text-center">
+                <div className="px-2 py-3 text-center group-data-[collapsible=icon]:hidden">
                   <p className="text-[11px] text-muted-foreground">No projects yet</p>
                   {(activeOrg?.role === 'leader' || activeOrg?.role === 'co_leader') && (
                     <Link
@@ -460,12 +505,16 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
                       icon: LinkIcon,
                       isActive: pathname.startsWith(`/projects/${project.slug}/artifacts`),
                     },
-                    {
-                      label: 'Members',
-                      href: `/projects/${project.slug}/members`,
-                      icon: Users,
-                      isActive: pathname.startsWith(`/projects/${project.slug}/members`),
-                    },
+                    ...((activeOrg?.role === 'leader' || activeOrg?.role === 'co_leader')
+                      ? [
+                          {
+                            label: 'Members',
+                            href: `/projects/${project.slug}/members`,
+                            icon: Users,
+                            isActive: pathname.startsWith(`/projects/${project.slug}/members`),
+                          },
+                        ]
+                      : []),
                   ]
 
                   return (
@@ -505,7 +554,7 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
                             </span>
                           </div>
                           <span
-                            className={`size-1.5 rounded-full shrink-0 ${
+                            className={`size-1.5 rounded-full shrink-0 group-data-[collapsible=icon]:hidden ${
                               project.status === 'active'
                                 ? 'bg-emerald-500'
                                 : project.status === 'completed'
