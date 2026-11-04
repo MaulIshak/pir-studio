@@ -32,12 +32,13 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  const [activeOrg, activeProjects, completedProjects, archivedProjects, myTasks] = await Promise.all([
+  const [activeOrg, activeProjects, completedProjects, archivedProjects, myTasks, profileRes] = await Promise.all([
     getActiveOrganization(),
     getProjects('active'),
     getProjects('completed'),
     getProjects('archived'),
     getMyTasks(),
+    supabase.from('profiles').select('name').eq('id', user.id).maybeSingle(),
   ])
 
   const allAccessibleProjects = [...activeProjects, ...completedProjects, ...archivedProjects]
@@ -59,7 +60,7 @@ export default async function DashboardPage() {
   const isCoLeader = activeOrg?.role === 'co_leader'
   const canCreateProject = isLeader || isCoLeader
 
-  const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Member'
+  const userName = profileRes.data?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Member'
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 sm:gap-8 px-3.5 py-4 sm:p-6">

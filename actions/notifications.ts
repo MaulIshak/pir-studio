@@ -119,25 +119,39 @@ export async function acceptOrgInvitation(invitationId: string, notificationId?:
     return { error: 'Invitation has expired' }
   }
 
-  // 2. Add to organization_members
-  const { error: memberError } = await supabase
+  // Check if user is already a member
+  const { data: existingMember } = await supabase
     .from('organization_members')
-    .insert({
-      organization_id: invite.organization_id,
-      user_id: user.id,
-      role: invite.role,
-    })
-    .select()
+    .select('id')
+    .eq('organization_id', invite.organization_id)
+    .eq('user_id', user.id)
+    .maybeSingle()
 
-  if (memberError && !memberError.message.includes('unique')) {
-    return { error: memberError.message }
+  if (!existingMember) {
+    // 2. Add to organization_members
+    const { error: memberError } = await supabase
+      .from('organization_members')
+      .insert({
+        organization_id: invite.organization_id,
+        user_id: user.id,
+        role: invite.role,
+      })
+      .select()
+
+    if (memberError && !memberError.message.includes('unique')) {
+      return { error: memberError.message }
+    }
   }
 
-  // 3. Mark invitation accepted
-  await supabase
-    .from('organization_invitations')
-    .update({ status: 'accepted', updated_at: new Date().toISOString() })
-    .eq('id', invitationId)
+  // 3. Mark invitation accepted ONLY if this is a direct email invite.
+  // Public/shareable links (invitee_email empty or null) stay pending so others can join too!
+  const isPublicLink = !invite.invitee_email || invite.invitee_email.trim() === ''
+  if (!isPublicLink) {
+    await supabase
+      .from('organization_invitations')
+      .update({ status: 'accepted', updated_at: new Date().toISOString() })
+      .eq('id', invitationId)
+  }
 
   // 4. Delete the invitation notification(s) completely so they disappear from UI
   if (notificationId) {
@@ -164,6 +178,7 @@ export async function acceptOrgInvitation(invitationId: string, notificationId?:
 
   return {
     success: true,
+    alreadyMember: !!existingMember,
     organizationId: invite.organization_id,
     organizationSlug: invite.organizations?.slug,
     organizationName: invite.organizations?.name,
@@ -176,10 +191,21 @@ export async function declineOrgInvitation(invitationId: string, notificationId?
 
   const supabase = await createClient()
 
-  await supabase
+  const { data: invite } = await supabase
     .from('organization_invitations')
-    .update({ status: 'declined', updated_at: new Date().toISOString() })
+    .select('invitee_email')
     .eq('id', invitationId)
+    .maybeSingle()
+
+  // Only mark declined if it was a targeted email invitation.
+  // Shareable links must not be declined globally.
+  const isPublicLink = !invite?.invitee_email || invite.invitee_email.trim() === ''
+  if (!isPublicLink) {
+    await supabase
+      .from('organization_invitations')
+      .update({ status: 'declined', updated_at: new Date().toISOString() })
+      .eq('id', invitationId)
+  }
 
   // Delete notification completely so it disappears from UI
   if (notificationId) {

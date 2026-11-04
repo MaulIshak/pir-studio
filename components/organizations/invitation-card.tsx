@@ -2,16 +2,19 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { acceptOrgInvitation, declineOrgInvitation } from '@/actions/notifications'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Buildings, Check, X, ShieldCheck } from '@phosphor-icons/react'
+import { Buildings, Check, X, ShieldCheck, CheckCircle } from '@phosphor-icons/react'
 import { notifyOrgChanged, notifyProjectsChanged } from '@/lib/events'
 
 interface InvitationCardProps {
+  isAlreadyMember?: boolean
+  currentMemberRole?: string
   invitation: {
     id: string
     token: string
@@ -41,7 +44,12 @@ interface InvitationCardProps {
   }
 }
 
-export function InvitationCard({ invitation, currentUser }: InvitationCardProps) {
+export function InvitationCard({
+  isAlreadyMember,
+  currentMemberRole,
+  invitation,
+  currentUser,
+}: InvitationCardProps) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
@@ -170,28 +178,56 @@ export function InvitationCard({ invitation, currentUser }: InvitationCardProps)
             Active Account
           </Badge>
         </div>
+
+        {isAlreadyMember && (
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 flex items-center gap-2.5">
+            <CheckCircle className="size-5 text-emerald-500 shrink-0" />
+            <div className="flex flex-col text-xs">
+              <span className="font-semibold text-emerald-500">Already a Member</span>
+              <span className="text-muted-foreground text-[11px]">
+                You are already part of {invitation.organization.name} as{' '}
+                <strong className="capitalize text-foreground font-medium">
+                  {currentMemberRole === 'co_leader' ? 'Co-Leader' : currentMemberRole || 'Member'}
+                </strong>.
+              </span>
+            </div>
+          </div>
+        )}
       </CardContent>
 
       <CardFooter className="flex items-center gap-3 pt-2 border-t border-border/60">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleDecline}
-          disabled={isPending}
-          className="flex-1 text-xs gap-1"
-        >
-          <X className="size-3.5" />
-          Decline
-        </Button>
-        <Button
-          size="sm"
-          onClick={handleAccept}
-          disabled={isPending}
-          className="flex-1 text-xs gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <Check className="size-3.5" />
-          {isPending ? 'Joining...' : 'Accept Invitation'}
-        </Button>
+        {isAlreadyMember ? (
+          <Button
+            nativeButton={false}
+            render={<Link href={`/orgs/${invitation.organization.slug}`} />}
+            size="sm"
+            className="w-full text-xs gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <span>Open Organization</span>
+          </Button>
+        ) : (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDecline}
+              disabled={isPending}
+              className="flex-1 text-xs gap-1"
+            >
+              <X className="size-3.5" />
+              <span>Decline</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleAccept}
+              disabled={isPending}
+              className="flex-1 text-xs gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Check className="size-3.5" />
+              <span>{isPending ? 'Joining...' : 'Accept Invitation'}</span>
+            </Button>
+          </>
+        )}
       </CardFooter>
     </Card>
   )

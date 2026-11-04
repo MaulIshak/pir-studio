@@ -77,9 +77,26 @@ export default async function InvitePage({ params }: InvitePageProps) {
     avatar_url: string | null
   }
 
+  // Check if current user is already a member of this organization
+  const { data: existingMember } = await supabase
+    .from('organization_members')
+    .select('role')
+    .eq('organization_id', org.id)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  // Get current user profile for accurate display name
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('name, avatar_url')
+    .eq('id', user.id)
+    .maybeSingle()
+
   return (
     <div className="mx-auto flex min-h-[75vh] w-full max-w-lg items-center justify-center p-4">
       <InvitationCard
+        isAlreadyMember={!!existingMember}
+        currentMemberRole={existingMember?.role}
         invitation={{
           id: rawInvite.id,
           token: rawInvite.token,
@@ -103,9 +120,9 @@ export default async function InvitePage({ params }: InvitePageProps) {
         }}
         currentUser={{
           id: user.id,
-          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+          name: profile?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
           email: user.email || null,
-          avatarUrl: user.user_metadata?.avatar_url || null,
+          avatarUrl: profile?.avatar_url || user.user_metadata?.avatar_url || null,
         }}
       />
     </div>

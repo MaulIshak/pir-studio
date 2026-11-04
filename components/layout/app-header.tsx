@@ -23,12 +23,15 @@ import {
   SquaresFour,
   Kanban,
   CheckCircle,
+  User as UserIcon,
 } from '@phosphor-icons/react'
+import { PROFILE_CHANGED_EVENT } from '@/lib/events'
 import type { User } from '@supabase/supabase-js'
 
 export function AppHeader() {
   const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
+  const [customUserName, setCustomUserName] = useState<string | null>(null)
   const [hasDriveToken, setHasDriveToken] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const supabase = createClient()
@@ -42,20 +45,39 @@ export function AppHeader() {
       setUser(currentUser)
 
       if (currentUser) {
-        const { data: token } = await supabase
-          .from('oauth_tokens')
-          .select('id')
-          .eq('user_id', currentUser.id)
-          .eq('provider', 'google')
-          .maybeSingle()
-        setHasDriveToken(!!token)
+        const [tokenRes, profRes] = await Promise.all([
+          supabase
+            .from('oauth_tokens')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .eq('provider', 'google')
+            .maybeSingle(),
+          supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', currentUser.id)
+            .maybeSingle(),
+        ])
+        setHasDriveToken(!!tokenRes.data)
+        if (profRes.data?.name) {
+          setCustomUserName(profRes.data.name)
+        }
       } else {
         setHasDriveToken(false)
+        setCustomUserName(null)
       }
       setIsLoading(false)
     }
 
     loadUser()
+
+    const handleProfileChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<{ name: string }>
+      if (customEvent.detail?.name) {
+        setCustomUserName(customEvent.detail.name)
+      }
+    }
+    window.addEventListener(PROFILE_CHANGED_EVENT, handleProfileChanged)
 
     const {
       data: { subscription },
@@ -63,11 +85,13 @@ export function AppHeader() {
       setUser(session?.user ?? null)
       if (!session?.user) {
         setHasDriveToken(false)
+        setCustomUserName(null)
       }
     })
 
     return () => {
       subscription.unsubscribe()
+      window.removeEventListener(PROFILE_CHANGED_EVENT, handleProfileChanged)
     }
   }, [supabase])
 
@@ -102,7 +126,7 @@ export function AppHeader() {
   const isProjects = pathname === '/projects' || pathname.startsWith('/projects/')
 
   const userAvatar = user?.user_metadata?.avatar_url
-  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Member'
+  const userName = customUserName || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Member'
   const userEmail = user?.email
 
   return (
@@ -228,6 +252,14 @@ export function AppHeader() {
                       )}
                     </DropdownMenuLabel>
                   </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    render={<Link href="/profile" />}
+                    className="flex items-center gap-2 text-xs"
+                  >
+                    <UserIcon className="size-3.5 text-muted-foreground" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleSignIn}

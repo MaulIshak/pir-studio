@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   updateMemberRole,
   removeMember,
   inviteMember,
+  getOrCreateShareableInvite,
   assignProjectsToMember,
   getMemberAssignedProjectIds,
 } from '@/actions/organizations'
@@ -20,7 +21,18 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { UserPlus, Copy, Check, Trash, Folder, ShieldCheck } from '@phosphor-icons/react'
+import {
+  UserPlus,
+  Copy,
+  Check,
+  Trash,
+  Folder,
+  ShieldCheck,
+  Link as LinkIcon,
+  ArrowClockwise,
+  EnvelopeSimple,
+  CircleNotch,
+} from '@phosphor-icons/react'
 
 export interface MemberRow {
   memberId: string
@@ -66,8 +78,11 @@ export function MemberManagement({
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<'co_leader' | 'member'>('member')
-  const [generatedLink, setGeneratedLink] = useState<string | null>(null)
+  const [shareableLink, setShareableLink] = useState<string | null>(null)
+  const [isLoadingLink, setIsLoadingLink] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null)
 
   // Project Assignment Dialog State
   const [assignOpen, setAssignOpen] = useState(false)
@@ -79,32 +94,63 @@ export function MemberManagement({
   const isCoLeader = currentUserRole === 'co_leader'
   const canManage = isLeader || isCoLeader
 
-  // Invite Member Submit
-  const handleInviteSubmit = (e: React.FormEvent) => {
+  // Load or fetch shareable link for current role
+  const loadShareableLink = useCallback(
+    async (role: 'co_leader' | 'member', forceNew = false) => {
+      setIsLoadingLink(true)
+      setInviteError(null)
+      try {
+        const res = await getOrCreateShareableInvite(organizationId, role, forceNew)
+        if ('error' in res && res.error) {
+          setInviteError(res.error)
+        } else if ('inviteLink' in res && res.inviteLink) {
+          setShareableLink(`${window.location.origin}${res.inviteLink}`)
+        }
+      } catch (err: unknown) {
+        setInviteError(err instanceof Error ? err.message : 'Failed to generate link')
+      } finally {
+        setIsLoadingLink(false)
+      }
+    },
+    [organizationId]
+  )
+
+  const handleOpenInvite = () => {
+    setError(null)
+    setInviteError(null)
+    setInviteSuccess(null)
+    setInviteOpen(true)
+    loadShareableLink(inviteRole)
+  }
+
+  // Direct Email Invite Submit
+  const handleEmailInviteSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!inviteEmail.trim()) return
 
-    setError(null)
-    setGeneratedLink(null)
+    setInviteError(null)
+    setInviteSuccess(null)
     startTransition(async () => {
       const res = await inviteMember(organizationId, inviteEmail.trim(), inviteRole)
-      if (res.error) {
-        setError(res.error)
-      } else if (res.inviteLink) {
-        const fullLink = `${window.location.origin}${res.inviteLink}`
-        setGeneratedLink(fullLink)
-        setSuccessMessage(`Invitation sent to ${inviteEmail}`)
+      if ('error' in res && res.error) {
+        setInviteError(res.error)
+      } else {
+        setInviteSuccess(`Invitation sent to ${inviteEmail}`)
         setInviteEmail('')
       }
     })
   }
 
   const handleCopyLink = () => {
-    if (generatedLink) {
-      navigator.clipboard.writeText(generatedLink)
+    if (shareableLink) {
+      navigator.clipboard.writeText(shareableLink)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
+  }
+
+  const handleResetLink = () => {
+    loadShareableLink(inviteRole, true)
   }
 
   // Open Project Assignment Dialog
@@ -150,6 +196,8 @@ export function MemberManagement({
 
   // Change Role
   const handleRoleChange = (member: MemberRow, newRole: 'co_leader' | 'member') => {
+    setError(null)
+    setSuccessMessage(null)
     startTransition(async () => {
       const res = await updateMemberRole(organizationId, member.userId, newRole)
       if (res.error) {
@@ -158,6 +206,7 @@ export function MemberManagement({
         setMemberList((prev) =>
           prev.map((m) => (m.userId === member.userId ? { ...m, role: newRole } : m))
         )
+        setSuccessMessage(`Updated ${member.name} role to ${newRole === 'co_leader' ? 'Co-Leader' : 'Member'}`)
         router.refresh()
       }
     })
@@ -167,12 +216,15 @@ export function MemberManagement({
   const handleRemoveMember = (member: MemberRow) => {
     if (!confirm(`Are you sure you want to remove ${member.name} from ${organizationName}?`)) return
 
+    setError(null)
+    setSuccessMessage(null)
     startTransition(async () => {
       const res = await removeMember(organizationId, member.userId)
       if (res.error) {
         setError(res.error)
       } else {
         setMemberList((prev) => prev.filter((m) => m.userId !== member.userId))
+        setSuccessMessage(`Removed ${member.name} from organization`)
         router.refresh()
       }
     })
@@ -227,11 +279,7 @@ export function MemberManagement({
         {canManage && (
           <Button
             size="sm"
-            onClick={() => {
-              setError(null)
-              setGeneratedLink(null)
-              setInviteOpen(true)
-            }}
+            onClick={handleOpenInvite}
             className="gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
           >
             <UserPlus className="size-3.5" />
@@ -360,78 +408,166 @@ export function MemberManagement({
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold">Invite to {organizationName}</DialogTitle>
+            <DialogTitle className="text-base font-semibold">Invite Member</DialogTitle>
             <DialogDescription className="text-xs">
-              Send an in-app notification and generate a shareable invitation link.
+              Share an invitation link or send an invite directly.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleInviteSubmit} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Email Address *</label>
-              <Input
-                type="email"
-                placeholder="colleague@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                required
-                disabled={isPending}
-              />
-            </div>
+          <div className="space-y-4 pt-2">
+            {inviteError && (
+              <Alert variant="destructive" className="py-2 text-xs">
+                <AlertDescription>{inviteError}</AlertDescription>
+              </Alert>
+            )}
 
+            {inviteSuccess && (
+              <Alert className="border-emerald-500/30 bg-emerald-500/10 py-2 text-xs text-emerald-500">
+                <AlertDescription>{inviteSuccess}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Role Selection */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Role *</label>
+              <label className="text-xs font-medium text-foreground">Role</label>
               <Select
                 value={inviteRole}
                 onValueChange={(val) => {
-                  if (val) setInviteRole(val as 'co_leader' | 'member')
+                  if (val) {
+                    const newRole = val as 'co_leader' | 'member'
+                    setInviteRole(newRole)
+                    loadShareableLink(newRole)
+                  }
                 }}
-                disabled={isPending}
+                disabled={isPending || isLoadingLink}
               >
                 <SelectTrigger className="w-full text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="member">Member (Access to assigned projects only)</SelectItem>
-                  <SelectItem value="co_leader">Co-Leader (Access to all projects & can invite)</SelectItem>
+                  <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="co_leader">Co-Leader</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {inviteRole === 'co_leader'
+                  ? 'Co-Leaders have full access to all projects and can invite members.'
+                  : 'Members only have access to projects they are assigned to.'}
+              </p>
             </div>
 
-            {generatedLink && (
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-1.5">
-                <span className="text-[11px] font-semibold text-primary">Invitation Link:</span>
+            {/* Shareable Link Box */}
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                  <LinkIcon className="size-3.5" />
+                  <span>Shareable Link</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={handleResetLink}
+                  disabled={isLoadingLink}
+                  className="h-6 text-[11px] gap-1 text-muted-foreground hover:text-foreground px-1.5"
+                  title="Generate a new invitation link"
+                >
+                  <ArrowClockwise className={`size-3 ${isLoadingLink ? 'animate-spin' : ''}`} />
+                  <span>Reset Link</span>
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Input
+                  value={isLoadingLink ? 'Generating link...' : shareableLink || ''}
+                  readOnly
+                  className="h-8 text-xs font-mono bg-background"
+                />
+                <Button
+                  type="button"
+                  variant="default"
+                  size="xs"
+                  onClick={handleCopyLink}
+                  disabled={!shareableLink || isLoadingLink}
+                  className="h-8 gap-1 shrink-0 px-3 text-xs"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="size-3.5" />
+                      <span>Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-3.5" />
+                      <span>Copy Link</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Anyone with this link can join {organizationName} as {inviteRole === 'co_leader' ? 'Co-Leader' : 'Member'}.
+              </p>
+            </div>
+
+            {/* Divider */}
+            <div className="relative py-1">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase">
+                <span className="bg-popover px-2 text-muted-foreground font-mono">
+                  Or Direct Email
+                </span>
+              </div>
+            </div>
+
+            {/* Direct Email Invite Form */}
+            <form onSubmit={handleEmailInviteSubmit} className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Email Address</label>
                 <div className="flex items-center gap-1.5">
-                  <Input value={generatedLink} readOnly className="h-8 text-xs font-mono" />
+                  <Input
+                    type="email"
+                    placeholder="colleague@example.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    disabled={isPending}
+                    className="h-8 text-xs"
+                  />
                   <Button
-                    type="button"
-                    variant="outline"
+                    type="submit"
                     size="xs"
-                    onClick={handleCopyLink}
-                    className="h-8 gap-1 shrink-0"
+                    disabled={isPending || !inviteEmail.trim()}
+                    className="h-8 gap-1 shrink-0 px-3 text-xs"
                   >
-                    {copied ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
-                    <span>{copied ? 'Copied' : 'Copy'}</span>
+                    {isPending ? (
+                      <>
+                        <CircleNotch className="size-3.5 animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <EnvelopeSimple className="size-3.5" />
+                        <span>Send Invite</span>
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
-            )}
+            </form>
 
             <DialogFooter className="pt-2">
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => setInviteOpen(false)}
-                className="text-xs"
+                className="text-xs w-full"
               >
                 Close
               </Button>
-              <Button type="submit" size="sm" disabled={isPending} className="text-xs">
-                {isPending ? 'Sending...' : 'Send Invitation'}
-              </Button>
             </DialogFooter>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
 

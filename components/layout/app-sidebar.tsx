@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getAllProjectsForNav, type NavProject } from '@/actions/projects'
-import { PROJECTS_CHANGED_EVENT, ORG_CHANGED_EVENT } from '@/lib/events'
+import { PROJECTS_CHANGED_EVENT, ORG_CHANGED_EVENT, PROFILE_CHANGED_EVENT } from '@/lib/events'
 import {
   Sidebar,
   SidebarContent,
@@ -69,6 +69,7 @@ import {
   Check,
   Users,
   Buildings,
+  User as UserIcon,
 } from '@phosphor-icons/react'
 import { useTheme } from 'next-themes'
 import type { User } from '@supabase/supabase-js'
@@ -86,6 +87,7 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
   const { setOpenMobile, isMobile } = useSidebar()
   const { theme, setTheme } = useTheme()
   const [user, setUser] = useState<User | null>(null)
+  const [customUserName, setCustomUserName] = useState<string | null>(null)
   const [activeOrg, setActiveOrg] = useState<ActiveOrg | null>(null)
   const [hasDriveToken, setHasDriveToken] = useState<boolean | null>(null)
   const [projects, setProjects] = useState<NavProject[]>(initialProjects)
@@ -110,7 +112,7 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
       setUser(currentUser)
 
       if (currentUser) {
-        const [tokenRes, org] = await Promise.all([
+        const [tokenRes, org, profRes] = await Promise.all([
           supabase
             .from('oauth_tokens')
             .select('id')
@@ -118,17 +120,34 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
             .eq('provider', 'google')
             .maybeSingle(),
           getActiveOrg(),
+          supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', currentUser.id)
+            .maybeSingle(),
         ])
         setHasDriveToken(!!tokenRes.data)
         setActiveOrg(org)
+        if (profRes.data?.name) {
+          setCustomUserName(profRes.data.name)
+        }
       } else {
         setHasDriveToken(false)
         setActiveOrg(null)
+        setCustomUserName(null)
       }
       setIsAuthLoading(false)
     }
 
     loadUser()
+
+    const handleProfileChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<{ name: string }>
+      if (customEvent.detail?.name) {
+        setCustomUserName(customEvent.detail.name)
+      }
+    }
+    window.addEventListener(PROFILE_CHANGED_EVENT, handleProfileChanged)
 
     const {
       data: { subscription },
@@ -136,11 +155,13 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
       setUser(session?.user ?? null)
       if (!session?.user) {
         setHasDriveToken(false)
+        setCustomUserName(null)
       }
     })
 
     return () => {
       subscription.unsubscribe()
+      window.removeEventListener(PROFILE_CHANGED_EVENT, handleProfileChanged)
     }
   }, [supabase])
 
@@ -314,7 +335,7 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
   }
 
   const userAvatar = user?.user_metadata?.avatar_url
-  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Team Member'
+  const userName = customUserName || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Team Member'
   const userEmail = user?.email || ''
 
   return (
@@ -667,6 +688,14 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
                       )}
                     </DropdownMenuLabel>
                   </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    render={<Link href="/profile" onClick={handleLinkClick} />}
+                    className="flex items-center gap-2 text-xs cursor-pointer"
+                  >
+                    <UserIcon className="size-3.5 text-muted-foreground" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleSignIn}

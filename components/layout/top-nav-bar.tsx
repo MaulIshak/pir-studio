@@ -138,6 +138,8 @@ export function TopNavBar() {
     }
   } else if (segments[0] === 'mcp') {
     breadcrumbTitle = 'MCP Setup'
+  } else if (segments[0] === 'profile') {
+    breadcrumbTitle = 'Profile'
   }
 
   return (

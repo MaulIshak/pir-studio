@@ -49,11 +49,11 @@ organization_invitations (
   token text not null unique,
   organization_id uuid not null references organizations(id) on delete cascade,
   inviter_id uuid not null references profiles(id) on delete cascade,
-  invitee_email text not null,
+  invitee_email text, -- Nullable for public shareable links
   invitee_id uuid references profiles(id) on delete set null,
   role text not null check (role in ('co_leader', 'member')),
   status text not null check (status in ('pending', 'accepted', 'declined', 'cancelled')) default 'pending',
-  expires_at timestamptz default (now() + interval '7 days'),
+  expires_at timestamptz default (now() + interval '30 days'),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 )

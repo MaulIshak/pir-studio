@@ -364,16 +364,120 @@ export async function removeMember(orgId: string, targetUserId: string) {
   return { success: true }
 }
 
-export async function inviteMember(
+export type InviteResult =
+  | { success: true; invitationToken: string; inviteLink: string; expiresAt?: string }
+  | { error: string }
+
+export async function getOrCreateShareableInvite(
   orgId: string,
-  email: string,
-  role: 'co_leader' | 'member'
-) {
+  role: 'co_leader' | 'member' = 'member',
+  forceNew = false
+): Promise<InviteResult> {
   await requireOrgAdmin(orgId)
   const user = await getCurrentUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const cleanEmail = email.toLowerCase().trim()
+  const supabase = await createClient()
+
+  // 1. If not forcing a new link, check for existing active public invite
+  if (!forceNew) {
+    const { data: existing } = await supabase
+      .from('organization_invitations')
+      .select('id, token, expires_at, role')
+      .eq('organization_id', orgId)
+      .eq('role', role)
+      .or('invitee_email.is.null,invitee_email.eq.')
+      .eq('status', 'pending')
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (existing) {
+      return {
+        success: true,
+        invitationToken: existing.token,
+        inviteLink: `/invite/${existing.token}`,
+        expiresAt: existing.expires_at,
+      }
+    }
+  }
+
+  // 2. If forceNew is true, cancel previous pending public invites for this role
+  if (forceNew) {
+    await supabase
+      .from('organization_invitations')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('organization_id', orgId)
+      .eq('role', role)
+      .or('invitee_email.is.null,invitee_email.eq.')
+      .eq('status', 'pending')
+  }
+
+  // 3. Create a new public/shareable invitation valid for 30 days
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: invitation, error } = await supabase
+    .from('organization_invitations')
+    .insert({
+      organization_id: orgId,
+      inviter_id: user.id,
+      invitee_email: '', // empty string satisfies not-null and denotes public shareable link
+      invitee_id: null,
+      role,
+      status: 'pending',
+      expires_at: expiresAt,
+    })
+    .select()
+    .single()
+
+  if (error || !invitation) {
+    return { error: error?.message ?? 'Failed to generate invitation link' }
+  }
+
+  return {
+    success: true,
+    invitationToken: invitation.token,
+    inviteLink: `/invite/${invitation.token}`,
+    expiresAt: invitation.expires_at,
+  }
+}
+
+export async function revokeShareableInvite(
+  orgId: string,
+  role: 'co_leader' | 'member' = 'member'
+) {
+  await requireOrgAdmin(orgId)
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('organization_invitations')
+    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+    .eq('organization_id', orgId)
+    .eq('role', role)
+    .or('invitee_email.is.null,invitee_email.eq.')
+    .eq('status', 'pending')
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
+export async function inviteMember(
+  orgId: string,
+  email?: string | null,
+  role: 'co_leader' | 'member' = 'member'
+): Promise<InviteResult> {
+  await requireOrgAdmin(orgId)
+  const user = await getCurrentUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const cleanEmail = email ? email.toLowerCase().trim() : ''
+
+  // If no email was provided, return/create a public shareable link
+  if (!cleanEmail) {
+    return await getOrCreateShareableInvite(orgId, role)
+  }
+
   const supabase = await createClient()
 
   // Get org info
@@ -405,7 +509,8 @@ export async function inviteMember(
     }
   }
 
-  // Create invitation
+  // Create direct email invitation (30 days validity)
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
   const { data: invitation, error } = await supabase
     .from('organization_invitations')
     .insert({
@@ -414,6 +519,8 @@ export async function inviteMember(
       invitee_email: cleanEmail,
       invitee_id: existingProfile?.id || null,
       role,
+      status: 'pending',
+      expires_at: expiresAt,
     })
     .select()
     .single()
