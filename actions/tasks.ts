@@ -71,8 +71,7 @@ export async function createTask(input: TaskInput) {
     }
   }
 
-  revalidatePath('/projects/[slug]', 'layout')
-  revalidatePath('/projects')
+  revalidatePath('/projects/[slug]/tasks', 'page')
   revalidatePath('/')
 
   return {
@@ -101,8 +100,7 @@ export async function updateTaskStatus(
     return { error: error.message }
   }
 
-  revalidatePath('/projects/[slug]', 'layout')
-  revalidatePath('/projects')
+  revalidatePath('/projects/[slug]/tasks', 'page')
   revalidatePath('/')
 
   return { success: true, task: data }
@@ -141,8 +139,7 @@ export async function updateTask(
     return { error: error.message }
   }
 
-  revalidatePath('/projects/[slug]', 'layout')
-  revalidatePath('/projects')
+  revalidatePath('/projects/[slug]/tasks', 'page')
   revalidatePath('/')
 
   return { success: true, task: data }
@@ -156,8 +153,7 @@ export async function deleteTask(taskId: string, _projectId?: string) {
     return { error: error.message }
   }
 
-  revalidatePath('/projects/[slug]', 'layout')
-  revalidatePath('/projects')
+  revalidatePath('/projects/[slug]/tasks', 'page')
   revalidatePath('/')
 
   return { success: true }
@@ -261,8 +257,7 @@ export async function createSubtask(taskId: string, title: string, _projectId?: 
     return { error: error.message }
   }
 
-  revalidatePath('/projects/[slug]', 'layout')
-  revalidatePath('/projects')
+  revalidatePath('/projects/[slug]/tasks', 'page')
   revalidatePath('/')
 
   return { success: true, subtask: data as SubtaskItem }
@@ -285,8 +280,7 @@ export async function updateSubtaskStatus(
     return { error: error.message }
   }
 
-  revalidatePath('/projects/[slug]', 'layout')
-  revalidatePath('/projects')
+  revalidatePath('/projects/[slug]/tasks', 'page')
   revalidatePath('/')
 
   return { success: true, subtask: data as SubtaskItem }
@@ -313,7 +307,7 @@ export async function updateSubtaskTitle(
     return { error: error.message }
   }
 
-  revalidatePath('/projects/[slug]', 'layout')
+  revalidatePath('/projects/[slug]/tasks', 'page')
   return { success: true, subtask: data as SubtaskItem }
 }
 
@@ -325,8 +319,7 @@ export async function deleteSubtask(subtaskId: string, _projectId?: string) {
     return { error: error.message }
   }
 
-  revalidatePath('/projects/[slug]', 'layout')
-  revalidatePath('/projects')
+  revalidatePath('/projects/[slug]/tasks', 'page')
   revalidatePath('/')
 
   return { success: true }
