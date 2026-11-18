@@ -233,11 +233,11 @@ export function TaskDetailDialog({
           <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
             Description
           </span>
-          <div className="rounded-md border border-border/50 bg-background/50 p-3 min-h-[60px] max-h-48 overflow-y-auto text-xs leading-relaxed text-foreground whitespace-pre-wrap break-words">
+          <div className="border border-border/70 bg-background/50 p-3 min-h-[60px] max-h-48 overflow-y-auto text-xs leading-relaxed text-foreground whitespace-pre-wrap break-words">
             {task.description ? (
               task.description
             ) : (
-              <span className="italic text-muted-foreground">No description provided for this task.</span>
+              <span className="italic text-muted-foreground">No description provided.</span>
             )}
           </div>
         </div>
@@ -247,7 +247,12 @@ export function TaskDetailDialog({
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <ListChecks className="size-3.5 text-primary" />
-              Subtasks {totalSubtasks > 0 && `(${completedSubtasks}/${totalSubtasks})`}
+              Subtasks
+              {totalSubtasks > 0 && (
+                <span className="font-mono text-[11px] text-foreground">
+                  {completedSubtasks}/{totalSubtasks}
+                </span>
+              )}
             </span>
             {totalSubtasks > 0 && (
               <span className="text-[11px] font-mono text-muted-foreground">
@@ -257,10 +262,10 @@ export function TaskDetailDialog({
           </div>
 
           {totalSubtasks > 0 && (
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+            <div className="h-1.5 w-full overflow-hidden bg-secondary">
               <div
                 className={cn(
-                  "h-full transition-all duration-300",
+                  "h-full transition-all duration-200",
                   completedSubtasks === totalSubtasks ? "bg-emerald-500" : "bg-primary"
                 )}
                 style={{ width: `${progressPercent}%` }}
@@ -269,10 +274,10 @@ export function TaskDetailDialog({
           )}
 
           {/* Subtasks List */}
-          <div className="flex flex-col gap-1.5 rounded-md border border-border/60 bg-muted/20 p-2.5 max-h-56 overflow-y-auto">
+          <div className="flex flex-col gap-1.5 border border-border/70 bg-muted/20 p-2.5 max-h-56 overflow-y-auto">
             {subtasks.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-1 text-center italic">
-                No subtasks yet. Add one below.
+              <p className="text-xs text-muted-foreground py-1 text-center">
+                No subtasks yet.
               </p>
             ) : (
               subtasks.map((st) => {
@@ -280,9 +285,9 @@ export function TaskDetailDialog({
                 return (
                   <div
                     key={st.id}
-                    className="group/st flex items-center justify-between gap-2.5 rounded p-1.5 hover:bg-background/60 border border-transparent hover:border-border/40 transition-all"
+                    className="group/st flex items-center justify-between gap-2.5 p-1.5 hover:bg-background/70 border border-transparent hover:border-border/60 transition-colors"
                   >
-                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <label className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer">
                       <Checkbox
                         checked={isDone}
                         onCheckedChange={() => handleToggle(st.id, st.status)}
@@ -290,21 +295,22 @@ export function TaskDetailDialog({
                       />
                       <span
                         className={cn(
-                          "text-xs leading-snug break-words flex-1 select-none transition-all",
+                          "text-xs leading-snug break-words flex-1 select-none transition-colors",
                           isDone ? "line-through text-muted-foreground" : "text-foreground"
                         )}
                       >
                         {st.title}
                       </span>
-                    </div>
+                    </label>
 
                     <Button
                       type="button"
                       variant="ghost"
                       size="xs"
                       onClick={() => handleDeleteSubtask(st.id)}
-                      className="size-6 p-0 text-muted-foreground hover:text-destructive opacity-0 group-hover/st:opacity-100 transition-opacity"
+                      className="size-6 p-0 text-muted-foreground hover:text-destructive opacity-0 group-hover/st:opacity-100 focus:opacity-100 transition-opacity"
                       title="Delete subtask"
+                      aria-label={`Delete subtask ${st.title}`}
                     >
                       <Trash className="size-3" />
                     </Button>
@@ -342,22 +348,24 @@ export function TaskDetailDialog({
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Package className="size-3 text-primary" />
-                Linked Assets ({task.assets.length})
+                Linked Assets
+                <span className="font-mono text-[11px] text-foreground">{task.assets.length}</span>
               </span>
             </div>
-            <div className="flex flex-col gap-1.5 rounded-md border border-border/50 bg-background/50 p-2 max-h-[140px] overflow-y-auto overflow-x-hidden">
+            <div className="flex flex-col gap-1.5 border border-border/70 bg-background/50 p-2 max-h-[140px] overflow-y-auto overflow-x-hidden">
               {task.assets.map((asset) => (
                 <div
                   key={asset.id}
-                  className="flex items-center justify-between gap-2 p-1.5 rounded text-xs bg-muted/20 border border-border/40 min-w-0"
+                  className="flex items-center justify-between gap-2 p-1.5 text-xs bg-muted/20 border border-border/60 min-w-0"
                 >
-                  <span
-                    className="font-medium text-foreground truncate flex-1 min-w-0 cursor-pointer hover:text-primary transition-colors"
+                  <button
+                    type="button"
+                    className="font-medium text-foreground text-left truncate flex-1 min-w-0 cursor-pointer hover:text-primary transition-colors"
                     onClick={() => handleOpenAssetDetail(asset)}
                     title={asset.name}
                   >
                     {asset.name}
-                  </span>
+                  </button>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <Badge variant="outline" className="text-[10px] capitalize font-mono shrink-0">
                       {asset.status.replace('_', ' ')}

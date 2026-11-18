@@ -65,46 +65,39 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -3, transition: { duration: 0.18, ease: 'easeOut' } }}
-      transition={{ duration: 0.25 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
       className="h-full"
     >
       <Card
-        className={`flex h-full flex-col justify-between transition-all duration-200 hover:shadow-md ${
+        className={`flex h-full flex-col justify-between transition-colors duration-150 ${
           isUrgent
-            ? 'border-destructive/40 bg-gradient-to-br from-card via-card to-destructive/5'
+            ? 'border-destructive/40 hover:border-destructive/70'
             : isCompleted
-            ? 'border-emerald-500/30 bg-gradient-to-br from-card via-card to-emerald-500/5'
-            : 'hover:border-primary/40 bg-gradient-to-br from-card to-primary/[0.03]'
+            ? 'border-emerald-500/30 hover:border-emerald-500/50'
+            : 'hover:border-primary/45'
         }`}
       >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant="secondary" className="flex items-center gap-1">
+              <Badge variant="secondary" className="flex items-center gap-1 font-medium">
                 {getTypeIcon(project.type)}
                 {typeLabel}
               </Badge>
-              {isUrgent && (
-                <Badge variant="destructive" className="flex items-center gap-1 animate-pulse">
-                  <ClockCountdown className="size-3" />
-                  Due Soon
-                </Badge>
-              )}
               {project.status === 'active' ? (
-                <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 capitalize font-medium text-[11px]">
+                <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium text-[11px]">
                   <span className="size-1.5 rounded-full bg-emerald-500" />
                   Active
                 </Badge>
               ) : project.status === 'completed' ? (
-                <Badge variant="outline" className="gap-1 border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 capitalize font-medium text-[11px]">
+                <Badge variant="outline" className="gap-1 border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400 font-medium text-[11px]">
                   <span className="size-1.5 rounded-full bg-blue-500" />
                   Completed
                 </Badge>
               ) : (
-                <Badge variant="outline" className="gap-1 border-slate-500/30 bg-slate-500/10 text-slate-600 dark:text-slate-400 capitalize font-medium text-[11px]">
+                <Badge variant="outline" className="gap-1 border-slate-500/30 bg-slate-500/10 text-slate-600 dark:text-slate-400 font-medium text-[11px]">
                   <span className="size-1.5 rounded-full bg-slate-400" />
                   Archived
                 </Badge>
@@ -113,10 +106,8 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
             {daysRemaining !== null && (
               <span
-                className={`font-mono text-xs flex items-center gap-1 ${
-                  daysRemaining < 0
-                    ? 'text-destructive font-semibold'
-                    : isUrgent
+                className={`font-mono text-[11px] flex items-center gap-1 shrink-0 ${
+                  daysRemaining < 0 || isUrgent
                     ? 'text-destructive font-semibold'
                     : 'text-muted-foreground'
                 }`}
@@ -131,7 +122,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
             )}
           </div>
 
-          <CardTitle className="font-heading text-base font-semibold pt-1">
+          <CardTitle className="font-heading text-base font-semibold pt-1.5">
             <Link
               href={`/projects/${project.slug}`}
               className="hover:text-primary transition-colors hover:underline"
@@ -151,28 +142,26 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               {isCompleted ? (
-                <CheckCircle className="size-3 text-emerald-500" />
+                <CheckCircle className="size-3 text-emerald-600 dark:text-emerald-400" />
               ) : null}
               Progress
             </span>
             <span className="font-mono font-medium text-foreground">{progressPercent}%</span>
           </div>
 
-          <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+          <div className="h-1.5 w-full overflow-hidden bg-secondary">
             <motion.div
-              className={`h-full transition-all duration-300 ${
-                isCompleted
-                  ? 'bg-emerald-500'
-                  : 'bg-gradient-to-r from-primary to-violet-500'
+              className={`h-full transition-colors ${
+                isCompleted ? 'bg-emerald-500' : 'bg-primary'
               }`}
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
-              transition={{ duration: 0.4 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
             />
           </div>
 
-          <div className="text-xs text-muted-foreground">
-            {doneTasks} of {totalTasks} tasks complete
+          <div className="text-[11px] font-mono text-muted-foreground">
+            {doneTasks} / {totalTasks} tasks
           </div>
         </CardContent>
 

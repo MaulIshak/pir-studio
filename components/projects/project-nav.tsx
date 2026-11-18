@@ -35,7 +35,10 @@ export function ProjectNav({ projectSlug, canManageMembers = false }: ProjectNav
   ]
 
   return (
-    <div className="flex items-center gap-1.5 border-b pb-2 overflow-x-auto no-scrollbar flex-nowrap px-1 -mx-1 scroll-smooth">
+    <nav
+      aria-label="Project sections"
+      className="sticky top-12 z-20 -mx-4 px-4 py-1.5 bg-background/95 backdrop-blur-sm md:static md:mx-0 md:px-0 md:py-0 md:pb-2 md:bg-transparent flex items-center gap-1 border-b border-border/80 overflow-x-auto no-scrollbar flex-nowrap scroll-smooth snap-x"
+    >
       {tabs.map((tab) => {
         const Icon = tab.icon
         const isActive =
@@ -44,16 +47,16 @@ export function ProjectNav({ projectSlug, canManageMembers = false }: ProjectNav
             : pathname.startsWith(tab.href)
 
         return (
-          <div key={tab.href} className="relative shrink-0">
+          <div key={tab.href} className="relative shrink-0 snap-start">
             <Button
-              variant={isActive ? 'secondary' : 'ghost'}
+              variant="ghost"
               size="sm"
               nativeButton={false}
-              render={<Link href={tab.href} />}
-              className={`gap-1.5 transition-colors whitespace-nowrap h-8 px-3 text-xs ${
+              render={<Link href={tab.href} aria-current={isActive ? 'page' : undefined} />}
+              className={`gap-1.5 border transition-colors whitespace-nowrap h-9 md:h-8 px-3 text-xs ${
                 isActive
-                  ? 'font-semibold text-primary bg-primary/10 border border-primary/20'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'font-semibold text-primary bg-primary/10 border-primary/20'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/60'
               }`}
             >
               <Icon className={`size-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -63,12 +66,12 @@ export function ProjectNav({ projectSlug, canManageMembers = false }: ProjectNav
               <motion.div
                 layoutId="activeTabUnderline"
                 className="absolute -bottom-2 left-0 right-0 h-0.5 bg-primary"
-                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
               />
             )}
           </div>
         )
       })}
-    </div>
+    </nav>
   )
 }

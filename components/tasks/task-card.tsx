@@ -181,6 +181,7 @@ export function TaskCard({
                         <Button
                           variant="ghost"
                           size="xs"
+                          aria-label="Task actions"
                           className="size-6 p-0 text-muted-foreground hover:text-foreground"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -297,7 +298,7 @@ export function TaskCard({
                   </Badge>
                 )}
                 {task.assets && task.assets.length > 0 && (
-                  <Badge variant="outline" className="gap-1 text-[10px] bg-purple-500/5 border-purple-500/20 text-purple-400">
+                  <Badge variant="outline" className="gap-1 text-[10px] bg-purple-500/10 border-purple-500/25 text-purple-700 dark:text-purple-400">
                     <Package className="size-2.5" />
                     {task.assets.filter((a) => a.status === 'done' || a.status === 'implemented').length}/{task.assets.length} Assets
                   </Badge>
@@ -307,7 +308,7 @@ export function TaskCard({
               {/* Subtasks Hierarchy Block */}
               {totalSubtasks > 0 && (
                 <div
-                  className="mt-0.5 flex flex-col gap-1.5 rounded-md border border-border/60 bg-secondary/30 p-2 text-xs"
+                  className="mt-0.5 flex flex-col gap-1.5 border border-border/70 bg-secondary/30 p-2 text-xs"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
@@ -321,10 +322,10 @@ export function TaskCard({
                   </div>
 
                   {/* Mini Progress Bar */}
-                  <div className="h-1 w-full overflow-hidden rounded-full bg-secondary">
+                  <div className="h-1 w-full overflow-hidden bg-secondary">
                     <div
                       className={cn(
-                        "h-full transition-all duration-300",
+                        "h-full transition-all duration-200",
                         completedSubtasks === totalSubtasks ? "bg-emerald-500" : "bg-primary"
                       )}
                       style={{ width: `${progressPercent}%` }}
@@ -336,30 +337,26 @@ export function TaskCard({
                     {(showAllSubtasks ? subtasks : subtasks.slice(0, 3)).map((st) => {
                       const isDone = st.status === 'done'
                       return (
-                        <div
+                        <label
                           key={st.id}
-                          className="group/st flex items-center gap-2 rounded px-1 py-0.5 hover:bg-background/60 transition-colors cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onToggleSubtask?.(st.id, st.status, task.id)
-                          }}
+                          className="group/st flex items-center gap-2 px-1 py-0.5 hover:bg-background/60 transition-colors cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <Checkbox
                             checked={isDone}
                             onCheckedChange={() => onToggleSubtask?.(st.id, st.status, task.id)}
-                            onClick={(e) => e.stopPropagation()}
                             className="size-3.5"
                           />
                           <span
                             className={cn(
-                              "text-[11px] truncate flex-1 transition-all select-none",
+                              "text-[11px] truncate flex-1 transition-colors select-none",
                               isDone ? "line-through text-muted-foreground" : "text-foreground"
                             )}
                             title={st.title}
                           >
                             {st.title}
                           </span>
-                        </div>
+                        </label>
                       )
                     })}
                     {totalSubtasks > 3 && (

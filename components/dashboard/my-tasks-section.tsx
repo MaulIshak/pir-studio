@@ -26,7 +26,7 @@ type FilterStatus = 'all' | 'todo' | 'in_progress' | 'review' | 'done'
 
 export function MyTasksSection({ initialTasks }: MyTasksSectionProps) {
   const [tasks, setTasks] = useState<MyTaskItem[]>(initialTasks)
-  const [filter, setFilter] = useState<FilterStatus>('all')
+  const [filter, setFilter] = useState<FilterStatus>('todo')
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
@@ -51,25 +51,25 @@ export function MyTasksSection({ initialTasks }: MyTasksSectionProps) {
     switch (status) {
       case 'todo':
         return (
-          <Badge variant="outline" className="border-slate-500/30 bg-slate-500/10 text-slate-400 text-[10px]">
+          <Badge variant="outline" className="border-slate-500/30 bg-slate-500/10 text-slate-600 dark:text-slate-400 text-[10px]">
             To Do
           </Badge>
         )
       case 'in_progress':
         return (
-          <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-500 text-[10px]">
+          <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-400 text-[10px]">
             In Progress
           </Badge>
         )
       case 'review':
         return (
-          <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-400 text-[10px]">
+          <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px]">
             Review
           </Badge>
         )
       case 'done':
         return (
-          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[10px]">
+          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px]">
             Done
           </Badge>
         )
@@ -89,9 +89,9 @@ export function MyTasksSection({ initialTasks }: MyTasksSectionProps) {
 
     if (diffDays < 0) {
       return (
-        <span className="flex items-center gap-1 text-[10px] text-destructive font-medium">
+        <span className="flex items-center gap-1 font-mono text-[10px] text-destructive font-medium">
           <ClockCountdown className="size-3" />
-          Overdue ({Math.abs(diffDays)}d)
+          {Math.abs(diffDays)}d overdue
         </span>
       )
     } else if (diffDays === 0) {
@@ -103,7 +103,7 @@ export function MyTasksSection({ initialTasks }: MyTasksSectionProps) {
       )
     } else if (diffDays <= 3) {
       return (
-        <span className="flex items-center gap-1 text-[10px] text-amber-500 font-medium">
+        <span className="flex items-center gap-1 font-mono text-[10px] text-amber-600 dark:text-amber-400 font-medium">
           <ClockCountdown className="size-3" />
           Due in {diffDays}d
         </span>
@@ -111,39 +111,49 @@ export function MyTasksSection({ initialTasks }: MyTasksSectionProps) {
     }
 
     return (
-      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+      <span className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
         <CalendarBlank className="size-3" />
         {dueDateStr}
       </span>
     )
   }
 
+  const filterLabels: Record<FilterStatus, string> = {
+    all: 'All',
+    todo: 'To Do',
+    in_progress: 'In Progress',
+    review: 'Review',
+    done: 'Done',
+  }
+
   return (
-    <Card className="border-border/80 shadow-sm">
+    <Card className="border-border/80">
       <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-7 items-center justify-center border border-primary/20 bg-primary/10 text-primary">
             <Kanban className="size-4" />
           </div>
           <div>
             <CardTitle className="text-base font-semibold">My Tasks</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Tasks assigned to you with quick status actions.
+              Assigned tasks with quick status controls
             </p>
           </div>
         </div>
 
         {/* Status Filter Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
-          {(['all', 'todo', 'in_progress', 'review', 'done'] as FilterStatus[]).map((st) => (
+          {(['todo', 'in_progress', 'review', 'done', 'all'] as FilterStatus[]).map((st) => (
             <Button
               key={st}
               variant={filter === st ? 'secondary' : 'ghost'}
               size="xs"
               onClick={() => setFilter(st)}
-              className="text-xs h-7 px-2.5 capitalize"
+              className={`text-xs h-7 px-2.5 ${
+                filter === st ? 'font-semibold text-foreground' : 'text-muted-foreground'
+              }`}
             >
-              {st === 'all' ? 'All' : st.replace('_', ' ')}
+              {filterLabels[st]}
             </Button>
           ))}
         </div>
@@ -157,8 +167,19 @@ export function MyTasksSection({ initialTasks }: MyTasksSectionProps) {
             <p className="text-[11px] text-muted-foreground">
               {filter === 'all'
                 ? 'You have no assigned tasks in your active organization.'
-                : `No tasks in ${filter.replace('_', ' ')} status.`}
+                : `No ${filterLabels[filter]} tasks right now.`}
             </p>
+            {filter !== 'all' && tasks.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => setFilter('all')}
+                className="mt-3 text-xs"
+              >
+                Show All
+              </Button>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-border/60">
@@ -169,7 +190,7 @@ export function MyTasksSection({ initialTasks }: MyTasksSectionProps) {
               return (
                 <div
                   key={task.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-2.5 transition-colors hover:bg-muted/20 px-2 rounded-lg"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-2.5 transition-colors hover:bg-muted/35 px-2.5 -mx-2.5"
                 >
                   <div className="flex flex-col gap-1.5 min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -232,9 +253,9 @@ export function MyTasksSection({ initialTasks }: MyTasksSectionProps) {
                         variant="ghost"
                         size="icon"
                         nativeButton={false}
-                        render={<Link href={`/projects/${task.projects.slug}/tasks`} />}
+                        render={<Link href={`/projects/${task.projects.slug}/tasks`} aria-label={`Open ${task.projects.name} tasks`} />}
                         className="size-7 text-muted-foreground hover:text-foreground"
-                        title="Go to project kanban"
+                        title="Open project tasks"
                       >
                         <ArrowRight className="size-3.5" />
                       </Button>

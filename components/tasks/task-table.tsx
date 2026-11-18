@@ -267,7 +267,7 @@ export function TaskTable({
 
                 {/* Assets */}
                 {assetCount > 0 && (
-                  <Badge variant="outline" className="text-[10px] h-4.5 px-1.5 gap-1 border-purple-500/30 bg-purple-500/10 text-purple-400">
+                  <Badge variant="outline" className="text-[10px] h-4.5 px-1.5 gap-1 border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400">
                     <Package className="size-2.5" />
                     {assetCount}
                   </Badge>
@@ -282,7 +282,12 @@ export function TaskTable({
                   className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-[11px] cursor-pointer"
                 >
                   <CaretRight className={cn("size-3 transition-transform", isExpanded && "rotate-90 text-primary")} />
-                  <span>Subtasks {totalSubtasks > 0 ? `(${completedSubtasks}/${totalSubtasks})` : ''}</span>
+                  <span>Subtasks</span>
+                  {totalSubtasks > 0 && (
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {completedSubtasks}/{totalSubtasks}
+                    </span>
+                  )}
                 </button>
 
                 <div className="flex items-center gap-1">
@@ -291,6 +296,7 @@ export function TaskTable({
                     size="xs"
                     onClick={() => setSelectedDetailTask(task)}
                     className="size-6 p-0 text-muted-foreground"
+                    aria-label="View task details"
                   >
                     <Eye className="size-3" />
                   </Button>
@@ -299,6 +305,7 @@ export function TaskTable({
                     size="xs"
                     onClick={() => setSelectedEditTask(task)}
                     className="size-6 p-0 text-muted-foreground"
+                    aria-label="Edit task"
                   >
                     <PencilSimple className="size-3" />
                   </Button>
@@ -307,6 +314,7 @@ export function TaskTable({
                     size="xs"
                     onClick={() => setTaskToDelete(task)}
                     className="size-6 p-0 text-destructive"
+                    aria-label="Delete task"
                   >
                     <Trash className="size-3" />
                   </Button>
@@ -380,7 +388,7 @@ export function TaskTable({
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2 }}
-        className="hidden md:block rounded-md border bg-card/60 overflow-hidden"
+        className="hidden md:block border bg-card overflow-hidden"
       >
           <Table>
             <TableHeader>
@@ -442,8 +450,10 @@ export function TaskTable({
                         <button
                           type="button"
                           onClick={() => toggleExpand(task.id)}
-                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer inline-flex items-center justify-center"
+                          className="p-1 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center justify-center"
                           title={isExpanded ? "Collapse subtasks" : "Expand subtasks"}
+                          aria-label={isExpanded ? "Collapse subtasks" : "Expand subtasks"}
+                          aria-expanded={isExpanded}
                         >
                           <CaretRight
                             className={cn(
@@ -596,7 +606,7 @@ export function TaskTable({
                         {assetCount > 0 ? (
                           <Badge
                             variant="outline"
-                            className="flex items-center gap-1 w-fit text-xs border-purple-500/30 bg-purple-500/10 text-purple-400"
+                            className="flex items-center gap-1 w-fit text-xs border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400"
                           >
                             <Package className="size-3 shrink-0" />
                             {assetCount} {assetCount === 1 ? 'Asset' : 'Assets'}
@@ -615,6 +625,7 @@ export function TaskTable({
                             onClick={() => setSelectedDetailTask(task)}
                             className="text-muted-foreground hover:text-foreground"
                             title="View Details"
+                            aria-label="View task details"
                           >
                             <Eye className="size-3.5" />
                           </Button>

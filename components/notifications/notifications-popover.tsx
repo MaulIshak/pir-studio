@@ -167,8 +167,8 @@ export function NotificationsPopover() {
         <div className="max-h-[380px] overflow-y-auto divide-y divide-border/60">
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-muted-foreground">
-              <BellSlash className="size-8 stroke-[1.5] text-muted-foreground/50" />
-              <p className="text-xs">No notifications yet</p>
+              <BellSlash className="size-8 text-muted-foreground/50" />
+              <p className="text-xs">No notifications</p>
             </div>
           ) : (
             notifications.map((item) => {
@@ -184,7 +184,7 @@ export function NotificationsPopover() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="flex size-6 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
+                      <div className="flex size-6 shrink-0 items-center justify-center border border-primary/20 bg-primary/10 text-primary">
                         {isInvitation ? (
                           <Buildings className="size-3.5" />
                         ) : (

@@ -195,13 +195,15 @@ export function ProjectMembersView({
               .map((om) => {
                 const isChecked = selectedUserIds.includes(om.userId)
                 return (
-                  <div
+                  <label
                     key={om.userId}
-                    onClick={() => handleToggleUser(om.userId)}
-                    className="flex items-center justify-between p-2.5 rounded-lg border border-border/70 hover:bg-muted/40 cursor-pointer transition-colors"
+                    className="flex items-center justify-between p-2.5 border border-border/70 hover:bg-muted/40 cursor-pointer transition-colors"
                   >
                     <div className="flex items-center gap-2.5">
-                      <Checkbox checked={isChecked} />
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => handleToggleUser(om.userId)}
+                      />
                       <Avatar className="size-7">
                         <AvatarImage src={om.avatarUrl || undefined} />
                         <AvatarFallback className="text-[10px]">
@@ -216,7 +218,7 @@ export function ProjectMembersView({
                     <Badge variant="outline" className="text-[10px]">
                       Member
                     </Badge>
-                  </div>
+                  </label>
                 )
               })}
 

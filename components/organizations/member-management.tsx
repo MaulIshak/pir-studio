@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
@@ -89,6 +90,7 @@ export function MemberManagement({
   const [selectedMember, setSelectedMember] = useState<MemberRow | null>(null)
   const [assignedProjectIds, setAssignedProjectIds] = useState<string[]>([])
   const [isLoadingAssigned, setIsLoadingAssigned] = useState(false)
+  const [memberToRemove, setMemberToRemove] = useState<MemberRow | null>(null)
 
   const isLeader = currentUserRole === 'leader'
   const isCoLeader = currentUserRole === 'co_leader'
@@ -213,20 +215,22 @@ export function MemberManagement({
   }
 
   // Remove Member
-  const handleRemoveMember = (member: MemberRow) => {
-    if (!confirm(`Are you sure you want to remove ${member.name} from ${organizationName}?`)) return
+  const handleConfirmRemoveMember = () => {
+    if (!memberToRemove) return
+    const target = memberToRemove
 
     setError(null)
     setSuccessMessage(null)
     startTransition(async () => {
-      const res = await removeMember(organizationId, member.userId)
+      const res = await removeMember(organizationId, target.userId)
       if (res.error) {
         setError(res.error)
       } else {
-        setMemberList((prev) => prev.filter((m) => m.userId !== member.userId))
-        setSuccessMessage(`Removed ${member.name} from organization`)
+        setMemberList((prev) => prev.filter((m) => m.userId !== target.userId))
+        setSuccessMessage(`Removed ${target.name} from organization`)
         router.refresh()
       }
+      setMemberToRemove(null)
     })
   }
 
@@ -387,10 +391,11 @@ export function MemberManagement({
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleRemoveMember(m)}
+                          onClick={() => setMemberToRemove(m)}
                           disabled={isPending}
                           className="size-7 text-muted-foreground hover:text-destructive"
                           title="Remove Member"
+                          aria-label={`Remove ${m.name}`}
                         >
                           <Trash className="size-3.5" />
                         </Button>
@@ -457,7 +462,7 @@ export function MemberManagement({
             </div>
 
             {/* Shareable Link Box */}
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3.5 space-y-2">
+            <div className="border border-primary/25 bg-primary/5 p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
                   <LinkIcon className="size-3.5" />
@@ -590,19 +595,21 @@ export function MemberManagement({
               allProjects.map((p) => {
                 const isChecked = assignedProjectIds.includes(p.id)
                 return (
-                  <div
+                  <label
                     key={p.id}
-                    onClick={() => handleToggleProject(p.id)}
-                    className="flex items-center justify-between p-2.5 rounded-lg border border-border/70 hover:bg-muted/40 cursor-pointer transition-colors"
+                    className="flex items-center justify-between p-2.5 border border-border/70 hover:bg-muted/40 cursor-pointer transition-colors"
                   >
                     <div className="flex items-center gap-2.5">
-                      <Checkbox checked={isChecked} />
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => handleToggleProject(p.id)}
+                      />
                       <span className="text-xs font-medium text-foreground">{p.name}</span>
                     </div>
                     <Badge variant="outline" className="text-[10px] capitalize">
                       {p.status}
                     </Badge>
-                  </div>
+                  </label>
                 )
               })
             )}
@@ -630,6 +637,19 @@ export function MemberManagement({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!memberToRemove}
+        onOpenChange={(open) => !open && setMemberToRemove(null)}
+        title="Remove Member"
+        description={`Remove ${memberToRemove?.name ?? 'this member'} from ${organizationName}? They will lose access to organization projects.`}
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        variant="destructive"
+        icon="trash"
+        isLoading={isPending}
+        onConfirm={handleConfirmRemoveMember}
+      />
     </div>
   )
 }

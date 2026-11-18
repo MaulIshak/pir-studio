@@ -123,16 +123,15 @@ export function ArtifactList({ artifacts, projectId }: ArtifactListProps) {
                 return (
                   <motion.div
                     key={artifact.id}
-                    initial={{ opacity: 0, y: 8 }}
+                    initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    whileHover={{ y: -3, transition: { duration: 0.18 } }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.18 }}
                   >
-                    <Card className={`flex h-full flex-col justify-between transition-all duration-200 ${details.cardBg}`}>
+                    <Card className={`flex h-full flex-col justify-between transition-colors duration-150 ${details.cardBg}`}>
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex size-9 items-center justify-center rounded-lg bg-card/80 border shadow-xs">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex size-9 shrink-0 items-center justify-center bg-card/80 border">
                               {details.icon}
                             </div>
                             <CardTitle className="font-heading text-base font-semibold leading-tight line-clamp-1">
@@ -144,6 +143,7 @@ export function ArtifactList({ artifacts, projectId }: ArtifactListProps) {
                             size="xs"
                             onClick={() => setArtifactToDelete(artifact)}
                             className="text-muted-foreground hover:text-destructive shrink-0 size-7 p-0"
+                            aria-label={`Delete ${artifact.label}`}
                           >
                             <Trash className="size-3.5" />
                           </Button>

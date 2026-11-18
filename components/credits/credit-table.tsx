@@ -123,7 +123,7 @@ export function CreditTable({ credits, projectId, assets = [] }: CreditTableProp
             {filteredCredits.map((credit) => (
               <div
                 key={credit.id}
-                className="flex flex-col gap-2 rounded-lg border bg-card p-3.5 shadow-2xs"
+                className="flex flex-col gap-2 border bg-card p-3.5"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex flex-col gap-0.5 min-w-0 flex-1">
@@ -165,6 +165,7 @@ export function CreditTable({ credits, projectId, assets = [] }: CreditTableProp
                       onClick={() => setCreditToDelete(credit)}
                       className="size-6 p-0 text-destructive hover:text-destructive"
                       title="Delete Credit"
+                      aria-label={`Delete credit ${credit.source_name}`}
                     >
                       <Trash className="size-3" />
                     </Button>
@@ -178,8 +179,8 @@ export function CreditTable({ credits, projectId, assets = [] }: CreditTableProp
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-            className="hidden md:block rounded-md border bg-card/60 overflow-hidden"
+            transition={{ duration: 0.2 }}
+            className="hidden md:block border bg-card overflow-hidden"
           >
             <Table>
             <TableHeader>
@@ -255,6 +256,7 @@ export function CreditTable({ credits, projectId, assets = [] }: CreditTableProp
                       size="xs"
                       onClick={() => setCreditToDelete(credit)}
                       className="text-destructive hover:text-destructive"
+                      aria-label={`Delete credit ${credit.source_name}`}
                     >
                       <Trash className="size-3.5" />
                     </Button>

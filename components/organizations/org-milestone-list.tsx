@@ -103,7 +103,7 @@ function getDueInfo(dueDate: string | null, status: OrgMilestoneItem['status']) 
     return { label: `${Math.abs(diffDays)}d overdue`, className: 'text-destructive font-semibold' }
   }
   if (diffDays === 0) {
-    return { label: 'Due today', className: 'text-destructive font-semibold animate-pulse' }
+    return { label: 'Due today', className: 'text-destructive font-semibold' }
   }
   if (diffDays === 1) {
     return { label: 'Due tomorrow', className: 'text-amber-500 font-semibold' }
@@ -349,7 +349,7 @@ export function OrgMilestoneList({
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Filter Pills */}
-          <div className="flex items-center rounded-lg border bg-muted/30 p-0.5 text-xs">
+          <div className="flex items-center border bg-muted/30 p-0.5 text-xs">
             <Button
               variant={filterProject === 'all' ? 'secondary' : 'ghost'}
               size="xs"
@@ -379,7 +379,7 @@ export function OrgMilestoneList({
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center rounded-lg border bg-muted/30 p-0.5">
+          <div className="flex items-center border bg-muted/30 p-0.5">
             <Button
               variant={viewMode === 'gantt' ? 'secondary' : 'ghost'}
               size="xs"
@@ -438,7 +438,7 @@ export function OrgMilestoneList({
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
-          className="w-full min-w-0 rounded-lg border bg-card shadow-xs overflow-hidden"
+          className="w-full min-w-0 border bg-card shadow-xs overflow-hidden"
         >
           {/* Quick Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 sm:px-4 py-2 bg-muted/20 text-xs text-muted-foreground">
@@ -566,14 +566,14 @@ export function OrgMilestoneList({
                       }`}
                     >
                       {/* Pinned Left Column */}
-                      <div className="w-48 sm:w-64 md:w-72 shrink-0 border-r px-2.5 sm:px-4 py-2 bg-card sticky left-0 z-[9] flex items-center justify-between shadow-[4px_0_12px_-2px_rgba(0,0,0,0.12)]">
+                      <div className="w-48 sm:w-64 md:w-72 shrink-0 border-r px-2.5 sm:px-4 py-2 bg-card sticky left-0 z-[9] flex items-center justify-between shadow-[4px_0_12px_-2px_rgb(0_0_0_/_0.08)] dark:shadow-[4px_0_12px_-2px_rgb(0_0_0_/_0.35)]">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <span
                             className={`size-2.5 rounded-full shrink-0 ${
                               isDone
                                 ? 'bg-emerald-500'
                                 : isInProgress
-                                ? 'bg-primary animate-pulse'
+                                ? 'bg-primary'
                                 : 'bg-muted-foreground/40'
                             }`}
                           />
@@ -585,7 +585,7 @@ export function OrgMilestoneList({
                               {isActiveToday && (
                                 <Badge
                                   variant="outline"
-                                  className="border-primary/40 bg-primary/10 text-primary text-[9px] h-3.5 px-1 font-medium shrink-0 animate-pulse hidden sm:inline-flex"
+                                  className="border-primary/40 bg-primary/10 text-primary text-[9px] h-3.5 px-1 font-medium shrink-0 hidden sm:inline-flex"
                                 >
                                   Active
                                 </Badge>
@@ -688,7 +688,7 @@ export function OrgMilestoneList({
                           animate={{ opacity: 1, scaleX: 1 }}
                           transition={{ duration: 0.2 }}
                           style={{ left: `${barLeft}px`, width: `${barWidth}px` }}
-                          className={`absolute z-10 flex h-7 items-center justify-between rounded-md px-2.5 text-xs shadow-xs font-medium transition-all ${
+                          className={`absolute z-10 flex h-7 items-center justify-between rounded-xs px-2.5 text-xs shadow-xs font-medium transition-colors ${
                             isDone
                               ? 'bg-emerald-600 text-white'
                               : isInProgress
@@ -807,7 +807,7 @@ export function OrgMilestoneList({
                         {isActiveToday && (
                           <Badge
                             variant="outline"
-                            className="border-primary/40 bg-primary/10 text-primary text-[10px] h-4 px-1.5 font-medium animate-pulse"
+                            className="border-primary/40 bg-primary/10 text-primary text-[10px] h-4 px-1.5 font-medium"
                           >
                             Active Today
                           </Badge>
@@ -853,7 +853,12 @@ export function OrgMilestoneList({
                         <DropdownMenu>
                           <DropdownMenuTrigger
                             render={
-                              <Button variant="ghost" size="xs" className="size-7 p-0 text-muted-foreground">
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                className="size-7 p-0 text-muted-foreground"
+                                aria-label={`Actions for ${milestone.title}`}
+                              >
                                 <DotsThreeVertical className="size-3.5" />
                               </Button>
                             }

@@ -30,7 +30,7 @@ export const KNOWN_ENUM_LABELS: Record<string, string> = {
   integrated: "Integrated",
   rejected: "Rejected",
   // Licenses
-  cc0: "CC0 (Public Domain)",
+  cc0: "CC0 Public Domain",
   cc_by: "CC-BY",
   royalty_free: "Royalty-Free",
   proprietary: "Proprietary",

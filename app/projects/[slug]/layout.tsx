@@ -76,8 +76,8 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
               </Badge>
             )}
             {project.status === 'active' ? (
-              <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium capitalize">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium capitalize">
+                <span className="size-1.5 rounded-full bg-emerald-500" />
                 Active
               </Badge>
             ) : project.status === 'completed' ? (

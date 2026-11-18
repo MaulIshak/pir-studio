@@ -55,6 +55,7 @@ interface KanbanBoardProps {
   initialTasks: TaskItem[]
   milestones: Array<{ id: string; title: string }>
   profiles?: ProfileItem[]
+  defaultAssigneeId?: string
 }
 
 export function KanbanBoard({
@@ -62,6 +63,7 @@ export function KanbanBoard({
   initialTasks,
   milestones,
   profiles = [],
+  defaultAssigneeId = 'all',
 }: KanbanBoardProps) {
   const router = useRouter()
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks)
@@ -73,7 +75,7 @@ export function KanbanBoard({
   }
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
   const [selectedMilestone, setSelectedMilestone] = useState<string>('all')
-  const [selectedAssignee, setSelectedAssignee] = useState<string>('all')
+  const [selectedAssignee, setSelectedAssignee] = useState<string>(defaultAssigneeId)
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
   const [mobileColumn, setMobileColumn] = useState<string>('all')
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
@@ -250,14 +252,14 @@ export function KanbanBoard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 min-w-0">
           {/* View Mode Switcher */}
-          <div className="flex items-center rounded-md border border-border p-0.5 bg-muted/40 shrink-0 w-fit">
+          <div className="flex items-center border border-border p-0.5 bg-muted/40 shrink-0 w-fit">
             <Button
               type="button"
               variant={viewMode === 'kanban' ? 'secondary' : 'ghost'}
               size="xs"
               onClick={() => setViewMode('kanban')}
               className={cn(
-                "h-7 gap-1.5 px-2.5 text-xs transition-all",
+                "h-7 gap-1.5 px-2.5 text-xs transition-colors",
                 viewMode === 'kanban'
                   ? "bg-background text-foreground shadow-xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
@@ -272,7 +274,7 @@ export function KanbanBoard({
               size="xs"
               onClick={() => setViewMode('table')}
               className={cn(
-                "h-7 gap-1.5 px-2.5 text-xs transition-all",
+                "h-7 gap-1.5 px-2.5 text-xs transition-colors",
                 viewMode === 'table'
                   ? "bg-background text-foreground shadow-xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
@@ -359,12 +361,12 @@ export function KanbanBoard({
 
       {/* Mobile Column Segmented Control (Visible only in Kanban view on mobile) */}
       {viewMode === 'kanban' && (
-        <div className="flex md:hidden items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+        <div className="sticky top-[6.25rem] z-10 flex md:hidden items-center gap-1.5 overflow-x-auto no-scrollbar bg-background/95 backdrop-blur-sm py-1.5 -mx-1 px-1">
           <button
             type="button"
             onClick={() => setMobileColumn('all')}
             className={cn(
-              "px-3 py-1 rounded-full text-xs font-medium shrink-0 transition-all cursor-pointer",
+              "min-h-9 px-3 py-1 rounded-full text-xs font-medium shrink-0 transition-all cursor-pointer",
               mobileColumn === 'all'
                 ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                 : "bg-muted text-muted-foreground hover:text-foreground"
@@ -381,7 +383,7 @@ export function KanbanBoard({
                 type="button"
                 onClick={() => setMobileColumn(col.id)}
                 className={cn(
-                  "px-3 py-1 rounded-full text-xs font-medium shrink-0 transition-all cursor-pointer flex items-center gap-1.5",
+                  "min-h-9 px-3 py-1 rounded-full text-xs font-medium shrink-0 transition-all cursor-pointer flex items-center gap-1.5",
                   isSelected
                     ? "bg-primary text-primary-foreground font-semibold shadow-xs"
                     : "bg-muted text-muted-foreground hover:text-foreground"
@@ -444,10 +446,10 @@ export function KanbanBoard({
                 setDraggedTaskId(null)
               }}
               className={cn(
-                "flex min-h-[140px] md:min-h-[500px] flex-col rounded-lg transition-all duration-200",
+                "flex min-h-[140px] md:min-h-[500px] flex-col transition-colors duration-150",
                 col.cardBorder,
                 isHiddenOnMobile && "hidden md:flex",
-                isDropTarget && !isSourceCol && "ring-2 ring-primary/40 border-primary/60 bg-primary/[0.04] shadow-md"
+                isDropTarget && !isSourceCol && "ring-1 ring-primary/50 border-primary/70 bg-primary/[0.04]"
               )}
             >
               <CardHeader className="border-b pb-3 bg-card/40">
@@ -468,15 +470,15 @@ export function KanbanBoard({
                 {colTasks.length === 0 ? (
                   <div
                     className={cn(
-                      "flex flex-1 flex-col items-center justify-center border border-dashed rounded-md py-6 md:py-8 text-center text-xs transition-all gap-1.5",
+                      "flex flex-1 flex-col items-center justify-center border border-dashed py-6 md:py-8 text-center text-xs transition-colors gap-1.5",
                       isDropTarget && !isSourceCol
-                        ? "border-primary/60 bg-primary/10 text-primary font-medium scale-[1.01]"
-                        : "border-border/60 text-muted-foreground"
+                        ? "border-primary/70 bg-primary/10 text-primary font-medium"
+                        : "border-border/70 text-muted-foreground"
                     )}
                   >
                     {isDropTarget && !isSourceCol ? (
                       <>
-                        <ArrowDown className="size-4 animate-bounce text-primary" />
+                        <ArrowDown className="size-4 text-primary" />
                         <span>Release to move to {col.label}</span>
                       </>
                     ) : (
@@ -507,7 +509,7 @@ export function KanbanBoard({
                       ))}
                     </AnimatePresence>
                     {isDropTarget && !isSourceCol && (
-                      <div className="flex items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-primary/50 bg-primary/10 py-3 text-xs font-medium text-primary transition-all animate-pulse">
+                      <div className="flex items-center justify-center gap-1.5 border border-dashed border-primary/60 bg-primary/10 py-2.5 text-xs font-medium text-primary">
                         <ArrowDown className="size-3.5" />
                         Drop to move to {col.label}
                       </div>

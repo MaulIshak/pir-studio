@@ -305,7 +305,7 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
               return (
                 <div
                   key={asset.id}
-                  className="flex flex-col gap-2.5 rounded-lg border bg-card p-3.5 shadow-2xs"
+                  className="flex flex-col gap-2.5 border bg-card p-3.5"
                 >
                   {/* Header: Name & Status */}
                   <div className="flex items-start justify-between gap-2">
@@ -452,8 +452,8 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-            className="hidden md:block rounded-md border bg-card/60 overflow-hidden"
+            transition={{ duration: 0.2 }}
+            className="hidden md:block border bg-card overflow-hidden"
           >
             <Table>
             <TableHeader>
@@ -500,10 +500,10 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
                         <button
                           type="button"
                           onClick={() => setGalleryAsset(asset)}
-                          className="group flex items-center gap-2 rounded-md border border-border/70 p-1 pr-2 hover:border-primary/50 hover:bg-muted/40 transition-all text-left"
+                          className="group flex items-center gap-2 border border-border/70 p-1 pr-2 hover:border-primary/50 hover:bg-muted/40 transition-colors text-left"
                         >
                           {firstRef && (
-                            <div className="size-7 rounded overflow-hidden bg-muted border border-border/60">
+                            <div className="size-7 overflow-hidden bg-muted border border-border/60">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={`/api/drive/file/${firstRef.drive_file_id}`}
@@ -647,6 +647,7 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
                           onClick={() => setSelectedDetailAsset(asset)}
                           className="text-muted-foreground hover:text-foreground"
                           title="View Details"
+                          aria-label={`View details for ${asset.name}`}
                         >
                           <Eye className="size-3.5" />
                         </Button>
@@ -657,6 +658,7 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
                           onClick={() => setSelectedEditAsset(asset)}
                           className="text-muted-foreground hover:text-foreground"
                           title="Edit Asset"
+                          aria-label={`Edit ${asset.name}`}
                         >
                           <PencilSimple className="size-3.5" />
                         </Button>
@@ -667,6 +669,7 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
                           onClick={() => setAssetToDelete(asset)}
                           className="text-destructive hover:text-destructive"
                           title="Delete Asset"
+                          aria-label={`Delete ${asset.name}`}
                         >
                           <Trash className="size-3.5" />
                         </Button>

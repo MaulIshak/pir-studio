@@ -260,14 +260,14 @@ export function ProjectSettingsDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="jam" label="Game Jam">
-                      Game Jam
+                    <SelectItem value="jam" label="Jam">
+                      Jam
                     </SelectItem>
                     <SelectItem value="competition" label="Competition">
                       Competition
                     </SelectItem>
-                    <SelectItem value="internal" label="Internal Project">
-                      Internal Project
+                    <SelectItem value="internal" label="Internal">
+                      Internal
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -335,31 +335,31 @@ export function ProjectSettingsDialog({
 
             {/* Google Drive Storage Sync Section (Leader Only) */}
             {isLeader && (
-              <div className="rounded-lg border border-border/70 bg-muted/20 p-3.5 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="flex size-7 items-center justify-center rounded-md bg-amber-500/10 text-amber-500">
+              <div className="border border-border/80 bg-muted/20 p-3.5 flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex size-7 items-center justify-center border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400">
                       <GoogleDriveLogo className="size-4" />
                     </div>
                     <div>
                       <h4 className="text-xs font-semibold text-foreground">Google Drive Sync</h4>
                       <p className="text-[11px] text-muted-foreground">
-                        Connect project folder for assets, builds, and deliverables storage.
+                        Connect project folder for assets, builds, and deliverables.
                       </p>
                     </div>
                   </div>
                   {driveFolderId ? (
-                    <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-500 text-[10px]">
+                    <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px]">
                       Connected
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-500 text-[10px]">
+                    <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px]">
                       Not Connected
                     </Badge>
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/50">
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50">
                   {driveFolderId ? (
                     <>
                       <Button
@@ -394,7 +394,7 @@ export function ProjectSettingsDialog({
                           </>
                         ) : (
                           <>
-                            <GoogleDriveLogo className="size-3 text-amber-500" />
+                            <GoogleDriveLogo className="size-3 text-amber-600 dark:text-amber-400" />
                             <span>Re-sync Drive</span>
                           </>
                         )}
@@ -403,10 +403,11 @@ export function ProjectSettingsDialog({
                   ) : (
                     <Button
                       type="button"
+                      variant="outline"
                       size="xs"
                       onClick={handleSyncDrive}
                       disabled={isSyncingDrive}
-                      className="gap-1.5 text-xs bg-amber-500 hover:bg-amber-600 text-black font-medium"
+                      className="gap-1.5 text-xs border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 font-medium"
                     >
                       {isSyncingDrive ? (
                         <>
@@ -427,7 +428,7 @@ export function ProjectSettingsDialog({
 
             {/* Danger Zone: Delete Project (Leader Only) */}
             {isLeader && (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3.5 flex items-center justify-between">
+              <div className="border border-destructive/30 bg-destructive/5 p-3.5 flex items-center justify-between gap-3">
                 <div>
                   <h4 className="text-xs font-semibold text-destructive">Delete Project</h4>
                   <p className="text-[11px] text-muted-foreground">
@@ -493,7 +494,7 @@ export function ProjectSettingsDialog({
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-1">
+            <div className="mx-auto flex size-10 items-center justify-center border border-destructive/25 bg-destructive/10 text-destructive mb-1">
               <Warning className="size-5" />
             </div>
             <DialogTitle className="text-center font-heading">

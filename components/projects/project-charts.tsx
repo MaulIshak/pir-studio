@@ -39,30 +39,30 @@ const statusChartConfig = {
   },
   todo: {
     label: 'To Do',
-    color: '#94a3b8',
+    color: 'var(--chart-1)',
   },
   in_progress: {
     label: 'In Progress',
-    color: '#0284c7',
+    color: 'var(--chart-2)',
   },
   review: {
     label: 'Review',
-    color: '#d97706',
+    color: 'var(--chart-3)',
   },
   done: {
     label: 'Done',
-    color: '#16a34a',
+    color: 'var(--chart-4)',
   },
 } satisfies ChartConfig
 
 const timelineChartConfig = {
   completed: {
     label: 'Completed Tasks',
-    color: '#16a34a',
+    color: 'var(--chart-4)',
   },
   created: {
     label: 'Created Tasks',
-    color: 'var(--color-primary)',
+    color: 'var(--chart-5)',
   },
 } satisfies ChartConfig
 
@@ -85,10 +85,10 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
     })
 
     return [
-      { status: 'To Do', count: counts.todo, fill: '#94a3b8', key: 'todo' },
-      { status: 'In Progress', count: counts.in_progress, fill: '#0284c7', key: 'in_progress' },
-      { status: 'Review', count: counts.review, fill: '#d97706', key: 'review' },
-      { status: 'Done', count: counts.done, fill: '#16a34a', key: 'done' },
+      { status: 'To Do', count: counts.todo, fill: 'var(--chart-1)', key: 'todo' },
+      { status: 'In Progress', count: counts.in_progress, fill: 'var(--chart-2)', key: 'in_progress' },
+      { status: 'Review', count: counts.review, fill: 'var(--chart-3)', key: 'review' },
+      { status: 'Done', count: counts.done, fill: 'var(--chart-4)', key: 'done' },
     ]
   }, [tasks])
 
@@ -175,16 +175,16 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <div className="flex size-7 items-center justify-center border border-primary/20 bg-primary/10 text-primary">
                 <ChartBar className="size-4" />
               </div>
               <CardTitle className="text-base font-semibold">Tasks by Status</CardTitle>
             </div>
             <CardDescription className="text-xs">
-              Comparison across To Do, In Progress, Review, and Done
+              Distribution across workflow stages
             </CardDescription>
           </div>
-          <div className="flex items-center gap-1.5 rounded-full border border-border/80 bg-secondary/30 px-2.5 py-1 text-xs font-mono text-muted-foreground">
+          <div className="flex items-center gap-1.5 border border-border bg-muted/40 px-2.5 py-1 text-xs font-mono text-muted-foreground">
             <span className="font-semibold text-foreground">{totalTasks}</span> total
           </div>
         </CardHeader>
@@ -206,10 +206,10 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
                 className="text-xs text-muted-foreground"
               />
               <ChartTooltip
-                cursor={{ fill: 'rgba(0, 0, 0, 0.04)' }}
+                cursor={{ fill: 'var(--muted)', opacity: 0.4 }}
                 content={<ChartTooltipContent hideLabel />}
               />
-              <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+              <Bar dataKey="count" radius={[2, 2, 0, 0]}>
                 {statusData.map((entry) => (
                   <Cell key={entry.key} fill={entry.fill} />
                 ))}
@@ -220,7 +220,7 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
           <div className="mt-4 grid grid-cols-2 sm:flex sm:flex-wrap items-center sm:justify-between gap-2 border-t pt-3 text-xs">
             {statusData.map((item) => (
               <div key={item.key} className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-xs" style={{ backgroundColor: item.fill }} />
+                <span className="size-2.5" style={{ backgroundColor: item.fill }} />
                 <span className="text-muted-foreground">{item.status}:</span>
                 <span className="font-mono font-medium text-foreground">{item.count}</span>
               </div>
@@ -234,7 +234,7 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <div className="flex size-7 items-center justify-center border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                 <TrendUp className="size-4" />
               </div>
               <CardTitle className="text-base font-semibold">Completion Activity</CardTitle>
@@ -245,12 +245,12 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
           </div>
 
           {/* Daily / Weekly Toggle */}
-          <div className="flex items-center rounded-lg border border-border/80 bg-secondary/30 p-0.5">
+          <div className="flex items-center border border-border bg-muted/40 p-0.5">
             <Button
               variant={timeframe === 'daily' ? 'default' : 'ghost'}
               size="xs"
               onClick={() => setTimeframe('daily')}
-              className="h-6 rounded-md px-2 text-[11px] font-medium"
+              className="h-6 px-2 text-[11px] font-medium"
             >
               Daily
             </Button>
@@ -258,7 +258,7 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
               variant={timeframe === 'weekly' ? 'default' : 'ghost'}
               size="xs"
               onClick={() => setTimeframe('weekly')}
-              className="h-6 rounded-md px-2 text-[11px] font-medium"
+              className="h-6 px-2 text-[11px] font-medium"
             >
               Weekly
             </Button>
@@ -269,8 +269,8 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
             <AreaChart data={timelineData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
               <defs>
                 <linearGradient id="fillCompleted" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#16a34a" stopOpacity={0.6} />
-                  <stop offset="95%" stopColor="#16a34a" stopOpacity={0.05} />
+                  <stop offset="5%" stopColor="var(--chart-4)" stopOpacity={0.5} />
+                  <stop offset="95%" stopColor="var(--chart-4)" stopOpacity={0.04} />
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/40" />
@@ -288,7 +288,7 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
                 className="text-xs text-muted-foreground"
               />
               <ChartTooltip
-                cursor={{ stroke: 'rgba(0, 0, 0, 0.1)', strokeDasharray: '3 3' }}
+                cursor={{ stroke: 'var(--border)', strokeDasharray: '3 3' }}
                 content={<ChartTooltipContent />}
               />
               <Area
@@ -296,7 +296,7 @@ export function ProjectCharts({ tasks }: ProjectChartsProps) {
                 name="Completed"
                 type="monotone"
                 fill="url(#fillCompleted)"
-                stroke="#16a34a"
+                stroke="var(--chart-4)"
                 strokeWidth={2}
               />
             </AreaChart>

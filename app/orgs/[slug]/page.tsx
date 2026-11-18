@@ -4,10 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrganizationBySlug } from '@/actions/organizations'
 import { getUserOrgRole } from '@/lib/auth/permissions'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { ProjectListClient } from '@/components/projects/project-list-client'
 import {
-  Plus,
   Users,
   GameController,
   Kanban,
@@ -89,31 +87,31 @@ export default async function OrganizationDashboardPage({ params }: OrgPageProps
   return (
     <div className="flex flex-col gap-6">
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-border/80 bg-card">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Card className="border-border/80 bg-card transition-colors hover:border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground">Projects</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <div className="flex size-7 items-center justify-center border border-primary/20 bg-primary/10 text-primary">
               <GameController className="size-3.5" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="font-mono text-2xl font-bold text-foreground">{allProjects.length}</div>
+            <div className="font-mono text-2xl font-bold tracking-tight text-foreground">{allProjects.length}</div>
             <p className="text-[11px] text-muted-foreground pt-1">{activeProjects.length} active</p>
           </CardContent>
         </Card>
 
-        <Card className="border-border/80 bg-card">
+        <Card className="border-border/80 bg-card transition-colors hover:border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold text-muted-foreground">Roadmap Milestones</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-amber-500/10 text-amber-500">
+            <CardTitle className="text-xs font-semibold text-muted-foreground">Milestones</CardTitle>
+            <div className="flex size-7 items-center justify-center border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400">
               <Flag className="size-3.5" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="font-mono text-2xl font-bold text-foreground">{milestoneCount ?? 0}</div>
+            <div className="font-mono text-2xl font-bold tracking-tight text-foreground">{milestoneCount ?? 0}</div>
             <div className="pt-1 flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">Org-wide targets</span>
+              <span className="text-[11px] text-muted-foreground">Roadmap targets</span>
               <Link
                 href={`/orgs/${org.slug}/milestones`}
                 className="text-[11px] text-primary hover:underline inline-flex items-center gap-0.5"
@@ -125,28 +123,28 @@ export default async function OrganizationDashboardPage({ params }: OrgPageProps
           </CardContent>
         </Card>
 
-        <Card className="border-border/80 bg-card">
+        <Card className="border-border/80 bg-card transition-colors hover:border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground">Team Size</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-purple-500/10 text-purple-400">
+            <div className="flex size-7 items-center justify-center border border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400">
               <Users className="size-3.5" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="font-mono text-2xl font-bold text-foreground">{memberCount ?? 0}</div>
-            <p className="text-[11px] text-muted-foreground pt-1">Members joined</p>
+            <div className="font-mono text-2xl font-bold tracking-tight text-foreground">{memberCount ?? 0}</div>
+            <p className="text-[11px] text-muted-foreground pt-1">Active members</p>
           </CardContent>
         </Card>
 
-        <Card className="border-border/80 bg-card">
+        <Card className="border-border/80 bg-card transition-colors hover:border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground">Active Tasks</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-amber-500/10 text-amber-500">
+            <div className="flex size-7 items-center justify-center border border-sky-500/20 bg-sky-500/10 text-sky-600 dark:text-sky-400">
               <Kanban className="size-3.5" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="font-mono text-2xl font-bold text-foreground">{activeTasksCount}</div>
+            <div className="font-mono text-2xl font-bold tracking-tight text-foreground">{activeTasksCount}</div>
             <p className="text-[11px] text-muted-foreground pt-1">{completedProjects.length} shipped projects</p>
           </CardContent>
         </Card>
@@ -156,18 +154,6 @@ export default async function OrganizationDashboardPage({ params }: OrgPageProps
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-lg font-semibold">Projects</h2>
-          {canManage && (
-            <Button
-              nativeButton={false}
-              render={<Link href="/projects/new" />}
-              size="xs"
-              variant="outline"
-              className="gap-1 text-xs"
-            >
-              <Plus className="size-3" />
-              <span>Create Project</span>
-            </Button>
-          )}
         </div>
         <ProjectListClient initialProjects={allProjects} canCreateProject={canManage} />
       </div>

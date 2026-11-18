@@ -91,7 +91,7 @@ function getDueInfo(dueDate: string | null, status: MilestoneItem['status']) {
     return { label: `${Math.abs(diffDays)}d overdue`, className: 'text-destructive font-semibold' }
   }
   if (diffDays === 0) {
-    return { label: 'Due today', className: 'text-destructive font-semibold animate-pulse' }
+    return { label: 'Due today', className: 'text-destructive font-semibold' }
   }
   if (diffDays === 1) {
     return { label: 'Due tomorrow', className: 'text-amber-500 font-semibold' }
@@ -367,7 +367,7 @@ export function MilestoneList({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-lg border bg-muted/30 p-0.5">
+          <div className="flex items-center border bg-muted/30 p-0.5">
             <Button
               variant={viewMode === 'gantt' ? 'secondary' : 'ghost'}
               size="xs"
@@ -406,7 +406,7 @@ export function MilestoneList({
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
-          className="w-full min-w-0 rounded-lg border bg-card shadow-xs overflow-hidden"
+          className="w-full min-w-0 border bg-card shadow-xs overflow-hidden"
         >
           {/* Quick Toolbar (Jump Controls & Timeline Info) */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 sm:px-4 py-2 bg-muted/20 text-xs text-muted-foreground">
@@ -523,9 +523,9 @@ export function MilestoneList({
                           }`}
                           style={{ left: `${(deadlineIndex + 1) * DAY_WIDTH}px` }}
                         >
-                          <span className="flex items-center gap-1 rounded-md bg-destructive px-2 py-0.5 font-mono text-[10px] font-bold text-destructive-foreground shadow-md whitespace-nowrap">
+                          <span className="flex items-center gap-1 bg-destructive px-2 py-0.5 font-mono text-[10px] font-bold text-destructive-foreground shadow-md whitespace-nowrap">
                             <Flag className="size-3 shrink-0" weight="fill" />
-                            Project Deadline ({formatDate(projectDeadline)})
+                            Project Deadline · {formatDate(projectDeadline)}
                           </span>
                           <span className="size-1.5 rotate-45 bg-destructive -mt-0.5" />
                         </div>
@@ -602,14 +602,14 @@ export function MilestoneList({
                       }`}
                     >
                       {/* Pinned Left Details Column */}
-                      <div className="w-36 sm:w-56 md:w-64 shrink-0 border-r px-2.5 sm:px-4 py-2 bg-card sticky left-0 z-[9] flex items-center justify-between shadow-[4px_0_12px_-2px_rgba(0,0,0,0.12)]">
+                      <div className="w-36 sm:w-56 md:w-64 shrink-0 border-r px-2.5 sm:px-4 py-2 bg-card sticky left-0 z-[9] flex items-center justify-between shadow-[4px_0_12px_-2px_rgb(0_0_0_/_0.08)] dark:shadow-[4px_0_12px_-2px_rgb(0_0_0_/_0.35)]">
                         <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1">
                           <span
                             className={`size-2 sm:size-2.5 rounded-full shrink-0 ${
                               isDone
                                 ? 'bg-emerald-500'
                                 : isInProgress
-                                ? 'bg-primary animate-pulse'
+                                ? 'bg-primary'
                                 : 'bg-muted-foreground/40'
                             }`}
                           />
@@ -621,7 +621,7 @@ export function MilestoneList({
                               {isActiveToday && (
                                 <Badge
                                   variant="outline"
-                                  className="border-primary/40 bg-primary/10 text-primary text-[9px] h-3.5 px-1 font-medium shrink-0 animate-pulse hidden sm:inline-flex"
+                                  className="border-primary/40 bg-primary/10 text-primary text-[9px] h-3.5 px-1 font-medium shrink-0 hidden sm:inline-flex"
                                 >
                                   Active
                                 </Badge>
@@ -726,7 +726,7 @@ export function MilestoneList({
                           animate={{ opacity: 1, scaleX: 1 }}
                           transition={{ duration: 0.2 }}
                           style={{ left: `${barLeft}px`, width: `${barWidth}px` }}
-                          className={`absolute z-10 flex h-7 items-center justify-between rounded-md px-2.5 text-xs shadow-xs font-medium transition-all ${
+                          className={`absolute z-10 flex h-7 items-center justify-between rounded-xs px-2.5 text-xs shadow-xs font-medium transition-colors ${
                             isDone
                               ? 'bg-emerald-600 text-white'
                               : isInProgress
@@ -835,7 +835,7 @@ export function MilestoneList({
                         {isActiveToday && (
                           <Badge
                             variant="outline"
-                            className="border-primary/40 bg-primary/10 text-primary text-[10px] h-4 px-1.5 font-medium animate-pulse"
+                            className="border-primary/40 bg-primary/10 text-primary text-[10px] h-4 px-1.5 font-medium"
                           >
                             Active Today
                           </Badge>
@@ -847,9 +847,9 @@ export function MilestoneList({
                           <CalendarBlank className="size-3 text-muted-foreground" />
                           {formatDateRange(milestone.start_date, milestone.due_date)}
                         </span>
-                        <span>•</span>
+                        <span>·</span>
                         <span className="font-mono text-[11px]">
-                          {doneTasks} of {totalTasks} tasks ({progress}%)
+                          {doneTasks} / {totalTasks} tasks · {progress}%
                         </span>
                       </div>
                     </div>
@@ -870,7 +870,12 @@ export function MilestoneList({
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           render={
-                            <Button variant="ghost" size="xs" className="size-7 p-0 text-muted-foreground">
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              className="size-7 p-0 text-muted-foreground"
+                              aria-label={`Actions for ${milestone.title}`}
+                            >
                               <DotsThreeVertical className="size-3.5" />
                             </Button>
                           }
@@ -922,7 +927,7 @@ export function MilestoneList({
                   <Flag className="size-2.5" />
                 </div>
               </div>
-              <div className="flex-1 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs flex items-center justify-between">
+              <div className="flex-1 border border-destructive/30 bg-destructive/5 p-3 text-xs flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-destructive">Project Deadline</span>
                   <span className="font-mono text-muted-foreground">• {formatDate(projectDeadline)}</span>

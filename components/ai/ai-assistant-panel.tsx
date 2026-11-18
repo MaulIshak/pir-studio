@@ -128,23 +128,38 @@ export function AiAssistantPanel({ onClose }: { onClose: () => void }) {
 
   const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  const quickPrompts = [
+    'Summarize overdue tasks',
+    'List next milestone targets',
+    'Draft sprint checklist',
+  ]
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 8 }}
-      transition={{ duration: 0.2 }}
-      className="fixed right-4 bottom-16 z-50 w-[min(360px,calc(100vw-2rem))]"
+      exit={{ opacity: 0, y: 16 }}
+      transition={{ duration: 0.18 }}
+      className="fixed inset-x-0 bottom-0 z-50 md:inset-auto md:right-4 md:bottom-16 md:w-[min(360px,calc(100vw-2rem))]"
     >
-      <Card className="border-primary/20 bg-card shadow-lg">
+      <Card className="flex max-h-[85dvh] flex-col rounded-t-2xl border-t border-border bg-card shadow-xl pb-[env(safe-area-inset-bottom)] md:max-h-none md:rounded-xl md:border md:pb-0">
+        <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/30 md:hidden" />
         <CardHeader className="flex flex-row items-center justify-between gap-2 border-b py-2.5">
           <div className="flex items-center gap-2">
-            <div className="flex size-7 items-center justify-center rounded-md bg-primary/15 text-primary">
+            <div className="flex size-7 items-center justify-center border border-primary/25 bg-primary/10 text-primary">
               <Sparkle className="size-4" />
             </div>
             <CardTitle>Assistant</CardTitle>
           </div>
-          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close">
+          <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close assistant">
             <X className="size-4" />
           </Button>
         </CardHeader>
@@ -180,12 +195,28 @@ export function AiAssistantPanel({ onClose }: { onClose: () => void }) {
               </div>
             ) : messages.length === 0 ? (
               <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center gap-2 py-6 text-center">
-                  <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <CardContent className="flex flex-col items-center gap-3 py-6 text-center">
+                  <div className="flex size-8 items-center justify-center border border-primary/20 bg-primary/10 text-primary">
                     <Sparkle className="size-4" />
                   </div>
-                  <p className="text-xs font-medium text-foreground">No messages</p>
-                  <p className="text-xs text-muted-foreground">Ask to create tasks</p>
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-medium text-foreground">Studio Assistant</p>
+                    <p className="text-xs text-muted-foreground">Ask to plan tasks or review progress</p>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-1.5 pt-1">
+                    {quickPrompts.map((prompt) => (
+                      <Button
+                        key={prompt}
+                        type="button"
+                        variant="outline"
+                        size="xs"
+                        onClick={() => send(prompt)}
+                        className="h-6 px-2 text-[11px]"
+                      >
+                        {prompt}
+                      </Button>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             ) : (

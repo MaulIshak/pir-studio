@@ -127,58 +127,58 @@ export default async function DashboardPage() {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <Card className="border-border/80 bg-card transition-all duration-200 hover:shadow-sm">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Card className="border-border/80 bg-card transition-colors hover:border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground">My Tasks</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <div className="flex size-7 items-center justify-center border border-primary/20 bg-primary/10 text-primary">
               <Kanban className="size-3.5" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="font-mono text-2xl font-bold text-foreground">{incompleteTasks.length}</div>
-            <p className="text-[11px] text-muted-foreground pt-1">Incomplete assigned</p>
+            <div className="font-mono text-2xl font-bold tracking-tight text-foreground">{incompleteTasks.length}</div>
+            <p className="text-[11px] text-muted-foreground pt-1">Active assigned</p>
           </CardContent>
         </Card>
 
-        <Card className="border-destructive/25 bg-destructive/5 transition-all duration-200 hover:shadow-sm">
+        <Card className="border-destructive/30 bg-destructive/5 transition-colors hover:border-destructive/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground">Due Soon</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-destructive/15 text-destructive">
+            <div className="flex size-7 items-center justify-center border border-destructive/25 bg-destructive/15 text-destructive">
               <ClockCountdown className="size-3.5" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="font-mono text-2xl font-bold text-destructive">
+            <div className="font-mono text-2xl font-bold tracking-tight text-destructive">
               {urgentTasksCount}
             </div>
-            <p className="text-[11px] text-muted-foreground pt-1">Deadlines in &le; 3 days</p>
+            <p className="text-[11px] text-muted-foreground pt-1">Within 3 days</p>
           </CardContent>
         </Card>
 
-        <Card className="border-border/80 bg-card transition-all duration-200 hover:shadow-sm">
+        <Card className="border-border/80 bg-card transition-colors hover:border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold text-muted-foreground">My Projects</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-purple-500/10 text-purple-400">
+            <CardTitle className="text-xs font-semibold text-muted-foreground">Projects</CardTitle>
+            <div className="flex size-7 items-center justify-center border border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400">
               <GameController className="size-3.5" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="font-mono text-2xl font-bold text-foreground">{activeProjects.length}</div>
-            <p className="text-[11px] text-muted-foreground pt-1">Active accessible</p>
+            <div className="font-mono text-2xl font-bold tracking-tight text-foreground">{activeProjects.length}</div>
+            <p className="text-[11px] text-muted-foreground pt-1">Active workspace</p>
           </CardContent>
         </Card>
 
-        <Card className="border-emerald-500/25 bg-emerald-500/5 transition-all duration-200 hover:shadow-sm">
+        <Card className="border-emerald-500/30 bg-emerald-500/5 transition-colors hover:border-emerald-500/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground">Completed</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-500">
+            <div className="flex size-7 items-center justify-center border border-emerald-500/25 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
               <CheckCircle className="size-3.5" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="font-mono text-2xl font-bold text-emerald-500">{completedTasks.length}</div>
-            <p className="text-[11px] text-muted-foreground pt-1">Tasks completed by you</p>
+            <div className="font-mono text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">{completedTasks.length}</div>
+            <p className="text-[11px] text-muted-foreground pt-1">Tasks shipped</p>
           </CardContent>
         </Card>
       </div>

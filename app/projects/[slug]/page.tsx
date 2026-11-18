@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { getProjectBySlug } from '@/actions/projects'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ProjectCharts } from '@/components/projects/project-charts'
+import { ProjectChartsLazy } from '@/components/projects/project-charts-lazy'
 import {
   Kanban,
   Flag,
@@ -85,12 +85,12 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
       )}
 
       {/* Metric Cards with Meaningful Icons */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {/* Card 1: Start Date */}
-        <Card className="transition-all duration-200 hover:shadow-xs">
+        <Card className="transition-colors hover:border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground">Start Date</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <div className="flex size-7 items-center justify-center border border-primary/20 bg-primary/10 text-primary">
               <CalendarBlank className="size-3.5" />
             </div>
           </CardHeader>
@@ -102,10 +102,10 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
         </Card>
 
         {/* Card 2: Deadline */}
-        <Card className="transition-all duration-200 hover:shadow-xs">
+        <Card className="transition-colors hover:border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground">Deadline</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+            <div className="flex size-7 items-center justify-center border border-destructive/20 bg-destructive/10 text-destructive">
               <ClockCountdown className="size-3.5" />
             </div>
           </CardHeader>
@@ -117,25 +117,26 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
         </Card>
 
         {/* Card 3: Tasks Completed */}
-        <Card className="transition-all duration-200 hover:shadow-xs">
+        <Card className="transition-colors hover:border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground">Tasks Shipped</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <div className="flex size-7 items-center justify-center border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <CheckCircle className="size-3.5" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="font-mono text-sm font-semibold text-foreground">
-              {doneTasks} of {totalTasks} <span className="text-xs font-normal text-muted-foreground">({progressPercent}%)</span>
+            <div className="flex items-baseline gap-2 font-mono text-sm font-semibold text-foreground">
+              <span>{doneTasks} / {totalTasks}</span>
+              <span className="text-xs font-normal text-muted-foreground">· {progressPercent}%</span>
             </div>
           </CardContent>
         </Card>
 
         {/* Card 4: Current Active Milestone(s) */}
-        <Card className="transition-all duration-200 hover:shadow-xs">
+        <Card className="transition-colors hover:border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold text-muted-foreground">Current Milestone</CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <CardTitle className="text-xs font-semibold text-muted-foreground">Milestone</CardTitle>
+            <div className="flex size-7 items-center justify-center border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400">
               <Flag className="size-3.5" />
             </div>
           </CardHeader>
@@ -198,10 +199,10 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
       {/* Quick Navigation Cards (Positioned above charts) */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
         {/* Card 1: Task Kanban */}
-        <Card className="flex flex-col justify-between sm:col-span-1 lg:col-span-3">
+        <Card className="flex flex-col justify-between sm:col-span-1 lg:col-span-3 transition-colors hover:border-primary/40">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400">
+              <div className="flex size-7 items-center justify-center border border-sky-500/20 bg-sky-500/10 text-sky-600 dark:text-sky-400">
                 <Kanban className="size-4" />
               </div>
               <CardTitle className="text-base">Task Kanban</CardTitle>
@@ -210,10 +211,10 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
           <CardContent className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Overall Progress</span>
+                <span>Completion</span>
                 <span className="font-mono font-medium text-foreground">{progressPercent}%</span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+              <div className="h-1.5 w-full overflow-hidden bg-secondary">
                 <div
                   className="h-full bg-primary transition-all duration-300"
                   style={{ width: `${progressPercent}%` }}
@@ -221,10 +222,10 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
               </div>
             </div>
             <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
-              <span>{doneTasks} of {totalTasks} tasks completed</span>
+              <span className="font-mono">{doneTasks} / {totalTasks} complete</span>
               <Button
-                variant="default"
-                size="sm"
+                variant="outline"
+                size="xs"
                 nativeButton={false}
                 render={<Link href={`/projects/${project.slug}/tasks`} />}
               >
@@ -236,10 +237,10 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
         </Card>
 
         {/* Card 2: Milestones */}
-        <Card className="flex flex-col justify-between sm:col-span-1 lg:col-span-3">
+        <Card className="flex flex-col justify-between sm:col-span-1 lg:col-span-3 transition-colors hover:border-primary/40">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <div className="flex size-7 items-center justify-center border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400">
                 <Flag className="size-4" />
               </div>
               <CardTitle className="text-base">Milestones</CardTitle>
@@ -248,7 +249,7 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
           <CardContent className="flex flex-col justify-between gap-4">
             <div className="flex flex-col gap-1">
               <p className="text-xs text-muted-foreground">
-                {totalMilestones} milestone target{totalMilestones === 1 ? '' : 's'} tracked for this project build.
+                {totalMilestones} milestone target{totalMilestones === 1 ? '' : 's'} tracked for this build.
               </p>
               {activeMilestones.length > 0 && (
                 <div className="flex items-center gap-1.5 text-xs">
@@ -260,10 +261,10 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
               )}
             </div>
             <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
-              <span>{doneMilestones} of {totalMilestones} completed</span>
+              <span className="font-mono">{doneMilestones} / {totalMilestones} done</span>
               <Button
-                variant="default"
-                size="sm"
+                variant="outline"
+                size="xs"
                 nativeButton={false}
                 render={<Link href={`/projects/${project.slug}/milestones`} />}
               >
@@ -275,10 +276,10 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
         </Card>
 
         {/* Card 3: Assets */}
-        <Card className="flex flex-col justify-between sm:col-span-1 lg:col-span-2">
+        <Card className="flex flex-col justify-between sm:col-span-1 lg:col-span-2 transition-colors hover:border-primary/40">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <div className="flex size-7 items-center justify-center border border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400">
                 <Package className="size-4" />
               </div>
               <CardTitle className="text-base">Assets</CardTitle>
@@ -289,10 +290,10 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
               {totalAssets} production asset{totalAssets === 1 ? '' : 's'} across 2D, 3D, and audio.
             </p>
             <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
-              <span>{readyAssets} of {totalAssets} ready</span>
+              <span className="font-mono">{readyAssets} / {totalAssets} ready</span>
               <Button
-                variant="default"
-                size="sm"
+                variant="outline"
+                size="xs"
                 nativeButton={false}
                 render={<Link href={`/projects/${project.slug}/assets`} />}
               >
@@ -304,10 +305,10 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
         </Card>
 
         {/* Card 4: Credits */}
-        <Card className="flex flex-col justify-between sm:col-span-1 lg:col-span-2">
+        <Card className="flex flex-col justify-between sm:col-span-1 lg:col-span-2 transition-colors hover:border-primary/40">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <div className="flex size-7 items-center justify-center border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                 <Certificate className="size-4" />
               </div>
               <CardTitle className="text-base">Credits</CardTitle>
@@ -318,10 +319,10 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
               {totalCredits} attribution record{totalCredits === 1 ? '' : 's'} for third-party licenses.
             </p>
             <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
-              <span>{totalCredits} entries logged</span>
+              <span className="font-mono">{totalCredits} logged</span>
               <Button
-                variant="default"
-                size="sm"
+                variant="outline"
+                size="xs"
                 nativeButton={false}
                 render={<Link href={`/projects/${project.slug}/credits`} />}
               >
@@ -333,10 +334,10 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
         </Card>
 
         {/* Card 5: Artifacts */}
-        <Card className="flex flex-col justify-between sm:col-span-2 lg:col-span-2">
+        <Card className="flex flex-col justify-between sm:col-span-2 lg:col-span-2 transition-colors hover:border-primary/40">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400">
+              <div className="flex size-7 items-center justify-center border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400">
                 <LinkIcon className="size-4" />
               </div>
               <CardTitle className="text-base">Artifacts</CardTitle>
@@ -347,10 +348,10 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
               {totalArtifacts} external resource{totalArtifacts === 1 ? '' : 's'} including GDD, Figma, and builds.
             </p>
             <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
-              <span>{totalArtifacts} links recorded</span>
+              <span className="font-mono">{totalArtifacts} links</span>
               <Button
-                variant="default"
-                size="sm"
+                variant="outline"
+                size="xs"
                 nativeButton={false}
                 render={<Link href={`/projects/${project.slug}/artifacts`} />}
               >
@@ -363,7 +364,7 @@ export default async function ProjectOverviewPage({ params }: ProjectPageProps) 
       </div>
 
       {/* Interactive Charts: Status Distribution & Daily/Weekly Completion */}
-      <ProjectCharts tasks={project.tasks ?? []} />
+      <ProjectChartsLazy tasks={project.tasks ?? []} />
     </div>
   )
 }

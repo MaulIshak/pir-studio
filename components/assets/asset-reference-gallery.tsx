@@ -275,7 +275,7 @@ export function AssetReferenceGallery({
 
           {/* Error Message */}
           {errorMessage && (
-            <div className="rounded-md bg-destructive/10 border border-destructive/20 p-2 text-xs text-destructive flex items-center justify-between my-1">
+            <div className="bg-destructive/10 border border-destructive/30 p-2 text-xs text-destructive flex items-center justify-between my-1">
               <span>{errorMessage}</span>
               <button
                 type="button"
@@ -295,9 +295,9 @@ export function AssetReferenceGallery({
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               className={cn(
-                'flex flex-1 flex-col items-center justify-center p-8 text-center rounded-lg border-2 border-dashed transition-all duration-150 min-h-[300px]',
+                'flex flex-1 flex-col items-center justify-center p-8 text-center border-2 border-dashed transition-colors duration-150 min-h-[300px]',
                 isDragOver
-                  ? 'border-primary bg-primary/10 scale-[0.99]'
+                  ? 'border-primary bg-primary/10'
                   : 'border-border/80 bg-muted/10 hover:border-border hover:bg-muted/20'
               )}
             >
@@ -369,13 +369,13 @@ export function AssetReferenceGallery({
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               className={cn(
-                'relative flex-1 overflow-y-auto py-2 pr-1 rounded-lg transition-colors',
-                isDragOver && 'ring-2 ring-primary ring-offset-2 ring-offset-background bg-primary/5'
+                'relative flex-1 overflow-y-auto py-2 pr-1 transition-colors',
+                isDragOver && 'ring-1 ring-primary bg-primary/5'
               )}
             >
               {isDragOver && (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-lg bg-background/80 backdrop-blur-xs border-2 border-dashed border-primary">
-                  <UploadSimple className="size-8 text-primary animate-bounce" />
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background/85 backdrop-blur-xs border-2 border-dashed border-primary">
+                  <UploadSimple className="size-8 text-primary" />
                   <p className="text-xs font-semibold text-primary">Drop images to upload</p>
                 </div>
               )}
@@ -386,10 +386,10 @@ export function AssetReferenceGallery({
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  className="group relative aspect-square flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border/80 bg-muted/10 hover:border-primary/60 hover:bg-primary/5 transition-all text-center p-3 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                  className="group relative aspect-square flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border/80 bg-muted/10 hover:border-primary/60 hover:bg-primary/5 transition-colors text-center p-3 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
                   title="Add reference image or press Ctrl+V"
                 >
-                  <div className="flex size-9 items-center justify-center rounded-full bg-background border border-border/60 text-muted-foreground group-hover:border-primary/40 group-hover:text-primary transition-colors shadow-xs">
+                  <div className="flex size-9 items-center justify-center bg-background border border-border/60 text-muted-foreground group-hover:border-primary/40 group-hover:text-primary transition-colors">
                     <Plus className="size-4" />
                   </div>
                   <div className="flex flex-col">
@@ -404,7 +404,7 @@ export function AssetReferenceGallery({
 
                 {/* Uploading Tile Placeholder */}
                 {isUploading && (
-                  <div className="aspect-square flex flex-col items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/5 p-3 text-center animate-pulse">
+                  <div className="aspect-square flex flex-col items-center justify-center gap-2 border border-primary/40 bg-primary/5 p-3 text-center">
                     <CircleNotch className="size-6 animate-spin text-primary" />
                     <span className="text-xs font-medium text-primary">Uploading...</span>
                   </div>
@@ -414,7 +414,7 @@ export function AssetReferenceGallery({
                 {localReferences.map((ref, idx) => (
                   <div
                     key={ref.id}
-                    className="group relative aspect-square overflow-hidden rounded-lg border border-border/80 bg-background/80 shadow-xs transition-all hover:border-primary/50 hover:shadow-sm"
+                    className="group relative aspect-square overflow-hidden border border-border/80 bg-background/80 transition-colors hover:border-primary/60"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -482,7 +482,7 @@ export function AssetReferenceGallery({
                     {activeReference.file_name || 'Reference Image'}
                   </span>
                   <span className="text-[11px] font-mono text-muted-foreground">
-                    ({selectedImageIndex! + 1} / {localReferences.length})
+                    {selectedImageIndex! + 1} / {localReferences.length}
                   </span>
                 </div>
 
@@ -517,7 +517,7 @@ export function AssetReferenceGallery({
               </div>
 
               {/* Lightbox Main View with Prev / Next Navigation */}
-              <div className="relative flex-1 flex items-center justify-center min-h-[400px] max-h-[70vh] bg-black/40 rounded-lg overflow-hidden p-2">
+              <div className="relative flex-1 flex items-center justify-center min-h-[400px] max-h-[70vh] bg-black/40 overflow-hidden p-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/api/drive/file/${activeReference.drive_file_id}`}
@@ -534,8 +534,9 @@ export function AssetReferenceGallery({
                           prev !== null ? (prev > 0 ? prev - 1 : localReferences.length - 1) : 0
                         )
                       }
-                      className="absolute left-2 flex size-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                      className="absolute left-2 flex size-8 items-center justify-center bg-black/60 text-white hover:bg-black/80 transition-colors cursor-pointer"
                       title="Previous"
+                      aria-label="Previous reference image"
                     >
                       <CaretLeft className="size-4" />
                     </button>
@@ -547,8 +548,9 @@ export function AssetReferenceGallery({
                           prev !== null ? (prev < localReferences.length - 1 ? prev + 1 : 0) : 0
                         )
                       }
-                      className="absolute right-2 flex size-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                      className="absolute right-2 flex size-8 items-center justify-center bg-black/60 text-white hover:bg-black/80 transition-colors cursor-pointer"
                       title="Next"
+                      aria-label="Next reference image"
                     >
                       <CaretRight className="size-4" />
                     </button>

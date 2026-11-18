@@ -5,8 +5,9 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useAppSession } from '@/components/providers/session-context'
 import { getAllProjectsForNav, type NavProject } from '@/actions/projects'
-import { PROJECTS_CHANGED_EVENT, ORG_CHANGED_EVENT, PROFILE_CHANGED_EVENT } from '@/lib/events'
+import { PROJECTS_CHANGED_EVENT, ORG_CHANGED_EVENT } from '@/lib/events'
 import {
   Sidebar,
   SidebarContent,
@@ -72,10 +73,7 @@ import {
   User as UserIcon,
 } from '@phosphor-icons/react'
 import { useTheme } from 'next-themes'
-import type { User } from '@supabase/supabase-js'
 import { OrgSwitcher } from '@/components/layout/org-switcher'
-import { getActiveOrg } from '@/actions/organizations'
-import type { ActiveOrg } from '@/lib/auth/active-org'
 
 interface AppSidebarProps {
   initialProjects?: NavProject[]
@@ -86,13 +84,17 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
   const router = useRouter()
   const { setOpenMobile, isMobile } = useSidebar()
   const { theme, setTheme } = useTheme()
-  const [user, setUser] = useState<User | null>(null)
-  const [customUserName, setCustomUserName] = useState<string | null>(null)
-  const [activeOrg, setActiveOrg] = useState<ActiveOrg | null>(null)
-  const [hasDriveToken, setHasDriveToken] = useState<boolean | null>(null)
+  const {
+    user,
+    customUserName,
+    activeOrg,
+    hasDriveToken,
+    isLoading: isAuthLoading,
+    signInWithGoogle,
+    signOut,
+  } = useAppSession()
   const [projects, setProjects] = useState<NavProject[]>(initialProjects)
   const [isLoadingProjects, setIsLoadingProjects] = useState(initialProjects.length === 0)
-  const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [openProjects, setOpenProjects] = useState<Record<string, boolean>>({})
   const [, startTransition] = useTransition()
   const projectsRef = useRef(projects)
@@ -101,69 +103,6 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
   useEffect(() => {
     projectsRef.current = projects
   }, [projects])
-
-  // Load user, Drive token & active organization
-  useEffect(() => {
-    async function loadUser() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      const currentUser = session?.user ?? null
-      setUser(currentUser)
-
-      if (currentUser) {
-        const [tokenRes, org, profRes] = await Promise.all([
-          supabase
-            .from('oauth_tokens')
-            .select('id')
-            .eq('user_id', currentUser.id)
-            .eq('provider', 'google')
-            .maybeSingle(),
-          getActiveOrg(),
-          supabase
-            .from('profiles')
-            .select('name')
-            .eq('id', currentUser.id)
-            .maybeSingle(),
-        ])
-        setHasDriveToken(!!tokenRes.data)
-        setActiveOrg(org)
-        if (profRes.data?.name) {
-          setCustomUserName(profRes.data.name)
-        }
-      } else {
-        setHasDriveToken(false)
-        setActiveOrg(null)
-        setCustomUserName(null)
-      }
-      setIsAuthLoading(false)
-    }
-
-    loadUser()
-
-    const handleProfileChanged = (e: Event) => {
-      const customEvent = e as CustomEvent<{ name: string }>
-      if (customEvent.detail?.name) {
-        setCustomUserName(customEvent.detail.name)
-      }
-    }
-    window.addEventListener(PROFILE_CHANGED_EVENT, handleProfileChanged)
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      if (!session?.user) {
-        setHasDriveToken(false)
-        setCustomUserName(null)
-      }
-    })
-
-    return () => {
-      subscription.unsubscribe()
-      window.removeEventListener(PROFILE_CHANGED_EVENT, handleProfileChanged)
-    }
-  }, [supabase])
 
   // Fetch navigation projects & subscribe to realtime changes & local project events
   useEffect(() => {
@@ -215,12 +154,8 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
     // 2. Instant local organization change synchronization
     const handleOrgChanged = () => {
       startTransition(async () => {
-        const [freshOrg, freshProjects] = await Promise.all([
-          getActiveOrg(),
-          getAllProjectsForNav(),
-        ])
+        const freshProjects = await getAllProjectsForNav()
         if (isMounted) {
-          setActiveOrg(freshOrg)
           setProjects(freshProjects)
           setIsLoadingProjects(false)
         }
@@ -248,12 +183,8 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
         { event: '*', schema: 'public', table: 'organization_members' },
         () => {
           startTransition(async () => {
-            const [freshOrg, freshProjects] = await Promise.all([
-              getActiveOrg(),
-              getAllProjectsForNav(),
-            ])
+            const freshProjects = await getAllProjectsForNav()
             if (isMounted) {
-              setActiveOrg(freshOrg)
               setProjects(freshProjects)
             }
           })
@@ -306,25 +237,11 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
   }
 
   async function handleSignIn() {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(
-          pathname || '/'
-        )}`,
-        scopes: 'https://www.googleapis.com/auth/drive.file',
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
-      },
-    })
+    await signInWithGoogle(pathname || '/')
   }
 
   async function handleSignOut() {
-    await supabase.auth.signOut()
-    setUser(null)
-    setHasDriveToken(false)
+    await signOut()
     router.push('/login')
     router.refresh()
   }

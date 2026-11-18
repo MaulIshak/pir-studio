@@ -19,7 +19,7 @@ export default function ProfileLoading() {
               <Skeleton className="h-3 w-60" />
             </CardHeader>
             <CardContent className="space-y-4">
-              <Skeleton className="h-16 w-full rounded-lg" />
+              <Skeleton className="h-16 w-full" />
               <div className="space-y-1.5">
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="h-9 w-full" />
@@ -39,8 +39,8 @@ export default function ProfileLoading() {
               <Skeleton className="h-4 w-32" />
             </CardHeader>
             <CardContent className="space-y-3">
-              <Skeleton className="h-10 w-full rounded-md" />
-              <Skeleton className="h-10 w-full rounded-md" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
             </CardContent>
           </Card>
         </div>

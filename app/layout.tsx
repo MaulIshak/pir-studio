@@ -11,6 +11,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fcfcfd" },
+    { media: "(prefers-color-scheme: dark)", color: "#15181c" },
+  ],
 }
 
 export const metadata: Metadata = {
@@ -19,6 +23,11 @@ export const metadata: Metadata = {
     template: "%s | Pir Studio",
   },
   description: "Pir Studio - Game development projects, kanban, assets, and Google Drive storage.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Pir Studio",
+  },
   icons: {
     icon: "/logo.png",
     apple: "/logo.png",
