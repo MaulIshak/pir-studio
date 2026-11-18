@@ -2,7 +2,7 @@
 
 A lightweight, high-velocity project management web application tailored for game development teams (5–8 members) participating in game jams and game development competitions.
 
-GameDev Project Manager provides a unified execution workspace that links project schedules, task kanban boards, hierarchical subtask checklists, milestones, asset trackers, credit/license attribution, and artifact links directly to organized Google Drive storage.
+GameDev Project Manager provides a unified execution workspace that links project schedules, task kanban boards, hierarchical subtask checklists, milestones, asset trackers, credit/license attribution, and artifact links with organized S3 object storage.
 
 ---
 
@@ -27,7 +27,6 @@ GameDev Project Manager provides a unified execution workspace that links projec
 - **Project Hub**:
   - Centralized overview of active, completed, and archived projects.
   - Game jam and competition countdown timers and deadline tracking.
-  - Automated Google Drive folder provisioning upon project creation (`/GameDev Team/[Project Name]/...`).
 - **Task Management & Hierarchical Subtasks**:
   - Interactive **Kanban Board** with 4 columns: `To Do`, `In Progress`, `Review`, and `Done`.
   - Structured **Table View** with expandable tree rows clearly delineating parent tasks and child subtasks.
@@ -39,7 +38,7 @@ GameDev Project Manager provides a unified execution workspace that links projec
   - Asset status workflow (`To Do` → `In Progress` → `Done` → `Implemented`).
   - Multi-file asset bundles (texture atlases, sprite sheets, sound packages).
   - Visual asset references with gallery grid and lightbox zoom.
-  - Dual-write resilience between Supabase and Google Drive streaming.
+  - Dual-write resilience between Supabase and S3-compatible object storage.
 - **License & Credit Management**:
   - Track asset licenses (`CC0`, `CC-BY`, `Royalty-Free`, `Proprietary`, `Other`), author names, and source URLs.
   - One-click export to **Markdown** or **Plaintext** ready for game submission credit screens or itch.io release descriptions.
@@ -57,7 +56,7 @@ GameDev Project Manager provides a unified execution workspace that links projec
 | **Styling** | [Tailwind CSS 4](https://tailwindcss.com/) | Modern utility-first CSS with dark mode and theme tokens. |
 | **Icons** | [Phosphor Icons](https://phosphoricons.com/) (`@phosphor-icons/react`) | Unified visual language across all dialogs, tables, and buttons. |
 | **Database & Auth** | [Supabase](https://supabase.com/) | PostgreSQL database, Row Level Security (RLS), Supabase Auth, Realtime. |
-| **Cloud Storage** | [Google Drive API v3](https://developers.google.com/drive) (`googleapis`) | Direct folder provisioning and asset streaming. OAuth tokens securely stored in Postgres. |
+| **Object Storage** | S3-compatible Storage (`@aws-sdk/client-s3`) | Private Garage/S3 bucket for assets, references, builds, and GDD files. |
 | **Validation** | [Zod 4](https://zod.dev/) + React Hook Form | Type-safe form validation and Server Action schemas. |
 | **Hosting** | [Vercel](https://vercel.com/) | Serverless edge deployment with read-only runtime compliance. |
 
@@ -101,16 +100,15 @@ The application runs on 11 PostgreSQL tables in Supabase, protected by Row Level
 
 ### Table Summary:
 1. **`profiles`**: User details synced automatically from `auth.users`.
-2. **`oauth_tokens`**: Encrypted Google OAuth tokens for Vercel serverless Drive operations.
-3. **`projects`**: Game project records, deadlines, metadata, and root Drive folder IDs.
-4. **`milestones`**: Key checkpoints and delivery dates per project.
-5. **`tasks`**: Work items linked to projects/milestones with status (`todo`, `in_progress`, `review`, `done`). *(Realtime enabled)*
-6. **`subtasks`**: Hierarchical checklist items with boolean status (`todo`, `done`). *(Realtime enabled)*
-7. **`asset_bundles`**: Composite packages (atlases, sound packs) stored in Google Drive.
-8. **`assets`**: Individual audio, sprite, 3D model, and VFX entries.
-9. **`asset_references`**: Visual reference image attachments for gallery grids and zoom lightboxes.
-10. **`credits`**: Licensing source records, author attribution, and license types.
-11. **`artifact_links`**: External URLs (Figma, GDD, Git repo, WebGL builds).
+2. **`projects`**: Game project records, deadlines, and metadata.
+3. **`milestones`**: Key checkpoints and delivery dates per project.
+4. **`tasks`**: Work items linked to projects/milestones with status (`todo`, `in_progress`, `review`, `done`). *(Realtime enabled)*
+5. **`subtasks`**: Hierarchical checklist items with boolean status (`todo`, `done`). *(Realtime enabled)*
+6. **`asset_bundles`**: Composite packages (atlases, sound packs) stored in S3 object storage (`storage_key`).
+7. **`assets`**: Individual audio, sprite, 3D model, and VFX entries.
+8. **`asset_references`**: Visual reference image attachments for gallery grids and zoom lightboxes.
+9. **`credits`**: Licensing source records, author attribution, and license types.
+10. **`artifact_links`**: External URLs (Figma, GDD, Git repo, WebGL builds) and uploaded storage files.
 
 ---
 
@@ -120,7 +118,7 @@ The application runs on 11 PostgreSQL tables in Supabase, protected by Row Level
 - **Node.js** 20.x or higher
 - **npm** or **pnpm**
 - A **Supabase** project (free tier is fully supported)
-- A **Google Cloud Console** OAuth 2.0 Client ID & Secret with Google Drive API enabled
+- An **S3-compatible** bucket (e.g., Garage) and access credentials
 
 ### 1. Clone & Install
 ```bash
@@ -137,9 +135,13 @@ Create a `.env.local` file in the project root:
 NEXT_PUBLIC_SUPABASE_URL=https://<your-supabase-project-id>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<your-supabase-publishable-key>
 
-# Google OAuth & Drive Integration
-GOOGLE_CLIENT_ID=<your-google-oauth-client-id>
-GOOGLE_CLIENT_SECRET=<your-google-oauth-client-secret>
+# S3 Object Storage (Garage)
+S3_ENDPOINT=https://<your-s3-endpoint>
+S3_REGION=garage
+S3_BUCKET=<your-bucket-name>
+S3_ACCESS_KEY_ID=<your-access-key-id>
+S3_SECRET_ACCESS_KEY=<your-secret-access-key>
+S3_FORCE_PATH_STYLE=true
 ```
 
 ### 3. Apply Database Migrations

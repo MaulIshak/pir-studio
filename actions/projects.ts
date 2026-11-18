@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { provisionProjectFolders } from '@/lib/gdrive/provisioning'
+import { deleteProjectStoragePrefix } from '@/lib/storage/s3'
 import { slugify } from '@/lib/slug'
 import { getActiveOrganization } from '@/lib/auth/active-org'
 import { getUserOrgRole, type OrgRole } from '@/lib/auth/permissions'
@@ -103,33 +103,13 @@ export async function createProject(input: ProjectInput) {
     user_id: user.id,
   })
 
-  // 3. Dual-write resilience: Attempt Google Drive provisioning
-  let driveFolderId: string | null = null
-  let driveError: string | null = null
-
-  try {
-    driveFolderId = await provisionProjectFolders(user.id, project.name)
-    await supabase
-      .from('projects')
-      .update({ drive_folder_id: driveFolderId })
-      .eq('id', project.id)
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Drive provisioning failed'
-    console.warn('Drive folder provisioning warning:', message)
-    driveError = message
-  }
-
   revalidatePath('/')
   revalidatePath('/projects')
   revalidatePath('/projects/[slug]', 'layout')
 
   return {
     success: true,
-    project: {
-      ...project,
-      drive_folder_id: driveFolderId,
-    },
-    driveError,
+    project,
   }
 }
 
@@ -415,66 +395,6 @@ export async function archiveProject(projectId: string) {
   return updateProject(projectId, { status: 'archived' })
 }
 
-export async function syncProjectGoogleDrive(projectId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user?.id) {
-    return { error: 'Authentication required' }
-  }
-
-  const { data: project, error } = await supabase
-    .from('projects')
-    .select('id, name, slug, organization_id, drive_folder_id')
-    .eq('id', projectId)
-    .single()
-
-  if (error || !project) {
-    return { error: 'Project not found' }
-  }
-
-  // Strictly check that user is the leader of the organization
-  const role = await getUserOrgRole(project.organization_id, user.id)
-  if (role !== 'leader') {
-    return { error: 'Unauthorized: Only organization leaders can sync Google Drive storage' }
-  }
-
-  // Check if leader has connected Google Drive
-  const { data: token } = await supabase
-    .from('oauth_tokens')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('provider', 'google')
-    .maybeSingle()
-
-  if (!token) {
-    return {
-      error: 'Google Drive is not connected to your account. Please connect Google Drive first.',
-      needsDriveAuth: true,
-    }
-  }
-
-  try {
-    const driveFolderId = await provisionProjectFolders(user.id, project.name)
-    await supabase
-      .from('projects')
-      .update({ drive_folder_id: driveFolderId })
-      .eq('id', projectId)
-
-    revalidatePath('/')
-    revalidatePath('/projects')
-    revalidatePath('/projects/[slug]', 'layout')
-    if (project.slug) {
-      revalidatePath(`/projects/${project.slug}`)
-    }
-
-    return { success: true, driveFolderId }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Google Drive sync failed'
-    return { error: message }
-  }
-}
-
 export async function deleteProject(projectId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -508,12 +428,14 @@ export async function deleteProject(projectId: string) {
     return { error: deleteErr.message }
   }
 
+  try {
+    await deleteProjectStoragePrefix(projectId)
+  } catch (err) {
+    console.warn('S3 project storage cleanup note (best effort):', err)
+  }
+
   revalidatePath('/')
   revalidatePath('/projects')
 
   return { success: true }
-}
-
-export async function retryDriveProvisioning(projectId: string) {
-  return syncProjectGoogleDrive(projectId)
 }

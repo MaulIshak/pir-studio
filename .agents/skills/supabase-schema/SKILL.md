@@ -103,18 +103,6 @@ profiles (
   created_at timestamptz default now()
 )
 
--- Storing OAuth tokens in DB (essential for Vercel deployment where filesystem is read-only)
-oauth_tokens (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references profiles(id) on delete cascade,
-  provider text not null default 'google',
-  access_token text not null,
-  refresh_token text,
-  expires_at timestamptz,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-)
-
 projects (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references organizations(id) on delete cascade,
@@ -125,7 +113,6 @@ projects (
   deadline date,
   status text check (status in ('active','completed','archived')) default 'active',
   description text,
-  drive_folder_id text,
   created_by uuid references profiles(id),
   created_at timestamptz default now()
 )
@@ -164,7 +151,7 @@ asset_bundles (
   id uuid primary key default gen_random_uuid(),
   project_id uuid references projects(id) on delete cascade,
   name text not null,
-  drive_file_id text not null,
+  storage_key text not null,
   file_name text,
   uploaded_by uuid references profiles(id),
   created_at timestamptz default now()
@@ -177,7 +164,7 @@ assets (
   name text not null,
   type text check (type in ('sprite','audio','3d_model','font','vfx','other')),
   uploaded_by uuid references profiles(id),
-  drive_file_id text,
+  storage_key text,
   bundle_id uuid references asset_bundles(id) on delete set null,
   file_name text,
   status text check (status in ('todo','in_progress','done','implemented')) default 'todo',
@@ -189,7 +176,7 @@ assets (
 asset_references (
   id uuid primary key default gen_random_uuid(),
   asset_id uuid references assets(id) on delete cascade,
-  drive_file_id text not null,
+  storage_key text not null,
   file_name text,
   uploaded_by uuid references profiles(id),
   created_at timestamptz default now()

@@ -34,7 +34,7 @@ export default async function AssetsPage({ params }: AssetsPageProps) {
         <div>
           <h2 className="font-heading text-xl font-bold tracking-tight">Assets</h2>
           <p className="text-sm text-muted-foreground">
-            Plan required art deliverables, attach visual references, and stream files to Google Drive.
+            Plan required art deliverables, attach visual references, and upload files to storage.
           </p>
         </div>
 
@@ -52,9 +52,9 @@ export default async function AssetsPage({ params }: AssetsPageProps) {
               Database Migration Pending
             </AlertTitle>
             <AlertDescription className="text-xs text-muted-foreground">
-              To enable task links, texture atlas bundles, and reference galleries, please execute the SQL script in{' '}
+              To enable S3 storage keys, task links, texture atlas bundles, and reference galleries, please execute the SQL script in{' '}
               <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground">
-                supabase/migrations/20260914000001_revamp_assets_feature.sql
+                supabase/migrations/20261118000000_migrate_drive_to_s3_storage.sql
               </code>{' '}
               inside your Supabase Dashboard SQL Editor.
             </AlertDescription>

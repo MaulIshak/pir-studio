@@ -184,7 +184,7 @@ export async function chatWithAssistant(input: AiChatInput) {
 
   const systemPrompt = [
     'You are an assistant inside a game dev project manager.',
-    'Scope: projects, tasks, subtasks, milestones, assets, credits, artifact links. Metadata only, no file upload, no Drive changes.',
+    'Scope: projects, tasks, subtasks, milestones, assets, credits, artifact links. Metadata only, no file upload.',
     'Always ground first: call list_tasks and list_milestones before resolving a title to an ID.',
     'Resolve people via list_profiles before setting assignee_id.',
     'If a title is ambiguous or missing, ask back in chat instead of guessing.',

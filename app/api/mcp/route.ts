@@ -1,11 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { google } from 'googleapis'
-import { Readable } from 'node:stream'
 import { z } from 'zod'
 import { hashMcpToken } from '@/lib/mcp/tokens'
-import { getOrCreateSubfolder, type ProjectSubfolder } from '@/lib/gdrive/upload'
+import { uploadFileToStorage } from '@/lib/storage/s3'
 import {
   CreateTaskSchema,
   UpdateTaskSchema,
@@ -127,64 +125,14 @@ function decodeUpload(contentBase64: string): DecodedUpload {
   return { ok: true, buffer }
 }
 
-async function uploadToDrive(
-  userId: string,
-  parentFolderId: string,
-  subfolder: ProjectSubfolder,
-  fileName: string,
-  mimeType: string,
-  fileBuffer: Buffer
-): Promise<{ fileId: string; viewUrl: string }> {
-  const db = serviceDb()
-  const { data: tokenRecord, error } = await db
-    .from('oauth_tokens')
-    .select('access_token, refresh_token, expires_at')
-    .eq('user_id', userId)
-    .eq('provider', 'google')
-    .maybeSingle()
-  if (error || !tokenRecord) {
-    throw new Error('Google Drive not linked. Connect Drive in the web app first.')
-  }
-  const record = tokenRecord as { access_token: string; refresh_token: string | null; expires_at: string | null }
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET
-  )
-  oauth2Client.setCredentials({
-    access_token: record.access_token,
-    refresh_token: record.refresh_token,
-    expiry_date: record.expires_at ? new Date(record.expires_at).getTime() : undefined,
-  })
-  const drive = google.drive({ version: 'v3', auth: oauth2Client })
-  const subfolderId = await getOrCreateSubfolder(drive, parentFolderId, subfolder)
-  const stream = new Readable()
-  stream.push(fileBuffer)
-  stream.push(null)
-  const res = await drive.files.create({
-    requestBody: { name: fileName, parents: [subfolderId] },
-    media: { mimeType: mimeType || 'application/octet-stream', body: stream },
-    fields: 'id',
-  })
-  if (!res.data.id) {
-    throw new Error('Google Drive upload did not return a file ID')
-  }
-  return {
-    fileId: res.data.id,
-    viewUrl: `https://drive.google.com/file/d/${res.data.id}/view`,
-  }
-}
-
-async function getProjectDriveFolder(projectId: string): Promise<string | { error: string }> {
+async function ensureProjectExists(projectId: string): Promise<boolean> {
   const db = serviceDb()
   const { data, error } = await db
     .from('projects')
-    .select('drive_folder_id')
+    .select('id')
     .eq('id', projectId)
-    .single()
-  if (error || !data) return { error: 'Project not found' }
-  const folderId = (data as { drive_folder_id: string | null }).drive_folder_id
-  if (!folderId) return { error: 'Project Drive folder missing. Retry Drive provisioning first.' }
-  return folderId
+    .maybeSingle()
+  return !error && Boolean(data)
 }
 
 function serviceDb() {
@@ -561,7 +509,7 @@ function buildServer(auth: { userId: string | null }) {
   server.registerTool(
     'create_project',
     {
-      description: 'Create a project. Drive folder is not provisioned via MCP.',
+      description: 'Create a project.',
       inputSchema: {
         name: z.string().min(1).max(100),
         slug: z
@@ -950,7 +898,7 @@ function buildServer(auth: { userId: string | null }) {
   server.registerTool(
     'upload_asset_file',
     {
-      description: 'Upload a file for an asset. Base64 content, 15MB raw max. Needs linked Drive.',
+      description: 'Upload a file for an asset. Base64 content, 15MB raw max.',
       inputSchema: {
         assetId: z.string().uuid(),
         fileName: z.string().min(1).max(200),
@@ -959,7 +907,6 @@ function buildServer(auth: { userId: string | null }) {
       },
     },
     async (args) => {
-      if (!auth.userId) return textResult({ error: 'Uploads need a user token, not the server secret.' })
       const parsed = UploadAssetFileSchema.safeParse(args)
       if (!parsed.success) return textResult({ error: parsed.error.issues[0]?.message })
       const decoded = decodeUpload(parsed.data.contentBase64)
@@ -972,23 +919,20 @@ function buildServer(auth: { userId: string | null }) {
         .eq('id', parsed.data.assetId)
         .single()
       if (assetError || !asset) return textResult({ error: 'Asset not found' })
-      const folder = await getProjectDriveFolder((asset as { project_id: string }).project_id)
-      if (typeof folder !== 'string') return textResult({ error: folder.error })
       try {
-        const uploaded = await uploadToDrive(
-          auth.userId,
-          folder,
-          'Assets',
-          parsed.data.fileName,
-          parsed.data.mimeType,
-          buffer
-        )
+        const uploaded = await uploadFileToStorage({
+          projectId: (asset as { project_id: string }).project_id,
+          folder: 'assets',
+          fileName: parsed.data.fileName,
+          mimeType: parsed.data.mimeType,
+          buffer,
+        })
         const { error } = await db
           .from('assets')
-          .update({ drive_file_id: uploaded.fileId, file_name: parsed.data.fileName })
+          .update({ storage_key: uploaded.storageKey, file_name: parsed.data.fileName })
           .eq('id', parsed.data.assetId)
         if (error) return textResult({ error: error.message })
-        return textResult({ success: true, driveFileId: uploaded.fileId, viewUrl: uploaded.viewUrl })
+        return textResult({ success: true, storageKey: uploaded.storageKey, fileUrl: uploaded.fileUrl })
       } catch (err) {
         return textResult({ error: err instanceof Error ? err.message : 'Upload failed' })
       }
@@ -998,7 +942,7 @@ function buildServer(auth: { userId: string | null }) {
   server.registerTool(
     'upload_bundle',
     {
-      description: 'Upload a bundle archive to Builds. Base64 content, 15MB raw max. Needs linked Drive.',
+      description: 'Upload a bundle archive to project storage. Base64 content, 15MB raw max.',
       inputSchema: {
         project_id: z.string().uuid(),
         fileName: z.string().min(1).max(200),
@@ -1007,36 +951,35 @@ function buildServer(auth: { userId: string | null }) {
       },
     },
     async (args) => {
-      if (!auth.userId) return textResult({ error: 'Uploads need a user token, not the server secret.' })
       const parsed = UploadBundleSchema.safeParse(args)
       if (!parsed.success) return textResult({ error: parsed.error.issues[0]?.message })
       const decoded = decodeUpload(parsed.data.contentBase64)
       if (!decoded.ok) return textResult({ error: decoded.error })
       const buffer = decoded.buffer
-      const folder = await getProjectDriveFolder(parsed.data.project_id)
-      if (typeof folder !== 'string') return textResult({ error: folder.error })
+      const exists = await ensureProjectExists(parsed.data.project_id)
+      if (!exists) return textResult({ error: 'Project not found' })
       try {
-        const uploaded = await uploadToDrive(
-          auth.userId,
-          folder,
-          'Builds',
-          parsed.data.fileName,
-          parsed.data.mimeType ?? 'application/zip',
-          buffer
-        )
+        const uploaded = await uploadFileToStorage({
+          projectId: parsed.data.project_id,
+          folder: 'assets',
+          fileName: parsed.data.fileName,
+          mimeType: parsed.data.mimeType ?? 'application/zip',
+          buffer,
+        })
         const db = serviceDb()
         const { data, error } = await db
           .from('asset_bundles')
           .insert({
             project_id: parsed.data.project_id,
-            drive_file_id: uploaded.fileId,
+            name: parsed.data.fileName,
+            storage_key: uploaded.storageKey,
             file_name: parsed.data.fileName,
             uploaded_by: auth.userId,
           })
           .select()
           .single()
         if (error || !data) return textResult({ error: error?.message ?? 'Failed to save bundle' })
-        return textResult({ success: true, bundle: data, viewUrl: uploaded.viewUrl })
+        return textResult({ success: true, bundle: data, fileUrl: uploaded.fileUrl })
       } catch (err) {
         return textResult({ error: err instanceof Error ? err.message : 'Upload failed' })
       }
@@ -1046,7 +989,7 @@ function buildServer(auth: { userId: string | null }) {
   server.registerTool(
     'upload_artifact_file',
     {
-      description: 'Upload a build or GDD file and link it. Base64 content, 15MB raw max. Needs linked Drive.',
+      description: 'Upload a build or GDD file and link it. Base64 content, 15MB raw max.',
       inputSchema: {
         project_id: z.string().uuid(),
         label: z.string().min(1).max(100),
@@ -1058,23 +1001,21 @@ function buildServer(auth: { userId: string | null }) {
       },
     },
     async (args) => {
-      if (!auth.userId) return textResult({ error: 'Uploads need a user token, not the server secret.' })
       const parsed = UploadArtifactFileSchema.safeParse(args)
       if (!parsed.success) return textResult({ error: parsed.error.issues[0]?.message })
       const decoded = decodeUpload(parsed.data.contentBase64)
       if (!decoded.ok) return textResult({ error: decoded.error })
       const buffer = decoded.buffer
-      const folder = await getProjectDriveFolder(parsed.data.project_id)
-      if (typeof folder !== 'string') return textResult({ error: folder.error })
+      const exists = await ensureProjectExists(parsed.data.project_id)
+      if (!exists) return textResult({ error: 'Project not found' })
       try {
-        const uploaded = await uploadToDrive(
-          auth.userId,
-          folder,
-          parsed.data.type === 'build' ? 'Builds' : 'GDD',
-          parsed.data.fileName,
-          parsed.data.mimeType || 'application/octet-stream',
-          buffer
-        )
+        const uploaded = await uploadFileToStorage({
+          projectId: parsed.data.project_id,
+          folder: parsed.data.type === 'build' ? 'builds' : 'gdd',
+          fileName: parsed.data.fileName,
+          mimeType: parsed.data.mimeType || 'application/octet-stream',
+          buffer,
+        })
         const db = serviceDb()
         const { data, error } = await db
           .from('artifact_links')
@@ -1082,7 +1023,7 @@ function buildServer(auth: { userId: string | null }) {
             project_id: parsed.data.project_id,
             label: parsed.data.label,
             type: parsed.data.type,
-            url: uploaded.viewUrl,
+            url: uploaded.fileUrl,
             notes: parsed.data.notes || null,
           })
           .select()

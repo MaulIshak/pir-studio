@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     default: "Pir Studio",
     template: "%s | Pir Studio",
   },
-  description: "Pir Studio - Game development projects, kanban, assets, and Google Drive storage.",
+  description: "Pir Studio - Game development projects, kanban, assets, and file storage.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
-const MAX_FILE_SIZE = 4.5 * 1024 * 1024 // 4.5 MB Vercel Serverless limit
+const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB per file
 
 interface UploadArtifactDialogProps {
   projectId: string
@@ -49,7 +49,7 @@ export function UploadArtifactDialog({ projectId }: UploadArtifactDialogProps) {
     setError(null)
     const selected = e.target.files?.[0] || null
     if (selected && selected.size > MAX_FILE_SIZE) {
-      setError(`File size (${(selected.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel limit of 4.5 MB.`)
+      setError(`File size (${(selected.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 100 MB limit.`)
       setFile(null)
       e.target.value = ''
       return
@@ -67,7 +67,7 @@ export function UploadArtifactDialog({ projectId }: UploadArtifactDialogProps) {
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      setError(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel limit of 4.5 MB.`)
+      setError(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 100 MB limit.`)
       return
     }
 
@@ -108,7 +108,7 @@ export function UploadArtifactDialog({ projectId }: UploadArtifactDialogProps) {
         <DialogHeader>
           <DialogTitle>Upload Build or Document</DialogTitle>
           <DialogDescription>
-            Upload build artifacts or design docs to Google Drive (Max 4.5 MB per file).
+            Upload build artifacts or design docs to storage (Max 100 MB per file).
           </DialogDescription>
         </DialogHeader>
 
@@ -149,8 +149,8 @@ export function UploadArtifactDialog({ projectId }: UploadArtifactDialogProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="build">Builds (/Builds/)</SelectItem>
-                <SelectItem value="gdd">GDD & Specs (/GDD/)</SelectItem>
+                <SelectItem value="build">Builds</SelectItem>
+                <SelectItem value="gdd">GDD &amp; Specs</SelectItem>
               </SelectContent>
             </Select>
           </div>

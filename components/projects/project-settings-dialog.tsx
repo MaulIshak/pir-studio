@@ -5,15 +5,12 @@ import { useRouter } from 'next/navigation'
 import {
   updateProject,
   archiveProject,
-  syncProjectGoogleDrive,
   deleteProject,
 } from '@/actions/projects'
 import { notifyProjectsChanged } from '@/lib/events'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -33,12 +30,9 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Gear,
-  GoogleDriveLogo,
   Trash,
   Archive,
   ArrowCounterClockwise,
-  ArrowSquareOut,
-  CheckCircle,
   Warning,
   CircleNotch,
 } from '@phosphor-icons/react'
@@ -53,7 +47,6 @@ interface ProjectSettingsDialogProps {
     start_date: string | null
     deadline: string | null
     description: string | null
-    drive_folder_id?: string | null
   }
   isLeader?: boolean
   canManage?: boolean
@@ -67,16 +60,12 @@ export function ProjectSettingsDialog({
   const [open, setOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const [isSyncingDrive, setIsSyncingDrive] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [driveFolderId, setDriveFolderId] = useState<string | null>(project.drive_folder_id || null)
 
   const [type, setType] = useState<string>(project.type)
   const [status, setStatus] = useState<string>(project.status)
   const router = useRouter()
-  const supabase = createClient()
 
   if (!canManage) {
     return null
@@ -85,7 +74,6 @@ export function ProjectSettingsDialog({
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
-    setSuccessMessage(null)
 
     const formData = new FormData(e.currentTarget)
     const name = formData.get('name') as string
@@ -121,7 +109,6 @@ export function ProjectSettingsDialog({
 
   async function handleToggleArchive() {
     setError(null)
-    setSuccessMessage(null)
     const nextStatus = project.status === 'archived' ? 'active' : 'archived'
 
     startTransition(async () => {
@@ -140,44 +127,6 @@ export function ProjectSettingsDialog({
         setError(res.error || 'Failed to update project archive state')
       }
     })
-  }
-
-  async function handleSyncDrive() {
-    setError(null)
-    setSuccessMessage(null)
-    setIsSyncingDrive(true)
-
-    try {
-      const res = await syncProjectGoogleDrive(project.id)
-      if (res.error) {
-        if (res.needsDriveAuth) {
-          setError('Google Drive is not linked to your account. Redirecting to Google authorization...')
-          await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-              redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(
-                window.location.pathname
-              )}`,
-              scopes: 'https://www.googleapis.com/auth/drive.file',
-              queryParams: {
-                access_type: 'offline',
-                prompt: 'consent',
-              },
-            },
-          })
-          return
-        }
-        setError(res.error)
-      } else if (res.driveFolderId) {
-        setDriveFolderId(res.driveFolderId)
-        setSuccessMessage('Google Drive storage connected and folders created.')
-        router.refresh()
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google Drive sync failed')
-    } finally {
-      setIsSyncingDrive(false)
-    }
   }
 
   async function handleDeleteProject() {
@@ -214,22 +163,13 @@ export function ProjectSettingsDialog({
           <DialogHeader>
             <DialogTitle>Project Settings</DialogTitle>
             <DialogDescription>
-              Manage project metadata, timeline, Google Drive storage sync, and project status.
+              Manage project metadata, timeline, and project status.
             </DialogDescription>
           </DialogHeader>
 
           {error && (
             <Alert variant="destructive" className="py-2 text-xs">
               <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {successMessage && (
-            <Alert className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 py-2 text-xs">
-              <AlertDescription className="flex items-center gap-1.5">
-                <CheckCircle className="size-4 shrink-0" />
-                <span>{successMessage}</span>
-              </AlertDescription>
             </Alert>
           )}
 
@@ -332,99 +272,6 @@ export function ProjectSettingsDialog({
                 placeholder="Brief summary of game theme, engine, or scope..."
               />
             </div>
-
-            {/* Google Drive Storage Sync Section (Leader Only) */}
-            {isLeader && (
-              <div className="border border-border/80 bg-muted/20 p-3.5 flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex size-7 items-center justify-center border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                      <GoogleDriveLogo className="size-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-semibold text-foreground">Google Drive Sync</h4>
-                      <p className="text-[11px] text-muted-foreground">
-                        Connect project folder for assets, builds, and deliverables.
-                      </p>
-                    </div>
-                  </div>
-                  {driveFolderId ? (
-                    <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px]">
-                      Connected
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px]">
-                      Not Connected
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/50">
-                  {driveFolderId ? (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="xs"
-                        nativeButton={false}
-                        render={
-                          <a
-                            href={`https://drive.google.com/drive/folders/${driveFolderId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          />
-                        }
-                        className="gap-1 text-xs"
-                      >
-                        <ArrowSquareOut className="size-3 text-primary" />
-                        <span>Open Drive Folder</span>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="xs"
-                        onClick={handleSyncDrive}
-                        disabled={isSyncingDrive}
-                        className="gap-1 text-xs"
-                      >
-                        {isSyncingDrive ? (
-                          <>
-                            <CircleNotch className="size-3 animate-spin" />
-                            <span>Syncing...</span>
-                          </>
-                        ) : (
-                          <>
-                            <GoogleDriveLogo className="size-3 text-amber-600 dark:text-amber-400" />
-                            <span>Re-sync Drive</span>
-                          </>
-                        )}
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={handleSyncDrive}
-                      disabled={isSyncingDrive}
-                      className="gap-1.5 text-xs border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 font-medium"
-                    >
-                      {isSyncingDrive ? (
-                        <>
-                          <CircleNotch className="size-3 animate-spin" />
-                          <span>Connecting Drive...</span>
-                        </>
-                      ) : (
-                        <>
-                          <GoogleDriveLogo className="size-3.5" />
-                          <span>Connect Google Drive</span>
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* Danger Zone: Delete Project (Leader Only) */}
             {isLeader && (

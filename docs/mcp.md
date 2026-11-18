@@ -108,7 +108,7 @@ curl -X POST https://<your-domain>/api/mcp \
 | `list_projects` | List all projects |
 | `list_profiles` | List team members for assignee lookup |
 | `get_project` | Get one project by ID |
-| `create_project` | Create a project without Drive folder |
+| `create_project` | Create a project |
 | `update_project` | Update project fields by ID |
 | `archive_project` | Archive a project by ID |
 | `list_tasks` | List tasks in a project |
@@ -137,7 +137,7 @@ curl -X POST https://<your-domain>/api/mcp \
 | `create_artifact` | Create an artifact link |
 | `delete_artifact` | Delete an artifact link by ID |
 | `upload_asset_file` | Upload a file for an asset |
-| `upload_bundle` | Upload a bundle archive to Builds |
+| `upload_bundle` | Upload a bundle archive to project storage |
 | `upload_artifact_file` | Upload a build or GDD file and link it |
 
 Scope is tasks, milestones, projects, assets, credits, and artifact links. File upload works through `upload_asset_file`, `upload_bundle`, and `upload_artifact_file`. Ground tool calls with `list_tasks` and `list_milestones` before resolving a title to an ID.
@@ -147,9 +147,9 @@ Scope is tasks, milestones, projects, assets, credits, and artifact links. File 
 Upload tools accept files as base64 in JSON:
 
 - Max 15MB raw per file. Larger files go through the web UI.
-- The caller's user token decides the Drive identity. Connect Google Drive in the web app first, or the call fails with a clear message.
-- Server secret callers cannot upload. Use a user token.
-- Dual-write applies: the DB row is written first, then the Drive file, then the returned ID is stored. A Drive failure keeps the row visible with an error.
+- Files are stored in S3-compatible object storage under `projects/<projectId>/...` and served via `/api/storage/file?key=...`.
+- Both user tokens and `MCP_SECRET` can upload.
+- Dual-write applies: the file is uploaded to S3 storage, then the DB row (`storage_key` / `url`) is recorded.
 
 ## Troubleshoot
 

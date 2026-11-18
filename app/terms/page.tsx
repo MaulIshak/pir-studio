@@ -58,7 +58,7 @@ export default function TermsOfServicePage() {
               <li>Milestone and timeline planning</li>
               <li>Asset and credit management</li>
               <li>Artifact link storage</li>
-              <li>Optional Google Drive file synchronization</li>
+              <li>Asset and build file storage</li>
             </ul>
           </section>
 
@@ -72,14 +72,10 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-foreground">4. Google Drive Integration</h2>
+            <h2 className="mb-3 text-lg font-semibold text-foreground">4. File Storage</h2>
             <p>
-              Pir Studio may request access to your Google Drive using the{' '}
-              <code className="rounded bg-muted px-1 py-0.5 text-xs font-mono">drive.file</code> OAuth scope. This
-              permission grants the Service the ability to create, read, update, and delete only the files and folders
-              that Pir Studio creates in your Drive. The Service does not access files or folders that were created by
-              other applications or users. You may revoke this permission at any time through your Google Account
-              settings.
+              Pir Studio stores uploaded game assets, reference images, builds, and documents in team object storage.
+              Access to uploaded files is restricted to authenticated members of the corresponding project.
             </p>
           </section>
 

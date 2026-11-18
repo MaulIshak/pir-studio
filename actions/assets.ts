@@ -3,8 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { uploadFileToSubfolder } from '@/lib/gdrive/upload'
-import { getGoogleDriveClient } from '@/lib/gdrive/client'
+import { deleteFileFromStorage, uploadFileToStorage } from '@/lib/storage/s3'
 
 function revalidateProjectAssets(projectId: string) {
   revalidatePath('/projects/[slug]', 'layout')
@@ -20,7 +19,7 @@ export type AssetType = 'sprite' | 'audio' | '3d_model' | 'font' | 'vfx' | 'othe
 export interface AssetReference {
   id: string
   asset_id: string
-  drive_file_id: string
+  storage_key: string
   file_name: string | null
   file_size?: number | null
   mime_type?: string | null
@@ -31,7 +30,7 @@ export interface AssetBundle {
   id: string
   project_id: string
   name: string
-  drive_file_id: string
+  storage_key: string
   file_name: string | null
   file_size?: number | null
   mime_type?: string | null
@@ -51,7 +50,7 @@ export interface Asset {
   name: string
   type: AssetType
   uploaded_by: string | null
-  drive_file_id: string | null
+  storage_key: string | null
   bundle_id: string | null
   file_name: string | null
   status: AssetStatus
@@ -71,7 +70,7 @@ export interface Asset {
   asset_bundles?: {
     id: string
     name: string
-    drive_file_id: string
+    storage_key: string
     file_name: string | null
   } | null
   asset_references?: AssetReference[]
@@ -107,13 +106,13 @@ export async function getAssetsByProjectId(projectId: string): Promise<Asset[]> 
       asset_bundles:bundle_id (
         id,
         name,
-        drive_file_id,
+        storage_key,
         file_name
       ),
       asset_references (
         id,
         asset_id,
-        drive_file_id,
+        storage_key,
         file_name,
         created_at
       )
@@ -157,7 +156,7 @@ export async function getAssetsByProjectId(projectId: string): Promise<Asset[]> 
 
 export async function checkAssetsMigrationStatus(): Promise<boolean> {
   const supabase = await createClient()
-  const { error } = await supabase.from('assets').select('task_id').limit(1)
+  const { error } = await supabase.from('assets').select('storage_key').limit(1)
   return !error
 }
 
@@ -181,13 +180,13 @@ export async function getAssetById(assetId: string): Promise<Asset | null> {
       asset_bundles:bundle_id (
         id,
         name,
-        drive_file_id,
+        storage_key,
         file_name
       ),
       asset_references (
         id,
         asset_id,
-        drive_file_id,
+        storage_key,
         file_name,
         created_at
       )
@@ -271,10 +270,9 @@ export async function createAsset(formData: FormData) {
 
   const { projectId, name, type, taskId, status, needsCredit, notes } = parseResult.data
 
-  // Retrieve project for Drive folder provisioning check
   const { data: project, error: projectError } = await supabase
     .from('projects')
-    .select('drive_folder_id')
+    .select('id')
     .eq('id', projectId)
     .single()
 
@@ -282,7 +280,7 @@ export async function createAsset(formData: FormData) {
     return { success: false, error: 'Project not found' }
   }
 
-  let driveFileId: string | null = null
+  let storageKey: string | null = null
   let fileName: string | null = null
   let finalStatus: AssetStatus = status
 
@@ -290,40 +288,32 @@ export async function createAsset(formData: FormData) {
 
   // 1. Optional Asset File Upload (Individual file)
   if (file && file.size > 0) {
-    if (!project.drive_folder_id) {
-      return {
-        success: false,
-        error: 'Project Google Drive folder is not connected. Retry Drive provisioning first.',
-      }
-    }
-
     if (!user) {
       return {
         success: false,
-        error: 'Authentication is required to upload files to Google Drive.',
+        error: 'Authentication is required to upload files.',
       }
     }
 
     try {
       const buffer = Buffer.from(await file.arrayBuffer())
-      const uploadRes = await uploadFileToSubfolder(
-        user.id,
-        project.drive_folder_id,
-        'Assets',
-        file.name,
-        file.type,
-        buffer
-      )
-      driveFileId = uploadRes.fileId
+      const uploadRes = await uploadFileToStorage({
+        projectId,
+        folder: 'assets',
+        fileName: file.name,
+        mimeType: file.type,
+        buffer,
+      })
+      storageKey = uploadRes.storageKey
       fileName = file.name
       if (finalStatus === 'todo') {
         finalStatus = 'done'
       }
     } catch (err: unknown) {
-      console.error('Failed to upload file to Google Drive:', err)
+      console.error('Failed to upload file to storage:', err)
       return {
         success: false,
-        error: err instanceof Error ? err.message : 'Failed to upload file to Google Drive',
+        error: err instanceof Error ? err.message : 'Failed to upload file to storage',
       }
     }
   }
@@ -337,7 +327,7 @@ export async function createAsset(formData: FormData) {
       name,
       type,
       uploaded_by: user?.id ?? null,
-      drive_file_id: driveFileId,
+      storage_key: storageKey,
       file_name: fileName,
       status: finalStatus,
       needs_credit: needsCredit,
@@ -348,6 +338,13 @@ export async function createAsset(formData: FormData) {
 
   if (insertError) {
     console.error('Error inserting asset:', insertError)
+    if (storageKey) {
+      try {
+        await deleteFileFromStorage(storageKey)
+      } catch (cleanupErr) {
+        console.warn('Failed to clean up orphaned S3 object:', cleanupErr)
+      }
+    }
     return { success: false, error: insertError.message }
   }
 
@@ -355,31 +352,28 @@ export async function createAsset(formData: FormData) {
   const referenceFiles = formData.getAll('reference_files') as File[]
   const validRefFiles = referenceFiles.filter((f) => f && f.size > 0)
 
-  if (validRefFiles.length > 0) {
-    if (project.drive_folder_id && user) {
-      for (const refFile of validRefFiles) {
-        try {
-          const buffer = Buffer.from(await refFile.arrayBuffer())
-          const uploadRes = await uploadFileToSubfolder(
-            user.id,
-            project.drive_folder_id,
-            'Design',
-            refFile.name || `reference_${Date.now()}.png`,
-            refFile.type || 'image/png',
-            buffer
-          )
+  if (validRefFiles.length > 0 && user) {
+    for (const refFile of validRefFiles) {
+      try {
+        const buffer = Buffer.from(await refFile.arrayBuffer())
+        const uploadRes = await uploadFileToStorage({
+          projectId,
+          folder: 'design',
+          fileName: refFile.name || `reference_${Date.now()}.png`,
+          mimeType: refFile.type || 'image/png',
+          buffer,
+        })
 
-          await supabase.from('asset_references').insert({
-            asset_id: assetData.id,
-            drive_file_id: uploadRes.fileId,
-            file_name: refFile.name,
-            file_size: refFile.size,
-            mime_type: refFile.type,
-            uploaded_by: user.id,
-          })
-        } catch (refErr) {
-          console.warn('Failed to upload reference image:', refErr)
-        }
+        await supabase.from('asset_references').insert({
+          asset_id: assetData.id,
+          storage_key: uploadRes.storageKey,
+          file_name: refFile.name,
+          file_size: refFile.size,
+          mime_type: refFile.type,
+          uploaded_by: user.id,
+        })
+      } catch (refErr) {
+        console.warn('Failed to upload reference image:', refErr)
       }
     }
   }
@@ -432,31 +426,27 @@ export async function uploadSingleAssetFile(
     return { success: false, error: 'No file provided' }
   }
 
-  const { data: project, error: projectError } = await supabase
-    .from('projects')
-    .select('drive_folder_id')
-    .eq('id', projectId)
-    .single()
-
-  if (projectError || !project || !project.drive_folder_id) {
-    return { success: false, error: 'Google Drive folder not found for this project' }
-  }
+  const { data: existingAsset } = await supabase
+    .from('assets')
+    .select('storage_key, bundle_id')
+    .eq('id', assetId)
+    .maybeSingle()
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer())
-    const uploadRes = await uploadFileToSubfolder(
-      user.id,
-      project.drive_folder_id,
-      'Assets',
-      file.name,
-      file.type,
-      buffer
-    )
+    const uploadRes = await uploadFileToStorage({
+      projectId,
+      folder: 'assets',
+      fileName: file.name,
+      mimeType: file.type,
+      buffer,
+    })
 
     const { error: updateError } = await supabase
       .from('assets')
       .update({
-        drive_file_id: uploadRes.fileId,
+        storage_key: uploadRes.storageKey,
+        bundle_id: null,
         file_name: file.name,
         uploaded_by: user.id,
         status: 'done',
@@ -464,16 +454,29 @@ export async function uploadSingleAssetFile(
       .eq('id', assetId)
 
     if (updateError) {
+      try {
+        await deleteFileFromStorage(uploadRes.storageKey)
+      } catch {
+        // best-effort cleanup
+      }
       return { success: false, error: updateError.message }
     }
 
+    if (existingAsset?.storage_key && !existingAsset.bundle_id) {
+      try {
+        await deleteFileFromStorage(existingAsset.storage_key)
+      } catch (cleanupErr) {
+        console.warn('Old S3 asset cleanup note (best effort):', cleanupErr)
+      }
+    }
+
     revalidateProjectAssets(projectId)
-    return { success: true, fileId: uploadRes.fileId }
+    return { success: true, storageKey: uploadRes.storageKey }
   } catch (err: unknown) {
     console.error('Failed to upload single asset file:', err)
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Upload to Google Drive failed',
+      error: err instanceof Error ? err.message : 'Upload to storage failed',
     }
   }
 }
@@ -503,26 +506,15 @@ export async function uploadAssetBundle(projectId: string, formData: FormData) {
     return { success: false, error: 'Please select at least one asset to include in this bundle' }
   }
 
-  const { data: project, error: projectError } = await supabase
-    .from('projects')
-    .select('drive_folder_id')
-    .eq('id', projectId)
-    .single()
-
-  if (projectError || !project || !project.drive_folder_id) {
-    return { success: false, error: 'Google Drive folder not configured for this project' }
-  }
-
   try {
     const buffer = Buffer.from(await file.arrayBuffer())
-    const uploadRes = await uploadFileToSubfolder(
-      user.id,
-      project.drive_folder_id,
-      'Assets',
-      file.name,
-      file.type,
-      buffer
-    )
+    const uploadRes = await uploadFileToStorage({
+      projectId,
+      folder: 'assets',
+      fileName: file.name,
+      mimeType: file.type,
+      buffer,
+    })
 
     // 1. Insert into asset_bundles table
     const { data: bundleData, error: bundleError } = await supabase
@@ -530,7 +522,7 @@ export async function uploadAssetBundle(projectId: string, formData: FormData) {
       .insert({
         project_id: projectId,
         name,
-        drive_file_id: uploadRes.fileId,
+        storage_key: uploadRes.storageKey,
         file_name: file.name,
         file_size: file.size,
         mime_type: file.type,
@@ -540,6 +532,11 @@ export async function uploadAssetBundle(projectId: string, formData: FormData) {
       .single()
 
     if (bundleError || !bundleData) {
+      try {
+        await deleteFileFromStorage(uploadRes.storageKey)
+      } catch {
+        // best-effort cleanup
+      }
       return { success: false, error: bundleError?.message || 'Failed to record bundle' }
     }
 
@@ -548,7 +545,7 @@ export async function uploadAssetBundle(projectId: string, formData: FormData) {
       .from('assets')
       .update({
         bundle_id: bundleData.id,
-        drive_file_id: uploadRes.fileId,
+        storage_key: uploadRes.storageKey,
         file_name: file.name,
         uploaded_by: user.id,
         status: 'done',
@@ -585,16 +582,6 @@ export async function addAssetReferences(
     return { success: false, error: 'Authentication required' }
   }
 
-  const { data: project, error: projectError } = await supabase
-    .from('projects')
-    .select('drive_folder_id')
-    .eq('id', projectId)
-    .single()
-
-  if (projectError || !project || !project.drive_folder_id) {
-    return { success: false, error: 'Google Drive folder not configured' }
-  }
-
   const files = formData.getAll('reference_files') as File[]
   const validFiles = files.filter((f) => f && f.size > 0)
 
@@ -605,18 +592,17 @@ export async function addAssetReferences(
   try {
     for (const refFile of validFiles) {
       const buffer = Buffer.from(await refFile.arrayBuffer())
-      const uploadRes = await uploadFileToSubfolder(
-        user.id,
-        project.drive_folder_id,
-        'Design',
-        refFile.name || `reference_${Date.now()}.png`,
-        refFile.type || 'image/png',
-        buffer
-      )
+      const uploadRes = await uploadFileToStorage({
+        projectId,
+        folder: 'design',
+        fileName: refFile.name || `reference_${Date.now()}.png`,
+        mimeType: refFile.type || 'image/png',
+        buffer,
+      })
 
       await supabase.from('asset_references').insert({
         asset_id: assetId,
-        drive_file_id: uploadRes.fileId,
+        storage_key: uploadRes.storageKey,
         file_name: refFile.name,
         file_size: refFile.size,
         mime_type: refFile.type,
@@ -646,13 +632,10 @@ export async function addAssetReferences(
 
 export async function deleteAssetReference(
   referenceId: string,
-  driveFileId: string,
+  storageKey: string,
   projectId: string
 ) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
 
   // 1. Hard Delete from Supabase Postgres
   const { error: deleteError } = await supabase
@@ -665,13 +648,12 @@ export async function deleteAssetReference(
     return { success: false, error: deleteError.message }
   }
 
-  // 2. Best-effort hard delete in Google Drive
-  if (user && driveFileId) {
+  // 2. Best-effort delete in S3 storage
+  if (storageKey) {
     try {
-      const drive = await getGoogleDriveClient(user.id)
-      await drive.files.delete({ fileId: driveFileId })
-    } catch (driveErr) {
-      console.warn('Drive file deletion note (best effort):', driveErr)
+      await deleteFileFromStorage(storageKey)
+    } catch (storageErr) {
+      console.warn('S3 reference deletion note (best effort):', storageErr)
     }
   }
 
@@ -743,13 +725,13 @@ export async function updateAsset(
       asset_bundles:bundle_id (
         id,
         name,
-        drive_file_id,
+        storage_key,
         file_name
       ),
       asset_references (
         id,
         asset_id,
-        drive_file_id,
+        storage_key,
         file_name,
         created_at
       )
@@ -768,6 +750,12 @@ export async function updateAsset(
 export async function deleteAsset(assetId: string, projectId: string) {
   const supabase = await createClient()
 
+  const { data: asset } = await supabase
+    .from('assets')
+    .select('storage_key, bundle_id, asset_references(storage_key)')
+    .eq('id', assetId)
+    .maybeSingle()
+
   const { error } = await supabase.from('assets').delete().eq('id', assetId)
 
   if (error) {
@@ -775,6 +763,17 @@ export async function deleteAsset(assetId: string, projectId: string) {
     return { success: false, error: error.message }
   }
 
+  if (asset) {
+    const keysToDelete: string[] = []
+    if (asset.storage_key && !asset.bundle_id) {
+      keysToDelete.push(asset.storage_key)
+    }
+    const refs = (asset.asset_references as Array<{ storage_key: string }> | null) ?? []
+    for (const ref of refs) {
+      if (ref.storage_key) keysToDelete.push(ref.storage_key)
+    }
+    await Promise.allSettled(keysToDelete.map((key) => deleteFileFromStorage(key)))
+  }
 
   revalidateProjectAssets(projectId)
   return { success: true }

@@ -3,7 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { uploadFileToSubfolder } from '@/lib/gdrive/upload'
+import {
+  deleteFileFromStorage,
+  extractStorageKeyFromUrl,
+  uploadFileToStorage,
+} from '@/lib/storage/s3'
 
 function revalidateArtifacts(projectId: string) {
   revalidatePath('/projects/[slug]', 'layout')
@@ -92,7 +96,13 @@ export async function createArtifactLink(formData: FormData) {
 
 export async function uploadArtifactFile(formData: FormData) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: 'Authentication required' }
+  }
 
   const projectId = formData.get('projectId') as string
   const label = (formData.get('label') as string)?.trim()
@@ -111,51 +121,45 @@ export async function uploadArtifactFile(formData: FormData) {
     return { success: false, error: 'File is required' }
   }
 
-  // 1. Verify Project & Drive folder
   const { data: project, error: projectError } = await supabase
     .from('projects')
-    .select('drive_folder_id')
+    .select('id')
     .eq('id', projectId)
     .single()
 
-  if (projectError || !project?.drive_folder_id) {
-    return {
-      success: false,
-      error: 'Google Drive folder not configured for this project',
-    }
+  if (projectError || !project) {
+    return { success: false, error: 'Project not found' }
   }
 
   try {
-    // 2. Select Subfolder
-    const subfolderName = targetType === 'build' ? 'Builds' : 'GDD'
-
-    // 3. Upload File to Google Drive
+    const folder = targetType === 'build' ? 'builds' : 'gdd'
     const buffer = Buffer.from(await file.arrayBuffer())
-    const uploadRes = await uploadFileToSubfolder(
-      user?.id || '',
-      project.drive_folder_id,
-      subfolderName,
-      file.name,
-      file.type,
-      buffer
-    )
+    const uploadRes = await uploadFileToStorage({
+      projectId,
+      folder,
+      fileName: file.name,
+      mimeType: file.type,
+      buffer,
+    })
 
-    const fileUrl = uploadRes.viewUrl
-
-    // 4. Save into artifact_links
     const { data, error } = await supabase
       .from('artifact_links')
       .insert({
         project_id: projectId,
         label,
         type: targetType,
-        url: fileUrl,
+        url: uploadRes.fileUrl,
         notes: `Uploaded file: ${file.name} (${Math.round(file.size / 1024)} KB)`,
       })
       .select()
       .single()
 
     if (error) {
+      try {
+        await deleteFileFromStorage(uploadRes.storageKey)
+      } catch {
+        // best-effort cleanup
+      }
       return { success: false, error: error.message }
     }
 
@@ -165,13 +169,19 @@ export async function uploadArtifactFile(formData: FormData) {
     console.error('Failed to upload artifact file:', err)
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Failed to upload file to Google Drive',
+      error: err instanceof Error ? err.message : 'Failed to upload file to storage',
     }
   }
 }
 
 export async function deleteArtifactLink(linkId: string, projectId: string) {
   const supabase = await createClient()
+
+  const { data: existing } = await supabase
+    .from('artifact_links')
+    .select('url')
+    .eq('id', linkId)
+    .maybeSingle()
 
   const { error } = await supabase
     .from('artifact_links')
@@ -181,6 +191,15 @@ export async function deleteArtifactLink(linkId: string, projectId: string) {
   if (error) {
     console.error('Error deleting artifact link:', error)
     return { success: false, error: error.message }
+  }
+
+  const storageKey = existing?.url ? extractStorageKeyFromUrl(existing.url) : null
+  if (storageKey) {
+    try {
+      await deleteFileFromStorage(storageKey)
+    } catch (storageErr) {
+      console.warn('S3 artifact deletion note (best effort):', storageErr)
+    }
   }
 
   revalidateArtifacts(projectId)

@@ -32,6 +32,7 @@ import {
 } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import type { Asset, AssetStatus, AssetType } from '@/actions/assets'
+import { buildStorageFileUrl } from '@/lib/storage/urls'
 
 interface AssetDetailDialogProps {
   asset: Asset
@@ -139,8 +140,11 @@ export function AssetDetailDialog({
       })
     : null
 
-  const driveLink = asset.drive_file_id
-    ? `https://drive.google.com/file/d/${asset.drive_file_id}/view`
+  const fileUrl = asset.storage_key
+    ? buildStorageFileUrl(asset.storage_key, { fileName: asset.file_name })
+    : null
+  const downloadUrl = asset.storage_key
+    ? buildStorageFileUrl(asset.storage_key, { download: true, fileName: asset.file_name })
     : null
 
   return (
@@ -230,10 +234,10 @@ export function AssetDetailDialog({
                 Storage
               </span>
               <div className="flex items-center gap-1.5 font-medium text-foreground">
-                {asset.drive_file_id ? (
+                {asset.storage_key ? (
                   <span className="text-emerald-400 flex items-center gap-1">
                     <CheckCircle className="size-3.5" />
-                    Google Drive
+                    Uploaded
                   </span>
                 ) : (
                   <span className="text-muted-foreground">Backlog Pending</span>
@@ -242,12 +246,12 @@ export function AssetDetailDialog({
             </div>
           </div>
 
-          {/* Drive File / Bundle Info Card */}
+          {/* Storage File / Bundle Info Card */}
           <div className="flex flex-col gap-1.5">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
               Asset File
             </span>
-            {asset.drive_file_id ? (
+            {asset.storage_key ? (
               <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/20 p-2.5 text-xs">
                 <div className="flex items-center gap-2 min-w-0 pr-2">
                   {asset.bundle_id ? (
@@ -273,19 +277,32 @@ export function AssetDetailDialog({
                   </div>
                 </div>
 
-                {driveLink && (
-                  <Button
-                    variant="outline"
-                    size="xs"
-                    nativeButton={false}
-                    render={
-                      <a href={driveLink} target="_blank" rel="noopener noreferrer" />
-                    }
-                    className="shrink-0 gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
-                  >
-                    <ArrowSquareOut className="size-3.5" />
-                    Open in Drive
-                  </Button>
+                {fileUrl && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      nativeButton={false}
+                      render={
+                        <a href={fileUrl} target="_blank" rel="noopener noreferrer" />
+                      }
+                      className="shrink-0 gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
+                    >
+                      <ArrowSquareOut className="size-3.5" />
+                      Open
+                    </Button>
+                    {downloadUrl && (
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        nativeButton={false}
+                        render={<a href={downloadUrl} download={asset.file_name || undefined} />}
+                        className="shrink-0 text-xs"
+                      >
+                        Download
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
             ) : (
@@ -353,7 +370,7 @@ export function AssetDetailDialog({
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`/api/drive/file/${ref.drive_file_id}`}
+                      src={buildStorageFileUrl(ref.storage_key, { fileName: ref.file_name })}
                       alt={ref.file_name || 'Reference thumbnail'}
                       className="size-full object-cover"
                     />

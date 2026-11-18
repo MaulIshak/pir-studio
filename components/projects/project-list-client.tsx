@@ -16,7 +16,6 @@ interface Project {
   start_date: string | null
   deadline: string | null
   description: string | null
-  drive_folder_id: string | null
   tasks?: Array<{ id: string; status: string }>
 }
 

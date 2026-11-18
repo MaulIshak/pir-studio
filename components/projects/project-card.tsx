@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   ArrowSquareOut,
-  Folder,
   GameController,
   Trophy,
   Gear,
@@ -25,7 +24,6 @@ interface ProjectCardProps {
     start_date: string | null
     deadline: string | null
     description: string | null
-    drive_folder_id: string | null
     tasks?: Array<{ id: string; status: string }>
   }
 }
@@ -165,28 +163,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </div>
         </CardContent>
 
-        <CardFooter className="flex items-center justify-between gap-2 border-t pt-3">
-          {project.drive_folder_id ? (
-            <Button
-              variant="ghost"
-              size="xs"
-              nativeButton={false}
-              render={
-                <a
-                  href={`https://drive.google.com/drive/folders/${project.drive_folder_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                />
-              }
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              <Folder className="size-3.5 text-primary" />
-              Drive
-            </Button>
-          ) : (
-            <div />
-          )}
-
+        <CardFooter className="flex items-center justify-end gap-2 border-t pt-3">
           <Button
             variant="outline"
             size="xs"

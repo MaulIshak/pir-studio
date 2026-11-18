@@ -21,24 +21,6 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error && data?.session) {
-      const session = data.session
-      const providerToken = session.provider_token
-      const providerRefreshToken = session.provider_refresh_token
-
-      // Store Google OAuth tokens in the database for Drive API access (Vercel serverless compatible)
-      if (providerToken && session.user?.id) {
-        await supabase.from('oauth_tokens').upsert(
-          {
-            user_id: session.user.id,
-            provider: 'google',
-            access_token: providerToken,
-            refresh_token: providerRefreshToken ?? null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,provider' }
-        )
-      }
-
       const response = NextResponse.redirect(`${origin}${next}`)
       const cookieStore = await cookies()
       const isRemembered = rememberParam

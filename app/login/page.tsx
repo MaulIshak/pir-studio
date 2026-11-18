@@ -39,9 +39,7 @@ function LoginContent() {
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/api/auth/callback?remember=${rememberMe ? 'true' : 'false'}`,
-          scopes: 'https://www.googleapis.com/auth/drive.file',
           queryParams: {
-            access_type: 'offline',
             prompt: 'select_account',
           },
         },
@@ -85,7 +83,7 @@ function LoginContent() {
                 Pir Studio
               </h1>
               <p className="text-xs leading-relaxed text-muted-foreground max-w-xs mx-auto">
-                Central workspace for game projects, task kanban, and Google Drive sync.
+                Central workspace for game projects, task kanban, and asset tracking.
               </p>
             </div>
           </div>

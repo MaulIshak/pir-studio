@@ -5,7 +5,7 @@ export const ORG_CHANGED_EVENT = 'pir-org-changed'
 export const PROFILE_CHANGED_EVENT = 'pir-profile-changed'
 
 /**
- * Dispatches a client-side event to notify UI components (like AppSidebar, AppHeader)
+ * Dispatches a client-side event to notify UI components (like AppSidebar)
  * that the user's profile name has been updated.
  */
 export function notifyProfileChanged(name: string) {

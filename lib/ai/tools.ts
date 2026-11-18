@@ -390,7 +390,7 @@ export const GEMINI_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   },
   {
     name: 'create_project',
-    description: 'Create a project. Drive folder is not provisioned via MCP.',
+    description: 'Create a project.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -566,7 +566,7 @@ export const GEMINI_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   },
   {
     name: 'upload_asset_file',
-    description: 'Upload a file for an asset. Base64 content, 15MB raw max. Needs linked Drive.',
+    description: 'Upload a file for an asset. Base64 content, 15MB raw max.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -580,7 +580,7 @@ export const GEMINI_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   },
   {
     name: 'upload_bundle',
-    description: 'Upload a bundle archive to Builds. Base64 content, 15MB raw max. Needs linked Drive.',
+    description: 'Upload a bundle archive to project storage. Base64 content, 15MB raw max.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -594,7 +594,7 @@ export const GEMINI_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   },
   {
     name: 'upload_artifact_file',
-    description: 'Upload a build or GDD file and link it. Base64 content, 15MB raw max. Needs linked Drive.',
+    description: 'Upload a build or GDD file and link it. Base64 content, 15MB raw max.',
     parameters: {
       type: 'OBJECT',
       properties: {

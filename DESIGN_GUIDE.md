@@ -16,7 +16,7 @@
 
 2. **Always Render Loading States (`Skeleton`)**:
    - Every data-fetching route and view **must** render a loading state using Next.js `loading.tsx` or shadcn `<Skeleton>`.
-   - Never leave a blank or unstyled screen while fetching data from Supabase or Google Drive.
+   - Never leave a blank or unstyled screen while fetching data from Supabase or object storage.
 
 3. **Contextual Empty States**:
    - Sub-page empty states (Milestones, Assets, Credits, Artifacts) must provide direct contextual creation dialogs (e.g. `New Milestone`, `New Asset`).
@@ -63,7 +63,7 @@ The app uses dark-mode first semantic tokens with rich, deliberate color accents
 | Context | Tailwind Accent Classes | Usage |
 | :--- | :--- | :--- |
 | **Primary / Active** | `text-primary bg-primary/10 border-primary/20` | Active links, In Progress tasks, primary actions |
-| **Success / Done** | `text-emerald-400 bg-emerald-500/10 border-emerald-500/20` | Done tasks, completed milestones, Drive synced, shipped entries |
+| **Success / Done** | `text-emerald-400 bg-emerald-500/10 border-emerald-500/20` | Done tasks, completed milestones, uploaded files, shipped entries |
 | **Warning / Jam** | `text-amber-400 bg-amber-500/10 border-amber-500/20` | Review status, game jam type badge, credit requirements |
 | **Danger / Urgent** | `text-destructive bg-destructive/10 border-destructive/20` | Deadlines < 3 days ("Due Soon"), overdue dates, delete actions |
 | **Neutral / To Do** | `text-slate-400 bg-slate-500/10 border-slate-500/20` | To Do tasks, unassigned states, archived projects |
@@ -104,7 +104,7 @@ All icons are strictly sourced from `@phosphor-icons/react` (or `@phosphor-icons
    ```
 
 ### Standard Icon Mappings
-- **Navigation & Brand**: `GameController`, `SquaresFour`, `Kanban`, `GoogleDriveLogo`, `GoogleLogo`, `SignOut`
+- **Navigation & Brand**: `GameController`, `SquaresFour`, `Kanban`, `GoogleLogo`, `SignOut`
 - **Task & Milestone Status**: `CircleDashed` (To Do), `Play` (In Progress), `Eye` (Review), `CheckCircle` (Done)
 - **Actions**: `Plus` (Create), `PencilSimple` (Edit), `Trash` (Delete), `DownloadSimple` (Export), `DotsThreeVertical` (Menu), `DotsSixVertical` (Drag Handle)
 - **Metadata**: `CalendarBlank` (Date), `ClockCountdown` (Deadline), `Flag` (Milestone), `User` (Assignee), `Scroll` (Attribution)

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ProjectSettingsDialog } from '@/components/projects/project-settings-dialog'
 import { ProjectNav } from '@/components/projects/project-nav'
-import { CaretLeft, Folder } from '@phosphor-icons/react/dist/ssr'
+import { CaretLeft } from '@phosphor-icons/react/dist/ssr'
 
 interface ProjectLayoutProps {
   children: React.ReactNode
@@ -104,25 +104,6 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
               isLeader={isLeader}
               canManage={canManage}
             />
-          )}
-
-          {project.drive_folder_id && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-card text-foreground hover:bg-accent"
-              nativeButton={false}
-              render={
-                <a
-                  href={`https://drive.google.com/drive/folders/${project.drive_folder_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                />
-              }
-            >
-              <Folder className="size-3.5 text-primary" />
-              Open Drive
-            </Button>
           )}
         </div>
       </div>

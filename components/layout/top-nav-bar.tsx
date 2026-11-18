@@ -5,8 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, GoogleDriveLogo, Plus, CheckCircle, CaretRight } from '@phosphor-icons/react'
+import { ArrowLeft, Plus, CaretRight } from '@phosphor-icons/react'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { NotificationsPopover } from '@/components/notifications/notifications-popover'
 import { useAppSession } from '@/components/providers/session-context'
@@ -14,7 +13,7 @@ import { useAppSession } from '@/components/providers/session-context'
 export function TopNavBar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, activeOrg, hasDriveToken, signInWithGoogle } = useAppSession()
+  const { user, activeOrg } = useAppSession()
 
   if (pathname === '/login') {
     return null
@@ -123,32 +122,6 @@ export function TopNavBar() {
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-        {user && hasDriveToken !== null && (
-          hasDriveToken ? (
-            <Badge
-              variant="outline"
-              className="inline-flex items-center gap-1 border-emerald-500/30 bg-emerald-500/10 font-mono text-[10px] text-emerald-700 dark:text-emerald-400 py-0.5 px-1.5 sm:px-2 shrink-0"
-              title="Google Drive connected for file provisioning and storage"
-              aria-label="Google Drive connected"
-            >
-              <GoogleDriveLogo className="size-3 text-emerald-600 dark:text-emerald-400" />
-              <CheckCircle className="size-2.5 text-emerald-600 dark:text-emerald-400" />
-            </Badge>
-          ) : (
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => signInWithGoogle(pathname || '/')}
-              className="border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 text-[11px] py-0.5 px-2 gap-1 sm:gap-1.5 shrink-0"
-              title="Connect Google Drive to enable auto-provisioning and file uploads"
-            >
-              <GoogleDriveLogo className="size-3 text-amber-600 dark:text-amber-400" />
-              <span className="hidden sm:inline">Connect Drive</span>
-              <span className="sm:hidden">Drive</span>
-            </Button>
-          )
-        )}
-
         {user && (activeOrg?.role === 'leader' || activeOrg?.role === 'co_leader') && (
           <Button
             nativeButton={false}

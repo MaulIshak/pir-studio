@@ -56,14 +56,12 @@ import {
   Link as LinkIcon,
   Plus,
   CaretRight,
-  GoogleDriveLogo,
   SignOut,
   DotsThreeVertical,
   GameController,
   Trophy,
   Folder,
   PlugsConnected,
-  CheckCircle,
   Sun,
   Moon,
   Desktop,
@@ -88,7 +86,6 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
     user,
     customUserName,
     activeOrg,
-    hasDriveToken,
     isLoading: isAuthLoading,
     signInWithGoogle,
     signOut,
@@ -612,17 +609,6 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
                   >
                     <UserIcon className="size-3.5 text-muted-foreground" />
                     <span>Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleSignIn}
-                    className="flex items-center gap-2 text-xs cursor-pointer"
-                  >
-                    <GoogleDriveLogo className="size-3.5 text-muted-foreground" />
-                    <span>{hasDriveToken ? 'Re-sync Google Drive' : 'Connect Google Drive'}</span>
-                    {hasDriveToken && (
-                      <CheckCircle className="ml-auto size-3 text-emerald-500" />
-                    )}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuSub>

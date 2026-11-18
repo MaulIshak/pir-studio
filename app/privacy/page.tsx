@@ -53,17 +53,12 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc space-y-2 pl-5">
               <li>
                 <strong className="text-foreground">Account information:</strong> Your name, email address, and profile
-                picture provided by Google OAuth.
+                picture provided by Google Sign-In.
               </li>
               <li>
-                <strong className="text-foreground">Google Drive access:</strong> We request access to your Google Drive
-                with the <code className="rounded bg-muted px-1 py-0.5 text-xs font-mono">drive.file</code> scope. This
-                allows us to create and manage only the files in your Google Drive that were created by Pir Studio. We
-                cannot access any other files in your Drive.
-              </li>
-              <li>
-                <strong className="text-foreground">Project data:</strong> Content you create within the app —
-                including project names, tasks, milestones, assets, and credits — is stored in our secure database.
+                <strong className="text-foreground">Project data &amp; uploaded files:</strong> Content you create or
+                upload within the app — including project names, tasks, milestones, assets, builds, and credits — is
+                stored in our database and object storage.
               </li>
             </ul>
           </section>
@@ -74,10 +69,7 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc space-y-2 pl-5">
               <li>Authenticate your identity and maintain your session.</li>
               <li>Display your profile information within the application.</li>
-              <li>
-                Store and sync project data, files, and assets to your Google Drive on your behalf — only when you
-                explicitly trigger a Drive sync action.
-              </li>
+              <li>Store project data, files, and assets for your authorized team members.</li>
               <li>Provide the core features of the game development project management tool.</li>
             </ul>
             <p className="mt-3">
@@ -87,34 +79,16 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-foreground">4. Google API Services</h2>
+            <h2 className="mb-3 text-lg font-semibold text-foreground">4. Data Storage &amp; Security</h2>
             <p>
-              Pir Studio uses Google Sign-In for authentication and the Google Drive API for file storage. Our use and
-              transfer of information received from Google APIs to any other app will adhere to the{' '}
-              <a
-                href="https://developers.google.com/terms/api-services-user-data-policy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline underline-offset-4 hover:text-primary/80"
-              >
-                Google API Services User Data Policy
-              </a>
-              , including the Limited Use requirements.
+              Your metadata is stored on Supabase with row-level security policies, and uploaded files are stored in
+              private S3-compatible object storage accessible only to authenticated project members. All data
+              transmitted between your browser and our servers is encrypted via HTTPS/TLS.
             </p>
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-foreground">5. Data Storage &amp; Security</h2>
-            <p>
-              Your data is stored on Supabase (hosted on AWS infrastructure) with row-level security policies ensuring
-              each user can only access their own data. All data transmitted between your browser and our servers is
-              encrypted via HTTPS/TLS. OAuth tokens are stored securely and are only used to perform Drive operations
-              you explicitly request.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="mb-3 text-lg font-semibold text-foreground">6. Data Retention</h2>
+            <h2 className="mb-3 text-lg font-semibold text-foreground">5. Data Retention</h2>
             <p>
               Your account data and project content are retained for as long as you actively use the application. You
               may request deletion of your data at any time by contacting us. Upon account deletion, your personal
@@ -123,7 +97,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-foreground">7. Your Rights</h2>
+            <h2 className="mb-3 text-lg font-semibold text-foreground">6. Your Rights</h2>
             <p className="mb-3">You have the right to:</p>
             <ul className="list-disc space-y-2 pl-5">
               <li>Access the personal data we hold about you.</li>
@@ -145,7 +119,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-foreground">8. Cookies &amp; Local Storage</h2>
+            <h2 className="mb-3 text-lg font-semibold text-foreground">7. Cookies &amp; Local Storage</h2>
             <p>
               We use browser cookies and local storage solely to maintain your authentication session. We do not use
               tracking cookies or third-party analytics services.
@@ -153,7 +127,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-foreground">9. Changes to This Policy</h2>
+            <h2 className="mb-3 text-lg font-semibold text-foreground">8. Changes to This Policy</h2>
             <p>
               We may update this Privacy Policy from time to time. If we make material changes, we will update the
               &ldquo;Last updated&rdquo; date at the top of this page. Continued use of Pir Studio after changes
@@ -162,7 +136,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-foreground">10. Contact</h2>
+            <h2 className="mb-3 text-lg font-semibold text-foreground">9. Contact</h2>
             <p>
               If you have questions about this Privacy Policy or your data, please reach out via your team&apos;s
               designated internal channel.

@@ -28,7 +28,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ClipboardImageZone } from './clipboard-image-zone'
 
-const MAX_FILE_SIZE = 4.5 * 1024 * 1024 // 4.5 MB Vercel Serverless limit
+const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB per file
 
 interface CreateAssetDialogProps {
   projectId: string
@@ -78,7 +78,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
     setError(null)
     const selected = e.target.files?.[0] || null
     if (selected && selected.size > MAX_FILE_SIZE) {
-      setError(`Asset file (${(selected.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel limit of 4.5 MB.`)
+      setError(`Asset file (${(selected.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 100 MB limit.`)
       setAssetFile(null)
       e.target.value = ''
       return
@@ -96,13 +96,13 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
     }
 
     if (assetFile && assetFile.size > MAX_FILE_SIZE) {
-      setError(`Asset file (${(assetFile.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel limit of 4.5 MB.`)
+      setError(`Asset file (${(assetFile.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 100 MB limit.`)
       return
     }
 
     for (const refFile of referenceFiles) {
       if (refFile.size > MAX_FILE_SIZE) {
-        setError(`Reference file "${refFile.name}" exceeds Vercel limit of 4.5 MB.`)
+        setError(`Reference file "${refFile.name}" exceeds the 100 MB limit.`)
         return
       }
     }
@@ -165,7 +165,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
         <DialogHeader>
           <DialogTitle>New Asset</DialogTitle>
           <DialogDescription>
-            Add a game asset deliverable with optional visual references and Google Drive storage.
+            Add a game asset deliverable with optional visual references and file storage.
           </DialogDescription>
         </DialogHeader>
 
@@ -265,7 +265,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
                 Visual References (Optional)
               </label>
               <span className="text-[10px] text-muted-foreground">
-                Paste Ctrl+V or upload sketches (Max 4.5 MB each)
+                Paste Ctrl+V or upload sketches (Max 100 MB each)
               </span>
             </div>
 
@@ -279,7 +279,7 @@ export function CreateAssetDialog({ projectId, tasks = [], trigger }: CreateAsse
                 Asset File (Optional)
               </label>
               <span className="text-[10px] text-muted-foreground">
-                Google Drive storage (Max 4.5 MB)
+                Max 100 MB
               </span>
             </div>
             <Input

@@ -6,11 +6,9 @@ import {
   Copy,
   Check,
   FileText,
-  GoogleDriveLogo,
 } from '@phosphor-icons/react'
 import { exportCreditsMarkdown } from '@/actions/credits'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -30,7 +28,6 @@ export function ExportCreditsButton({ projectId, hasCredits }: ExportCreditsButt
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [markdownContent, setMarkdownContent] = useState<string>('')
-  const [driveSaved, setDriveSaved] = useState<boolean>(false)
   const [copied, setCopied] = useState(false)
 
   function handleOpenChange(isOpen: boolean) {
@@ -40,7 +37,6 @@ export function ExportCreditsButton({ projectId, hasCredits }: ExportCreditsButt
         const res = await exportCreditsMarkdown(projectId)
         if (res.success && res.content) {
           setMarkdownContent(res.content)
-          setDriveSaved(!!res.driveSaved)
         }
       })
     }
@@ -75,21 +71,10 @@ export function ExportCreditsButton({ projectId, hasCredits }: ExportCreditsButt
 
       <DialogContent className="sm:max-w-[620px]">
         <DialogHeader>
-          <div className="flex items-center justify-between pr-6">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="size-4 text-primary" />
-              Export Credits & Attributions
-            </DialogTitle>
-            {driveSaved && (
-              <Badge
-                variant="outline"
-                className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-400"
-              >
-                <GoogleDriveLogo className="size-3 text-emerald-400" />
-                Synced to Drive
-              </Badge>
-            )}
-          </div>
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="size-4 text-primary" />
+            Export Credits &amp; Attributions
+          </DialogTitle>
           <DialogDescription>
             Formatted Markdown ready for your itch.io page, game credits, or README.
           </DialogDescription>

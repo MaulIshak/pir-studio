@@ -19,7 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Package, UploadSimple, MagnifyingGlass, CircleNotch } from '@phosphor-icons/react'
 import { Asset, uploadAssetBundle } from '@/actions/assets'
 
-const MAX_FILE_SIZE = 4.5 * 1024 * 1024 // 4.5 MB Vercel Serverless limit
+const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB per file
 
 interface UploadBundleDialogProps {
   projectId: string
@@ -76,7 +76,7 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
     setError(null)
     const selected = e.target.files?.[0] || null
     if (selected && selected.size > MAX_FILE_SIZE) {
-      setError(`File size (${(selected.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel limit of 4.5 MB.`)
+      setError(`File size (${(selected.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 100 MB limit.`)
       setFile(null)
       e.target.value = ''
       return
@@ -99,7 +99,7 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      setError(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel limit of 4.5 MB.`)
+      setError(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 100 MB limit.`)
       return
     }
 
@@ -151,7 +151,7 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
             <span>Upload Atlas / Asset Bundle</span>
           </DialogTitle>
           <DialogDescription>
-            Upload composite files (Texture Atlas, Sprite Sheet, or Sound Pack) to Google Drive (Max 4.5 MB).
+            Upload composite files (Texture Atlas, Sprite Sheet, or Sound Pack) to storage (Max 100 MB).
           </DialogDescription>
         </DialogHeader>
 
@@ -298,7 +298,7 @@ export function UploadBundleDialog({ projectId, assets, trigger }: UploadBundleD
               {isPending ? (
                 <>
                   <CircleNotch className="size-4 animate-spin" />
-                  Uploading to Drive...
+                  Uploading...
                 </>
               ) : (
                 <>

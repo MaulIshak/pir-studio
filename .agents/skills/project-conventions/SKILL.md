@@ -12,8 +12,8 @@ This skill keeps generated code consistent across sessions and prevents scope cr
 - **Framework**: Next.js, App Router (`app/` directory), TypeScript
 - **Styling**: Tailwind CSS
 - **Database/Auth**: Supabase (Postgres, Auth with Google OAuth, optional Realtime) — see the `supabase-schema` skill for schema details
-- **File storage**: Google Drive API — see the `gdrive-integration` skill
-- **Deployment**: Vercel (frontend), Supabase Cloud (backend)
+- **File storage**: S3-compatible object storage (Garage) via `@aws-sdk/client-s3` (`lib/storage/`)
+- **Deployment**: Self-hosted standalone Next.js, Supabase Cloud (backend)
 - **Uptime**: a scheduled GitHub Actions ping to prevent the Supabase free-tier project from pausing after 7 days of inactivity
 
 ## Folder structure
@@ -39,7 +39,7 @@ app/
     artifacts.ts
 lib/
   supabase/                   -- Supabase client setup (server + client)
-  gdrive/                     -- Drive API helper functions
+  storage/                    -- S3 storage helpers and URL utilities
 components/
   ui/                         -- shared, reusable components
   [feature]/                  -- feature-specific components

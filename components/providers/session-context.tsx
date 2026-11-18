@@ -11,7 +11,6 @@ interface AppSessionContextValue {
   user: User | null
   customUserName: string | null
   activeOrg: ActiveOrg | null
-  hasDriveToken: boolean | null
   isLoading: boolean
   signInWithGoogle: (nextPath?: string) => Promise<void>
   signOut: () => Promise<void>
@@ -23,7 +22,6 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
   const [user, setUser] = useState<User | null>(null)
   const [customUserName, setCustomUserName] = useState<string | null>(null)
   const [activeOrg, setActiveOrg] = useState<ActiveOrg | null>(null)
-  const [hasDriveToken, setHasDriveToken] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const supabase = useMemo(() => createClient(), [])
 
@@ -40,13 +38,7 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
       setUser(currentUser)
 
       if (currentUser) {
-        const [tokenRes, org, profRes] = await Promise.all([
-          supabase
-            .from('oauth_tokens')
-            .select('id')
-            .eq('user_id', currentUser.id)
-            .eq('provider', 'google')
-            .maybeSingle(),
+        const [org, profRes] = await Promise.all([
           getActiveOrg(),
           supabase
             .from('profiles')
@@ -55,13 +47,11 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
             .maybeSingle(),
         ])
         if (!mounted) return
-        setHasDriveToken(!!tokenRes.data)
         setActiveOrg(org)
         if (profRes.data?.name) {
           setCustomUserName(profRes.data.name)
         }
       } else {
-        setHasDriveToken(false)
         setActiveOrg(null)
         setCustomUserName(null)
       }
@@ -92,7 +82,6 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
       const nextUser = session?.user ?? null
       setUser(nextUser)
       if (!nextUser) {
-        setHasDriveToken(false)
         setActiveOrg(null)
         setCustomUserName(null)
       }
@@ -111,10 +100,8 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(nextPath)}`,
-        scopes: 'https://www.googleapis.com/auth/drive.file',
         queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
+          prompt: 'select_account',
         },
       },
     })
@@ -123,7 +110,6 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
   async function signOut() {
     await supabase.auth.signOut()
     setUser(null)
-    setHasDriveToken(false)
     setActiveOrg(null)
     setCustomUserName(null)
     window.location.reload()
@@ -134,13 +120,12 @@ export function AppSessionProvider({ children }: { children: React.ReactNode }) 
       user,
       customUserName,
       activeOrg,
-      hasDriveToken,
       isLoading,
       signInWithGoogle,
       signOut,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [user, customUserName, activeOrg, hasDriveToken, isLoading]
+    [user, customUserName, activeOrg, isLoading]
   )
 
   return <AppSessionContext.Provider value={value}>{children}</AppSessionContext.Provider>

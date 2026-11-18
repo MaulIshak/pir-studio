@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { UploadSimple, File, CircleNotch } from '@phosphor-icons/react'
 import { Asset, uploadSingleAssetFile } from '@/actions/assets'
 
-const MAX_FILE_SIZE = 4.5 * 1024 * 1024 // 4.5 MB Vercel Serverless limit
+const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB per file
 
 interface UploadSingleDialogProps {
   asset: Asset
@@ -45,7 +45,7 @@ export function UploadSingleDialog({
     setError(null)
     const selected = e.target.files?.[0] || null
     if (selected && selected.size > MAX_FILE_SIZE) {
-      setError(`File size (${(selected.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel limit of 4.5 MB.`)
+      setError(`File size (${(selected.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 100 MB limit.`)
       setFile(null)
       e.target.value = ''
       return
@@ -63,7 +63,7 @@ export function UploadSingleDialog({
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      setError(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel limit of 4.5 MB.`)
+      setError(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 100 MB limit.`)
       return
     }
 
@@ -99,7 +99,7 @@ export function UploadSingleDialog({
             <span>Upload File for {asset.name}</span>
           </DialogTitle>
           <DialogDescription>
-            Upload asset deliverable to Google Drive (Max 4.5 MB).
+            Upload asset deliverable to storage (Max 100 MB).
           </DialogDescription>
         </DialogHeader>
 

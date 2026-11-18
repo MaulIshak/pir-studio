@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { uploadFileToSubfolder } from '@/lib/gdrive/upload'
 
 export interface Credit {
   id: string
@@ -141,12 +140,12 @@ export async function deleteCredit(creditId: string, projectId: string) {
   return { success: true }
 }
 
-export async function exportCreditsMarkdown(projectId: string): Promise<{ success: boolean; content?: string; error?: string; driveSaved?: boolean }> {
+export async function exportCreditsMarkdown(projectId: string): Promise<{ success: boolean; content?: string; error?: string }> {
   const supabase = await createClient()
 
   const { data: project } = await supabase
     .from('projects')
-    .select('name, drive_folder_id')
+    .select('name')
     .eq('id', projectId)
     .single()
 
@@ -178,25 +177,5 @@ export async function exportCreditsMarkdown(projectId: string): Promise<{ succes
     }
   }
 
-  // Attempt to save to Drive /Credits/CREDITS.md if user has Drive connected
-  let driveSaved = false
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user && project?.drive_folder_id) {
-    try {
-      const buffer = Buffer.from(markdown, 'utf-8')
-      await uploadFileToSubfolder(
-        user.id,
-        project.drive_folder_id,
-        'Credits',
-        'CREDITS.md',
-        'text/markdown',
-        buffer
-      )
-      driveSaved = true
-    } catch (err) {
-      console.warn('Could not save CREDITS.md to Google Drive:', err)
-    }
-  }
-
-  return { success: true, content: markdown, driveSaved }
+  return { success: true, content: markdown }
 }

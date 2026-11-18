@@ -23,6 +23,7 @@ import {
   PencilSimple,
 } from '@phosphor-icons/react'
 import { Asset, AssetStatus, updateAssetStatus, deleteAsset } from '@/actions/assets'
+import { buildStorageFileUrl } from '@/lib/storage/urls'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -156,10 +157,10 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
       if (taskFilter !== 'unassigned' && asset.task_id !== taskFilter) return false
     }
     if (fileFilter !== 'all') {
-      if (fileFilter === 'with_file' && !asset.drive_file_id) return false
-      if (fileFilter === 'no_file' && asset.drive_file_id) return false
+      if (fileFilter === 'with_file' && !asset.storage_key) return false
+      if (fileFilter === 'no_file' && asset.storage_key) return false
       if (fileFilter === 'bundle' && !asset.bundle_id) return false
-      if (fileFilter === 'single' && (asset.bundle_id || !asset.drive_file_id)) return false
+      if (fileFilter === 'single' && (asset.bundle_id || !asset.storage_key)) return false
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
@@ -294,8 +295,8 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
           {/* Mobile View: Asset Card List (< md) */}
           <div className="flex md:hidden flex-col gap-3">
             {filteredAssets.map((asset) => {
-              const driveLink = asset.drive_file_id
-                ? `https://drive.google.com/file/d/${asset.drive_file_id}/view`
+              const fileUrl = asset.storage_key
+                ? buildStorageFileUrl(asset.storage_key, { fileName: asset.file_name })
                 : null
               const details = getTypeDetails(asset.type)
               const statusInfo = getStatusBadge(asset.status)
@@ -372,7 +373,7 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
                             <div className="size-5 rounded overflow-hidden bg-muted">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
-                                src={`/api/drive/file/${firstRef.drive_file_id}`}
+                                src={buildStorageFileUrl(firstRef.storage_key, { fileName: firstRef.file_name })}
                                 alt="Reference"
                                 className="size-full object-cover"
                               />
@@ -392,16 +393,16 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
                         </Button>
                       )}
 
-                      {driveLink ? (
+                      {fileUrl ? (
                         <Button
                           variant="outline"
                           size="xs"
                           nativeButton={false}
-                          render={<a href={driveLink} target="_blank" rel="noopener noreferrer" />}
+                          render={<a href={fileUrl} target="_blank" rel="noopener noreferrer" />}
                           className="h-6 text-[11px] px-2 text-primary border-primary/30 bg-primary/5 gap-1"
                         >
                           <ArrowSquareOut className="size-3" />
-                          Drive
+                          Open
                         </Button>
                       ) : (
                         <Button
@@ -470,8 +471,8 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
             </TableHeader>
             <TableBody>
               {filteredAssets.map((asset) => {
-                const driveLink = asset.drive_file_id
-                  ? `https://drive.google.com/file/d/${asset.drive_file_id}/view`
+                const fileUrl = asset.storage_key
+                  ? buildStorageFileUrl(asset.storage_key, { fileName: asset.file_name })
                   : null
                 const details = getTypeDetails(asset.type)
                 const statusInfo = getStatusBadge(asset.status)
@@ -506,7 +507,7 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
                             <div className="size-7 overflow-hidden bg-muted border border-border/60">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
-                                src={`/api/drive/file/${firstRef.drive_file_id}`}
+                                src={buildStorageFileUrl(firstRef.storage_key, { fileName: firstRef.file_name })}
                                 alt="Reference thumbnail"
                                 className="size-full object-cover"
                               />
@@ -578,17 +579,17 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
 
                     {/* File Source */}
                     <TableCell>
-                      {driveLink ? (
+                      {fileUrl ? (
                         asset.bundle_id ? (
                           <Button
                             variant="outline"
                             size="xs"
                             nativeButton={false}
                             render={
-                              <a href={driveLink} target="_blank" rel="noopener noreferrer" />
+                              <a href={fileUrl} target="_blank" rel="noopener noreferrer" />
                             }
                             className="h-6 text-[11px] gap-1.5 text-purple-400 border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 max-w-[140px]"
-                            title={`Atlas: ${asset.asset_bundles?.name || 'Bundle'} (Open in Google Drive)`}
+                            title={`Atlas: ${asset.asset_bundles?.name || 'Bundle'}`}
                           >
                             <ArrowSquareOut className="size-3 shrink-0" />
                             <span className="truncate">
@@ -601,13 +602,13 @@ export function AssetTable({ assets, projectId, tasks = [] }: AssetTableProps) {
                             size="xs"
                             nativeButton={false}
                             render={
-                              <a href={driveLink} target="_blank" rel="noopener noreferrer" />
+                              <a href={fileUrl} target="_blank" rel="noopener noreferrer" />
                             }
                             className="h-6 text-[11px] gap-1.5 text-primary border-primary/30 bg-primary/5 hover:bg-primary/10"
-                            title="Open in Google Drive"
+                            title="Open file"
                           >
                             <ArrowSquareOut className="size-3 shrink-0" />
-                            Drive
+                            Open
                           </Button>
                         )
                       ) : (

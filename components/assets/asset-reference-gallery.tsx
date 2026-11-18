@@ -26,6 +26,7 @@ import {
 import { cn } from 'cn'
 import { Asset, AssetReference, addAssetReferences, deleteAssetReference } from '@/actions/assets'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { buildStorageFileUrl } from '@/lib/storage/urls'
 
 interface AssetReferenceGalleryProps {
   asset: Asset
@@ -193,7 +194,7 @@ export function AssetReferenceGallery({
     if (!refToDelete) return
 
     const targetId = refToDelete.id
-    const targetDriveFileId = refToDelete.drive_file_id
+    const targetStorageKey = refToDelete.storage_key
 
     startTransition(async () => {
       setLocalReferences((prev) => prev.filter((r) => r.id !== targetId))
@@ -202,7 +203,7 @@ export function AssetReferenceGallery({
       }
       setRefToDelete(null)
 
-      await deleteAssetReference(targetId, targetDriveFileId, projectId)
+      await deleteAssetReference(targetId, targetStorageKey, projectId)
       router.refresh()
     })
   }
@@ -311,7 +312,7 @@ export function AssetReferenceGallery({
                       Uploading reference...
                     </h4>
                     <p className="text-xs text-muted-foreground">
-                      Saving images to Google Drive and project gallery.
+                      Saving images to storage and project gallery.
                     </p>
                   </div>
                 </div>
@@ -418,7 +419,7 @@ export function AssetReferenceGallery({
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`/api/drive/file/${ref.drive_file_id}`}
+                      src={buildStorageFileUrl(ref.storage_key, { fileName: ref.file_name })}
                       alt={ref.file_name || 'Reference image'}
                       loading="lazy"
                       className="size-full object-cover transition-transform duration-200 group-hover:scale-105"
@@ -493,7 +494,7 @@ export function AssetReferenceGallery({
                     nativeButton={false}
                     render={
                       <a
-                        href={`https://drive.google.com/file/d/${activeReference.drive_file_id}/view`}
+                        href={buildStorageFileUrl(activeReference.storage_key, { fileName: activeReference.file_name })}
                         target="_blank"
                         rel="noopener noreferrer"
                       />
@@ -501,7 +502,7 @@ export function AssetReferenceGallery({
                     className="text-xs text-primary"
                   >
                     <ArrowSquareOut className="size-3.5" />
-                    Drive
+                    Open
                   </Button>
 
                   <Button
@@ -520,7 +521,7 @@ export function AssetReferenceGallery({
               <div className="relative flex-1 flex items-center justify-center min-h-[400px] max-h-[70vh] bg-black/40 overflow-hidden p-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`/api/drive/file/${activeReference.drive_file_id}`}
+                  src={buildStorageFileUrl(activeReference.storage_key, { fileName: activeReference.file_name })}
                   alt={activeReference.file_name || 'Enlarged reference'}
                   className="max-h-full max-w-full object-contain select-none"
                 />
@@ -567,7 +568,7 @@ export function AssetReferenceGallery({
         open={!!refToDelete}
         onOpenChange={(isOpen) => !isOpen && setRefToDelete(null)}
         title="Delete Reference"
-        description="Are you sure you want to permanently delete this reference image? This will remove the record and delete the file from Google Drive."
+        description="Are you sure you want to permanently delete this reference image? This will remove the record and delete the file from storage."
         confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="destructive"

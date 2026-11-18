@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Pir Studio",
     short_name: "Pir Studio",
-    description: "Game development projects, tasks, assets, and Google Drive storage.",
+    description: "Game development projects, tasks, assets, and file storage.",
     start_url: "/",
     display: "standalone",
     background_color: "#09090b",

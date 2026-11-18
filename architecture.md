@@ -6,14 +6,11 @@ This document serves as the **single architectural source of truth** for all dev
 
 ## 1. Overview & Core Principles
 
-- **Product Purpose**: A lightweight, unified web app for an internal game development team (5–8 members) participating in game jams and competitions. It connects project tracking, task kanban boards, asset status, license/credit records, and artifact links directly with organized Google Drive folders.
-- **Zero Cost Stack**:
-  - Frontend: **Next.js (App Router)** hosted on **Vercel** (Hobby/Free tier).
-  - Database & Auth: **Supabase** (Postgres, Auth, Realtime) on Supabase Cloud (Free tier).
-  - File Storage: **Google Drive API** (using studio/team Google Drive storage).
-- **Vercel Serverless Constraint**:
-  - The Vercel runtime operates on a *read-only filesystem*.
-  - **Absolute Rule**: Third-party credentials and tokens (Google OAuth `access_token`, `refresh_token`, `expires_at`) **MUST BE STORED IN SUPABASE POSTGRES** (`oauth_tokens` table), never written to local files or disk.
+- **Product Purpose**: A lightweight, unified web app for an internal game development team (5–8 members) participating in game jams and competitions. It connects project tracking, task kanban boards, asset status, license/credit records, and artifact links with organized S3 object storage.
+- **Stack**:
+  - Frontend: **Next.js (App Router)** self-hosted standalone.
+  - Database & Auth: **Supabase** (Postgres, Auth, Realtime) on Supabase Cloud.
+  - File Storage: **S3-compatible Object Storage (Garage)** via `@aws-sdk/client-s3`.
 - **UI Design System Rule**:
   - **MANDATORY**: Exclusively use **shadcn/ui** initialized with preset `b7C9smijg` (`--template next --pointer`).
   - **STRICT PROHIBITION**: Do not build custom unstyled UI components or hand-rolled primitives. All UI components originate from `npx shadcn@latest add [component]`.
@@ -31,17 +28,21 @@ This document serves as the **single architectural source of truth** for all dev
 | **UI Library** | shadcn/ui (Preset `b7C9smijg`) + Tailwind CSS | Pointer interaction flag (`--pointer`), installed via shadcn CLI. |
 | **Icons** | Phosphor Icons (`@phosphor-icons/react`) | Default icon set for consistent visual language across the UI. |
 | **Database & Auth** | Supabase Postgres + Supabase Auth | `@supabase/supabase-js`, `@supabase/ssr`. |
-| **Drive Integration** | Google Drive API (`googleapis`) | Scope: `https://www.googleapis.com/auth/drive.file`. Tokens stored in database. |
+| **Object Storage** | S3-compatible Storage (`@aws-sdk/client-s3`) | Garage S3 bucket for assets, references, builds, and GDD files. |
 | **Forms & Validation** | React Hook Form + Zod | Composed with shadcn `Form` primitives. |
-| **Deployment** | Vercel + Supabase Cloud + GitHub Actions | Scheduled GitHub Actions workflow to keep the Supabase free-tier project active. |
+| **Deployment** | Self-hosted Next.js + Supabase Cloud + GitHub Actions | Scheduled GitHub Actions workflow to keep the Supabase free-tier project active. |
 
 ### Environment Variables
 Configure in `.env.local`:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://imzqirqtyeeavrxvvaom.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_AViUsJSdZw9cILx79DiqIg_-JdgTev3
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+S3_ENDPOINT=...
+S3_REGION=garage
+S3_BUCKET=...
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_FORCE_PATH_STYLE=true
 ```
 
 ---
@@ -114,36 +115,33 @@ The application utilizes 17 core tables with Row Level Security (RLS) enabled, e
 6. **`profiles`**
    - Synchronized automatically from `auth.users` on first sign-in via trigger.
    - Columns: `id (uuid, PK -> auth.users.id)`, `name (text)`, `email (text)`, `avatar_url (text)`, `created_at (timestamptz)`.
-7. **`oauth_tokens`**
-   - Stores Google OAuth tokens for Google Drive API calls (accommodating Vercel read-only runtime).
-   - Columns: `id (uuid, PK)`, `user_id (uuid -> profiles.id)`, `provider (text, default 'google')`, `access_token (text)`, `refresh_token (text)`, `expires_at (timestamptz)`, `created_at (timestamptz)`, `updated_at (timestamptz)`.
-8. **`projects`**
+7. **`projects`**
    - Scoped to parent organization via `organization_id`.
-   - Columns: `id (uuid, PK)`, `organization_id (uuid -> organizations.id on delete cascade)`, `name (text)`, `slug (text, unique)`, `type (text: 'jam' | 'competition' | 'internal')`, `start_date (date)`, `deadline (date)`, `status (text: 'active' | 'completed' | 'archived', default 'active')`, `description (text)`, `drive_folder_id (text)`, `created_by (uuid -> profiles.id)`, `created_at (timestamptz)`.
-9. **`milestones`**
+   - Columns: `id (uuid, PK)`, `organization_id (uuid -> organizations.id on delete cascade)`, `name (text)`, `slug (text, unique)`, `type (text: 'jam' | 'competition' | 'internal')`, `start_date (date)`, `deadline (date)`, `status (text: 'active' | 'completed' | 'archived', default 'active')`, `description (text)`, `created_by (uuid -> profiles.id)`, `created_at (timestamptz)`.
+8. **`milestones`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `title (text)`, `due_date (date)`, `status (text: 'not_started' | 'in_progress' | 'done', default 'not_started')`.
-10. **`tasks`**
+9. **`tasks`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `milestone_id (uuid -> milestones.id on delete set null)`, `title (text)`, `description (text)`, `assignee_id (uuid -> profiles.id on delete set null)`, `status (text: 'todo' | 'in_progress' | 'review' | 'done', default 'todo')`, `due_date (date)`, `created_at (timestamptz)`.
    - *Note: Supabase Realtime is enabled specifically for this table.*
-11. **`subtasks`**
+10. **`subtasks`**
    - Stores hierarchical checklist items belonging to a parent task, with checkbox completion status.
    - Columns: `id (uuid, PK)`, `task_id (uuid -> tasks.id on delete cascade)`, `title (text)`, `status (text: 'todo' | 'done', default 'todo')`, `position (integer, default 0)`, `created_at (timestamptz)`.
    - *Note: Supabase Realtime is enabled for this table.*
-12. **`asset_bundles`**
+11. **`asset_bundles`**
    - Stores composite asset files (texture atlases, sprite sheets, sound packages) that include multiple assets.
-   - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `name (text)`, `drive_file_id (text)`, `file_name (text)`, `file_size (bigint)`, `mime_type (text)`, `uploaded_by (uuid -> profiles.id on delete set null)`, `created_at (timestamptz)`.
-13. **`assets`**
-   - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `task_id (uuid -> tasks.id on delete set null)`, `name (text)`, `type (text: 'sprite' | 'audio' | '3d_model' | 'font' | 'vfx' | 'other')`, `uploaded_by (uuid -> profiles.id on delete set null)`, `drive_file_id (text)`, `bundle_id (uuid -> asset_bundles.id on delete set null)`, `file_name (text)`, `status (text: 'todo' | 'in_progress' | 'done' | 'implemented', default 'todo')`, `needs_credit (boolean, default false)`, `notes (text)`, `created_at (timestamptz)`.
-14. **`asset_references`**
+   - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `name (text)`, `storage_key (text)`, `file_name (text)`, `file_size (bigint)`, `mime_type (text)`, `uploaded_by (uuid -> profiles.id on delete set null)`, `created_at (timestamptz)`.
+12. **`assets`**
+   - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `task_id (uuid -> tasks.id on delete set null)`, `name (text)`, `type (text: 'sprite' | 'audio' | '3d_model' | 'font' | 'vfx' | 'other')`, `uploaded_by (uuid -> profiles.id on delete set null)`, `storage_key (text)`, `bundle_id (uuid -> asset_bundles.id on delete set null)`, `file_name (text)`, `status (text: 'todo' | 'in_progress' | 'done' | 'implemented', default 'todo')`, `needs_credit (boolean, default false)`, `notes (text)`, `created_at (timestamptz)`.
+13. **`asset_references`**
    - Stores visual reference images attached to an asset, supporting Gallery Grid and Lightbox Zoom.
-   - Columns: `id (uuid, PK)`, `asset_id (uuid -> assets.id on delete cascade)`, `drive_file_id (text)`, `file_name (text)`, `file_size (bigint)`, `mime_type (text)`, `uploaded_by (uuid -> profiles.id on delete set null)`, `created_at (timestamptz)`.
+   - Columns: `id (uuid, PK)`, `asset_id (uuid -> assets.id on delete cascade)`, `storage_key (text)`, `file_name (text)`, `file_size (bigint)`, `mime_type (text)`, `uploaded_by (uuid -> profiles.id on delete set null)`, `created_at (timestamptz)`.
    - *Note: Hard delete policy enabled for references.*
-15. **`credits`**
+14. **`credits`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `asset_id (uuid -> assets.id on delete set null)`, `source_name (text)`, `author (text)`, `license (text: 'cc0' | 'cc_by' | 'royalty_free' | 'proprietary' | 'other')`, `source_url (text)`, `notes (text)`, `created_at (timestamptz)`.
    - *Note: `asset_id` on delete set null preserves credit history even if the source asset is deleted.*
-16. **`artifact_links`**
+15. **`artifact_links`**
    - Columns: `id (uuid, PK)`, `project_id (uuid -> projects.id on delete cascade)`, `label (text)`, `type (text: 'figma' | 'figjam' | 'gdd' | 'build' | 'other')`, `url (text)`, `notes (text)`, `created_at (timestamptz)`.
-17. **`mcp_tokens`**
+16. **`mcp_tokens`**
    - Stores per-user API tokens for external AI agents with SHA-256 hashing.
 
 ### RBAC Permission Matrix
@@ -164,25 +162,23 @@ The application utilizes 17 core tables with Row Level Security (RLS) enabled, e
 
 ---
 
-## 4. Google Drive Integration & Dual-Write Resilience
+## 4. S3 Object Storage & Dual-Write Resilience
 
-### Folder Hierarchy
-When a project is created, the system provisions the following folder structure in Google Drive without parentheticals:
+### Object Key Hierarchy
+Files are stored in the configured S3 bucket (Garage) under project-scoped prefixes:
 ```text
-/GameDev Team/
-  /[Project Name]/
-    /Assets/
-    /Builds/
-    /GDD/
-    /Design/
-    /Credits/
+projects/
+  <project_id>/
+    assets/<uuid>-<filename>
+    design/<uuid>-<filename>
+    builds/<uuid>-<filename>
+    gdd/<uuid>-<filename>
 ```
 
 ### Dual-Write Pattern
-1. **Step 1**: Write project or asset metadata into Supabase Postgres.
-2. **Step 2**: Call the Google Drive API to provision the folder or stream the file.
-3. **Step 3**: Record `drive_folder_id` or `drive_file_id` into the corresponding database row.
-4. **Resilience**: If the Drive API call fails (rate-limit, timeout), retain the DB row with a warning status and provide an explicit **Retry** action in the UI. Never fail silently.
+1. **Step 1**: Upload the file to S3 via `@aws-sdk/client-s3` (`PutObjectCommand`).
+2. **Step 2**: Record `storage_key` (or `/api/storage/file?key=...` in `artifact_links.url`) in Supabase Postgres.
+3. **Resilience**: If the DB write fails after upload, perform best-effort `DeleteObjectCommand` cleanup so orphaned objects are not left behind. Files are streamed exclusively through `/api/storage/file` after verifying Supabase authentication and `hasProjectAccess`.
 
 ---
 
@@ -230,10 +226,9 @@ pir-project/
 │   ├── supabase/                      # Supabase client & server instances
 │   │   ├── client.ts
 │   │   └── server.ts
-│   └── gdrive/                        # Google Drive API & token helpers
-│       ├── client.ts
-│       ├── provisioning.ts
-│       └── tokens.ts
+│   └── storage/                       # S3 client & URL helpers
+│       ├── s3.ts
+│       └── urls.ts
 ├── supabase/
 │   └── migrations/                    # SQL migration files
 ├── docs/
@@ -274,5 +269,5 @@ pir-project/
 Before any sprint or feature is marked complete:
 1. **Zero-Error Build**: `npm run build` succeeds with zero TypeScript and build errors.
 2. **Zero-Warning Lint**: `npm run lint` completes cleanly.
-3. **Dual-System Verification**: Data writes to both Supabase and Google Drive remain consistent.
+3. **Dual-System Verification**: Data writes to both Supabase and S3 storage remain consistent.
 4. **UI Compliance**: Strict adherence to shadcn preset `b7C9smijg` and English microcopy without parenthetical annotations.

@@ -24,7 +24,6 @@ export function ProjectForm() {
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [driveWarning, setDriveWarning] = useState<string | null>(null)
 
   const handleNameChange = (val: string) => {
     setName(val)
@@ -63,7 +62,6 @@ export function ProjectForm() {
 
     setLoading(true)
     setError(null)
-    setDriveWarning(null)
 
     const res = await createProject({
       name: name.trim(),
@@ -79,10 +77,6 @@ export function ProjectForm() {
     if (res.error) {
       setError(res.error)
       return
-    }
-
-    if (res.driveError) {
-      setDriveWarning('Project created, but Drive folder setup was skipped or failed. You can retry anytime.')
     }
 
     if (res.project) {
@@ -116,12 +110,6 @@ export function ProjectForm() {
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {driveWarning && (
-            <Alert>
-              <AlertDescription>{driveWarning}</AlertDescription>
             </Alert>
           )}
 
