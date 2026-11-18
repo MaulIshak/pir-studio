@@ -1,0 +1,94 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Self-Hosted Server
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: self-hosted
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Prepare deploy directory and env file
+        id: prepare
+        env:
+          DEPLOY_DIR: ${{ vars.DEPLOY_DIR }}
+          ENV_FILE_SECRET: ${{ secrets.ENV_FILE }}
+        run: |
+          set -euo pipefail
+
+          TARGET_DIR="${DEPLOY_DIR:-$GITHUB_WORKSPACE}"
+          if [ "$TARGET_DIR" != "$GITHUB_WORKSPACE" ]; then
+            mkdir -p "$TARGET_DIR"
+            rsync -a --delete \
+              --exclude='.git' \
+              --exclude='.env' \
+              --exclude='.env.*' \
+              --exclude='node_modules' \
+              --exclude='.next' \
+              "$GITHUB_WORKSPACE/" "$TARGET_DIR/"
+          fi
+
+          cd "$TARGET_DIR"
+
+          if [ -n "$ENV_FILE_SECRET" ]; then
+            printf '%s\n' "$ENV_FILE_SECRET" > .env.local
+            chmod 600 .env.local
+          fi
+
+          if [ -f .env.local ]; then
+            ENV_FILE=".env.local"
+          elif [ -f .env ]; then
+            ENV_FILE=".env"
+          else
+            echo "Error: Neither .env.local nor .env found in $TARGET_DIR."
+            echo "Set secrets.ENV_FILE in GitHub or create .env.local in DEPLOY_DIR on the server."
+            exit 1
+          fi
+
+          echo "target_dir=$TARGET_DIR" >> "$GITHUB_OUTPUT"
+          echo "env_file=$ENV_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Build and restart Docker Compose stack
+        working-directory: ${{ steps.prepare.outputs.target_dir }}
+        run: |
+          set -euo pipefail
+          ENV_FILE="${{ steps.prepare.outputs.env_file }}"
+          docker compose --env-file "$ENV_FILE" build
+          docker compose --env-file "$ENV_FILE" up -d --remove-orphans
+
+      - name: Verify application health
+        working-directory: ${{ steps.prepare.outputs.target_dir }}
+        run: |
+          set -euo pipefail
+          ENV_FILE="${{ steps.prepare.outputs.env_file }}"
+          for i in $(seq 1 15); do
+            if docker compose --env-file "$ENV_FILE" exec -T app node -e "fetch('http://127.0.0.1:3000/api/ping').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; then
+              echo "Healthcheck passed on attempt $i"
+              exit 0
+            fi
+            echo "Waiting for app to become healthy ($i/15)..."
+            sleep 2
+          done
+          echo "Healthcheck failed! Recent app logs:"
+          docker compose --env-file "$ENV_FILE" logs --tail=50 app
+          exit 1
+
+      - name: Prune dangling Docker images
+        run: docker image prune -f
+
