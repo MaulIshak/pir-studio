@@ -15,6 +15,7 @@ import type {
 import type { RemoteExcalidrawElement } from '@excalidraw/excalidraw/data/reconcile'
 import type { Awareness } from 'y-protocols/awareness'
 import { ELEMENTS_MAP_NAME, FILES_MAP_NAME } from './snapshot'
+import { indexForPosition, isValidOrderKey } from './templates'
 import type { BoardCollaboratorPresence, BoardFileRef } from './types'
 
 export const LOCAL_YJS_ORIGIN = 'local-excalidraw'
@@ -127,13 +128,42 @@ export function createExcalidrawYjsBinding(
     if (destroyed) return
     pendingRemoteRaf = null
 
-    const remoteList: OrderedExcalidrawElement[] = []
+    let remoteList: OrderedExcalidrawElement[] = []
     elementsMap.forEach((raw) => {
       if (raw && typeof raw === 'object' && typeof raw.id === 'string') {
         remoteList.push(raw as unknown as OrderedExcalidrawElement)
       }
     })
     remoteList.sort(compareFractionalIndex)
+
+    // Self-heal any corrupt or duplicate fractional indices (e.g. legacy template keys like `b000`)
+    // so Excalidraw's `generateKeyBetween` never throws when drawing new shapes.
+    const seenIndices = new Set<string>()
+    const hasInvalidIndex = remoteList.some((el) => {
+      if (!isValidOrderKey(el.index) || seenIndices.has(el.index)) {
+        return true
+      }
+      seenIndices.add(el.index)
+      return false
+    })
+
+    if (hasInvalidIndex) {
+      remoteList = remoteList.map((el, i) => ({
+        ...el,
+        index: indexForPosition(i) as OrderedExcalidrawElement['index'],
+        version: el.version + 1,
+        versionNonce: Math.floor(Math.random() * 2 ** 31),
+        updated: Date.now(),
+      }))
+
+      if (!opts.isReadOnly()) {
+        doc.transact(() => {
+          for (const el of remoteList) {
+            elementsMap.set(el.id, cloneElementForYjs(el))
+          }
+        }, LOCAL_YJS_ORIGIN)
+      }
+    }
 
     const localElements = api.getSceneElementsIncludingDeleted() as readonly OrderedExcalidrawElement[]
     const appState = api.getAppState()
@@ -238,7 +268,12 @@ export function createExcalidrawYjsBinding(
     opts.onCollaboratorsChange?.(Array.from(activeByUser.values()))
   }
 
-  const handleAwarenessChange = () => {
+  const handleAwarenessChange = (
+    _changes: { added: number[]; updated: number[]; removed: number[] },
+    origin: unknown
+  ) => {
+    // Ignore local pointer/selection echoes so dragging/drawing never triggers redundant updateScene calls
+    if (origin === 'local') return
     if (destroyed || pendingAwarenessRaf !== null) return
     pendingAwarenessRaf = window.requestAnimationFrame(syncCollaboratorsFromAwareness)
   }

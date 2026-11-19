@@ -9,6 +9,45 @@ export interface BuiltInBoardTemplate {
   elements: Record<string, unknown>[]
 }
 
+const BASE62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+
+/**
+ * Generate a strictly increasing, 100% valid `fractional-indexing` order key
+ * for any 0-based position (supports up to 3,906 elements).
+ */
+export function indexForPosition(position: number): string {
+  const n = Math.max(0, Math.floor(position))
+  if (n < 62) {
+    return `a${BASE62[n]}`
+  }
+  const m = n - 62
+  const hi = Math.floor(m / 62)
+  const lo = m % 62
+  return `b${BASE62[Math.min(hi, 61)]}${BASE62[lo]}`
+}
+
+/**
+ * Validate whether a string is a syntactically valid `fractional-indexing` key.
+ * Prevents Excalidraw from throwing `Error: invalid order key` when appending new elements.
+ */
+export function isValidOrderKey(key: unknown): key is string {
+  if (typeof key !== 'string' || key.length < 2) return false
+  const head = key.charCodeAt(0)
+  let intDigits: number
+  if (head >= 97 && head <= 122) {
+    intDigits = head - 97 + 1
+  } else if (head >= 65 && head <= 90) {
+    intDigits = 90 - head + 1
+  } else {
+    return false
+  }
+  const intLen = 1 + intDigits
+  if (key.length < intLen) return false
+  if (!/^[0-9A-Za-z]+$/.test(key.slice(1))) return false
+  if (key.length > intLen && key[key.length - 1] === '0') return false
+  return true
+}
+
 function makeBase(
   id: string,
   index: string,
@@ -60,8 +99,8 @@ function makeRectWithText(
 ): Record<string, unknown>[] {
   const rectId = `${prefix}_rect`
   const textId = `${prefix}_text`
-  const rectIndex = `a${String(idx * 2).padStart(3, '0')}`
-  const textIndex = `a${String(idx * 2 + 1).padStart(3, '0')}`
+  const rectIndex = indexForPosition(idx * 2)
+  const textIndex = indexForPosition(idx * 2 + 1)
   const fontSize = opts.fontSize ?? 18
   const lines = opts.text.split('\n').length
   const textHeight = Math.ceil(lines * fontSize * 1.25)
@@ -110,7 +149,7 @@ function makeHeading(
   text: string,
   fontSize = 24
 ): Record<string, unknown> {
-  return makeBase(id, `b${String(idx).padStart(3, '0')}`, {
+  return makeBase(id, indexForPosition(30 + idx), {
     type: 'text',
     x,
     y,
@@ -140,7 +179,7 @@ function makeArrow(
   dy: number,
   stroke = '#1e1e1e'
 ): Record<string, unknown> {
-  return makeBase(id, `c${String(idx).padStart(3, '0')}`, {
+  return makeBase(id, indexForPosition(40 + idx), {
     type: 'arrow',
     x,
     y,
