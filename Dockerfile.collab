@@ -6,18 +6,24 @@ ENV NODE_ENV=production
 ENV COLLAB_PORT=1234
 ENV COLLAB_HOST="0.0.0.0"
 
-COPY package*.json ./
-RUN npm ci
-
-COPY server/collab ./server/collab
-COPY lib/whiteboards/permissions.ts ./lib/whiteboards/permissions.ts
-COPY lib/whiteboards/snapshot.ts ./lib/whiteboards/snapshot.ts
-COPY lib/whiteboards/types.ts ./lib/whiteboards/types.ts
-COPY tsconfig.json ./tsconfig.json
-
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 collab && \
-    chown -R collab:nodejs /app
+    adduser --system --uid 1001 collab
+
+# Install only the minimal runtime dependencies needed by the Hocuspocus server
+# (avoids installing 900+ Next.js/Excalidraw/React packages and avoids slow chown -R on node_modules)
+RUN npm init -y > /dev/null && \
+    npm pkg set type=module && \
+    npm install --no-audit --no-fund \
+      @hocuspocus/server@4.8.0 \
+      @supabase/supabase-js@2.116.0 \
+      yjs@13.6.33 \
+      tsx@4
+
+COPY --chown=collab:nodejs server/collab ./server/collab
+COPY --chown=collab:nodejs lib/whiteboards/permissions.ts ./lib/whiteboards/permissions.ts
+COPY --chown=collab:nodejs lib/whiteboards/snapshot.ts ./lib/whiteboards/snapshot.ts
+COPY --chown=collab:nodejs lib/whiteboards/types.ts ./lib/whiteboards/types.ts
+COPY --chown=collab:nodejs tsconfig.json ./tsconfig.json
 
 USER collab
 
@@ -26,5 +32,4 @@ EXPOSE 1234
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:1234/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
-CMD ["npx", "tsx", "server/collab/index.ts"]
-
+CMD ["./node_modules/.bin/tsx", "server/collab/index.ts"]
