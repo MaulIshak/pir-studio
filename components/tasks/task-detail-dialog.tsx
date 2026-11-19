@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import {
   Dialog,
   DialogContent,
@@ -25,13 +26,17 @@ import {
   Package,
   ListChecks,
   Plus,
+  ChalkboardSimple,
+  ArrowUpRight,
 } from '@phosphor-icons/react'
 import { cn } from 'cn'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { AssetDetailDialog } from '@/components/assets/asset-detail-dialog'
 import { Asset, getAssetById } from '@/actions/assets'
+import { getTaskLinkedBoards } from '@/actions/boards'
 import { createSubtask, deleteSubtask, updateSubtaskStatus } from '@/actions/tasks'
+import type { TaskLinkedBoardItem } from '@/lib/whiteboards/types'
 import type { TaskItem } from './task-card'
 
 interface TaskDetailDialogProps {
@@ -84,6 +89,18 @@ export function TaskDetailDialog({
   const [loadingAssetId, setLoadingAssetId] = useState<string | null>(null)
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
   const [isAddingSubtask, setIsAddingSubtask] = useState(false)
+  const [linkedBoards, setLinkedBoards] = useState<TaskLinkedBoardItem[]>([])
+
+  useEffect(() => {
+    if (!open || !task.id) return
+    let active = true
+    void getTaskLinkedBoards(task.id).then((rows) => {
+      if (active) setLinkedBoards(rows)
+    })
+    return () => {
+      active = false
+    }
+  }, [open, task.id])
 
   const subtasks = task.subtasks || []
   const totalSubtasks = subtasks.length
@@ -385,6 +402,60 @@ export function TaskDetailDialog({
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Linked Boards Section */}
+        {linkedBoards.length > 0 && (
+          <div className="flex flex-col gap-1.5 py-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <ChalkboardSimple className="size-3 text-primary" />
+                Linked Boards
+                <span className="font-mono text-[11px] text-foreground">
+                  {linkedBoards.length}
+                </span>
+              </span>
+            </div>
+            <div className="flex flex-col gap-1.5 border border-border/70 bg-background/50 p-2 max-h-[140px] overflow-y-auto overflow-x-hidden">
+              {linkedBoards.map((item) => {
+                const boardHref = `/projects/${item.project_slug}/boards/${item.board_id}${
+                  item.element_id
+                    ? `?element=${encodeURIComponent(item.element_id)}`
+                    : ''
+                }`
+                return (
+                  <div
+                    key={item.link_id}
+                    className="flex items-center justify-between gap-2 p-1.5 text-xs bg-muted/20 border border-border/60 min-w-0"
+                  >
+                    <Link
+                      href={boardHref}
+                      onClick={() => onOpenChange(false)}
+                      className="font-medium text-foreground truncate flex-1 min-w-0 hover:text-primary transition-colors"
+                      title={item.board_title}
+                    >
+                      {item.board_title}
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      nativeButton={false}
+                      render={
+                        <Link
+                          href={boardHref}
+                          onClick={() => onOpenChange(false)}
+                        />
+                      }
+                      className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground gap-1 shrink-0"
+                    >
+                      Open
+                      <ArrowUpRight className="size-3" />
+                    </Button>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

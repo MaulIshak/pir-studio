@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ProjectSettingsDialog } from '@/components/projects/project-settings-dialog'
 import { ProjectNav } from '@/components/projects/project-nav'
+import { ProjectChrome } from '@/components/projects/project-chrome'
 import { CaretLeft } from '@phosphor-icons/react/dist/ssr'
 
 interface ProjectLayoutProps {
@@ -48,71 +49,69 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
   const canManage = isLeader || access.role === 'co_leader'
 
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5 sm:gap-6 px-3.5 py-4 sm:p-6">
-      {/* Top Header */}
-      <div className="flex flex-col justify-between gap-4 border-b pb-4 sm:pb-6 sm:flex-row sm:items-center">
-        <div className="flex flex-col gap-2 min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            <Button
-              variant="ghost"
-              size="xs"
-              nativeButton={false}
-              render={<Link href="/projects" />}
-            >
-              <CaretLeft className="size-3" />
-              Projects
-            </Button>
-            {project.type === 'jam' ? (
-              <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 capitalize">
-                Jam
-              </Badge>
-            ) : project.type === 'competition' ? (
-              <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 capitalize">
-                Competition
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400 capitalize">
-                Internal
-              </Badge>
-            )}
-            {project.status === 'active' ? (
-              <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium capitalize">
-                <span className="size-1.5 rounded-full bg-emerald-500" />
-                Active
-              </Badge>
-            ) : project.status === 'completed' ? (
-              <Badge variant="outline" className="gap-1 border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium capitalize">
-                <span className="size-1.5 rounded-full bg-blue-500" />
-                Completed
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="gap-1 border-slate-500/30 bg-slate-500/10 text-slate-600 dark:text-slate-400 font-medium capitalize">
-                <span className="size-1.5 rounded-full bg-slate-400" />
-                Archived
-              </Badge>
+    <ProjectChrome
+      header={
+        <div className="flex flex-col justify-between gap-4 border-b pb-4 sm:pb-6 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-2 min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <Button
+                variant="ghost"
+                size="xs"
+                nativeButton={false}
+                render={<Link href="/projects" />}
+              >
+                <CaretLeft className="size-3" />
+                Projects
+              </Button>
+              {project.type === 'jam' ? (
+                <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 capitalize">
+                  Jam
+                </Badge>
+              ) : project.type === 'competition' ? (
+                <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 capitalize">
+                  Competition
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400 capitalize">
+                  Internal
+                </Badge>
+              )}
+              {project.status === 'active' ? (
+                <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium capitalize">
+                  <span className="size-1.5 rounded-full bg-emerald-500" />
+                  Active
+                </Badge>
+              ) : project.status === 'completed' ? (
+                <Badge variant="outline" className="gap-1 border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium capitalize">
+                  <span className="size-1.5 rounded-full bg-blue-500" />
+                  Completed
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="gap-1 border-slate-500/30 bg-slate-500/10 text-slate-600 dark:text-slate-400 font-medium capitalize">
+                  <span className="size-1.5 rounded-full bg-slate-400" />
+                  Archived
+                </Badge>
+              )}
+            </div>
+            <h1 className="font-heading text-xl font-bold tracking-tight sm:text-3xl break-words">
+              {project.name}
+            </h1>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {canManage && (
+              <ProjectSettingsDialog
+                project={project}
+                isLeader={isLeader}
+                canManage={canManage}
+              />
             )}
           </div>
-          <h1 className="font-heading text-xl font-bold tracking-tight sm:text-3xl break-words">
-            {project.name}
-          </h1>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {canManage && (
-            <ProjectSettingsDialog
-              project={project}
-              isLeader={isLeader}
-              canManage={canManage}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Navigation Tabs */}
-      <ProjectNav projectSlug={project.slug} canManageMembers={canManage} />
-
-      {/* Page Content */}
-      <div>{children}</div>
-    </div>
+      }
+      nav={<ProjectNav projectSlug={project.slug} canManageMembers={canManage} />}
+    >
+      {children}
+    </ProjectChrome>
   )
 }

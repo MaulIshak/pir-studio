@@ -50,9 +50,9 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased overflow-x-hidden", fontMono.variable, "font-sans", notoSans.variable)}
+      className={cn("antialiased overflow-x-clip", fontMono.variable, "font-sans", notoSans.variable)}
     >
-      <body className="min-h-screen overflow-x-hidden bg-background font-sans text-foreground">
+      <body className="min-h-screen bg-background font-sans text-foreground">
         <ThemeProvider>
           <AppShell>{children}</AppShell>
         </ThemeProvider>

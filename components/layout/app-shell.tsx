@@ -21,6 +21,20 @@ export function AppShell({ children }: AppShellProps) {
     return <main className="min-h-screen w-full">{children}</main>
   }
 
+  if (/^\/projects\/[^/]+\/boards\/[^/]+$/.test(pathname)) {
+    return (
+      <MotionConfig reducedMotion="user">
+        <AppSessionProvider>
+          <TooltipProvider delay={200}>
+            <main id="main-content" className="h-dvh w-screen overflow-hidden outline-none">
+              {children}
+            </main>
+          </TooltipProvider>
+        </AppSessionProvider>
+      </MotionConfig>
+    )
+  }
+
   return (
     <MotionConfig reducedMotion="user">
       <AppSessionProvider>
@@ -38,7 +52,7 @@ export function AppShell({ children }: AppShellProps) {
               <main
                 id="main-content"
                 tabIndex={-1}
-                className="flex-1 min-w-0 overflow-x-hidden pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0 outline-none"
+                className="flex-1 min-w-0 overflow-x-clip pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0 outline-none"
               >
                 {children}
               </main>

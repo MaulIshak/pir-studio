@@ -50,6 +50,7 @@ import {
   SquaresFour,
   Gauge,
   Kanban,
+  ChalkboardSimple,
   Flag,
   Package,
   Certificate,
@@ -415,6 +416,12 @@ export function AppSidebar({ initialProjects = [] }: AppSidebarProps) {
                       href: `/projects/${project.slug}/tasks`,
                       icon: Kanban,
                       isActive: pathname.startsWith(`/projects/${project.slug}/tasks`),
+                    },
+                    {
+                      label: 'Boards',
+                      href: `/projects/${project.slug}/boards`,
+                      icon: ChalkboardSimple,
+                      isActive: pathname.startsWith(`/projects/${project.slug}/boards`),
                     },
                     {
                       label: 'Milestones',

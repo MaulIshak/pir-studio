@@ -1,0 +1,30 @@
+FROM node:22-alpine AS runner
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV COLLAB_PORT=1234
+ENV COLLAB_HOST="0.0.0.0"
+
+COPY package*.json ./
+RUN npm ci
+
+COPY server/collab ./server/collab
+COPY lib/whiteboards/permissions.ts ./lib/whiteboards/permissions.ts
+COPY lib/whiteboards/snapshot.ts ./lib/whiteboards/snapshot.ts
+COPY lib/whiteboards/types.ts ./lib/whiteboards/types.ts
+COPY tsconfig.json ./tsconfig.json
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 collab && \
+    chown -R collab:nodejs /app
+
+USER collab
+
+EXPOSE 1234
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:1234/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+
+CMD ["npx", "tsx", "server/collab/index.ts"]
+

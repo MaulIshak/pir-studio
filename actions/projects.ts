@@ -6,6 +6,7 @@ import { deleteProjectStoragePrefix } from '@/lib/storage/s3'
 import { slugify } from '@/lib/slug'
 import { getActiveOrganization } from '@/lib/auth/active-org'
 import { getUserOrgRole, type OrgRole } from '@/lib/auth/permissions'
+import { createBoard } from '@/actions/boards'
 import { z } from 'zod'
 
 const ProjectSchema = z.object({
@@ -31,6 +32,7 @@ export type ProjectInput = {
   deadline?: string | null
   description?: string | null
   organization_id?: string | null
+  starter_board_template_id?: string | null
 }
 
 export async function createProject(input: ProjectInput) {
@@ -102,6 +104,22 @@ export async function createProject(input: ProjectInput) {
     project_id: project.id,
     user_id: user.id,
   })
+
+  // 3. Optionally seed a starter whiteboard from selected template (non-blocking)
+  if (input.starter_board_template_id) {
+    try {
+      await createBoard({
+        projectId: project.id,
+        title: `${project.name} Board`,
+        templateId:
+          input.starter_board_template_id === 'blank'
+            ? null
+            : input.starter_board_template_id,
+      })
+    } catch (boardErr) {
+      console.error('Failed to create starter board:', boardErr)
+    }
+  }
 
   revalidatePath('/')
   revalidatePath('/projects')

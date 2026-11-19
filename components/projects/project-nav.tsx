@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import {
   Gauge,
   Kanban,
+  ChalkboardSimple,
   Flag,
   Package,
   Certificate,
@@ -25,6 +26,7 @@ export function ProjectNav({ projectSlug, canManageMembers = false }: ProjectNav
   const tabs = [
     { label: 'Overview', href: `/projects/${projectSlug}`, icon: Gauge },
     { label: 'Tasks', href: `/projects/${projectSlug}/tasks`, icon: Kanban },
+    { label: 'Boards', href: `/projects/${projectSlug}/boards`, icon: ChalkboardSimple },
     { label: 'Milestones', href: `/projects/${projectSlug}/milestones`, icon: Flag },
     { label: 'Assets', href: `/projects/${projectSlug}/assets`, icon: Package },
     { label: 'Credits', href: `/projects/${projectSlug}/credits`, icon: Certificate },

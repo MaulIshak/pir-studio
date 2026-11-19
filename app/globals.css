@@ -132,7 +132,6 @@
     }
   body {
     @apply bg-background text-foreground;
-    overscroll-behavior-y: contain;
     }
   button, a, [role="button"], input, select, textarea {
     touch-action: manipulation;

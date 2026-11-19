@@ -1,4 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
+import { resolveBoardAccess, type BoardAccessResult } from '@/lib/whiteboards/permissions'
+
+export type { BoardAccessResult }
 
 export type OrgRole = 'leader' | 'co_leader' | 'member'
 
@@ -133,4 +136,57 @@ export async function requireOrgLeader(orgId: string) {
     throw new Error('Unauthorized: Only the Organization Leader can perform this action')
   }
   return role
+}
+
+/**
+ * Evaluate board access inherited from its owning project.
+ */
+export async function getBoardAccess(
+  boardId: string,
+  userId?: string
+): Promise<BoardAccessResult> {
+  const supabase = await createClient()
+  let uid = userId
+
+  if (!uid) {
+    const user = await getCurrentUser()
+    if (!user) {
+      return {
+        hasAccess: false,
+        canWrite: false,
+        canManage: false,
+        role: null,
+        projectId: null,
+        projectSlug: null,
+        projectName: null,
+        organizationId: null,
+        board: null,
+      }
+    }
+    uid = user.id
+  }
+
+  return resolveBoardAccess(supabase, boardId, uid)
+}
+
+/**
+ * Guard that throws if user cannot access the given board.
+ */
+export async function requireBoardAccess(boardId: string) {
+  const access = await getBoardAccess(boardId)
+  if (!access.hasAccess || !access.board) {
+    throw new Error('Unauthorized: You do not have access to this board')
+  }
+  return access
+}
+
+/**
+ * Guard that throws if user cannot write to the given board (e.g., locked or archived).
+ */
+export async function requireBoardWriteAccess(boardId: string) {
+  const access = await requireBoardAccess(boardId)
+  if (!access.canWrite) {
+    throw new Error('Read-only: This board is locked or archived')
+  }
+  return access
 }

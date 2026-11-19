@@ -6,12 +6,14 @@ import { createProject } from '@/actions/projects'
 import { notifyProjectsChanged } from '@/lib/events'
 import { slugify } from '@/lib/slug'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import { ArrowClockwise } from '@phosphor-icons/react'
+import { ArrowClockwise, ChalkboardSimple } from '@phosphor-icons/react'
+import { BUILT_IN_BOARD_TEMPLATES } from '@/lib/whiteboards/templates'
 
 export function ProjectForm() {
   const router = useRouter()
@@ -22,6 +24,9 @@ export function ProjectForm() {
   const [startDate, setStartDate] = useState('')
   const [deadline, setDeadline] = useState('')
   const [description, setDescription] = useState('')
+  const [createStarterBoard, setCreateStarterBoard] = useState(true)
+  const [starterBoardTouched, setStarterBoardTouched] = useState(false)
+  const [starterTemplateId, setStarterTemplateId] = useState<string>('system:theme-brainstorm')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -70,6 +75,7 @@ export function ProjectForm() {
       start_date: startDate || null,
       deadline: deadline || null,
       description: description.trim() || null,
+      starter_board_template_id: createStarterBoard ? starterTemplateId : null,
     })
 
     setLoading(false)
@@ -169,6 +175,9 @@ export function ProjectForm() {
                 onValueChange={(val) => {
                   if (val === 'jam' || val === 'competition' || val === 'internal') {
                     setType(val)
+                    if (!starterBoardTouched) {
+                      setCreateStarterBoard(val === 'jam' || val === 'competition')
+                    }
                   }
                 }}
               >
@@ -222,6 +231,45 @@ export function ProjectForm() {
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
             />
+          </div>
+
+          <div className="flex flex-col gap-2.5 rounded-md border border-border bg-muted/20 p-3">
+            <label className="flex items-center gap-2 text-xs font-medium text-foreground cursor-pointer">
+              <Checkbox
+                checked={createStarterBoard}
+                onCheckedChange={(checked) => {
+                  setStarterBoardTouched(true)
+                  setCreateStarterBoard(Boolean(checked))
+                }}
+                disabled={loading}
+              />
+              <ChalkboardSimple className="size-3.5 text-primary" />
+              Starter Board
+            </label>
+            {createStarterBoard && (
+              <Select
+                value={starterTemplateId}
+                onValueChange={(v) => setStarterTemplateId(v ?? 'blank')}
+                disabled={loading}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {starterTemplateId === 'blank'
+                      ? 'Blank Canvas'
+                      : BUILT_IN_BOARD_TEMPLATES.find((t) => t.id === starterTemplateId)?.title ??
+                        'Theme Brainstorm'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="blank">Blank Canvas</SelectItem>
+                  {BUILT_IN_BOARD_TEMPLATES.map((tpl) => (
+                    <SelectItem key={tpl.id} value={tpl.id}>
+                      {tpl.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">

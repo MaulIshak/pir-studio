@@ -203,6 +203,64 @@ artifact_links (
   notes text,
   created_at timestamptz default now()
 )
+
+-- Realtime Collaborative Whiteboards (Project-level, permissions inherited from Project)
+boards (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references projects(id) on delete cascade,
+  title text not null,
+  status text not null check (status in ('active','archived')) default 'active',
+  is_locked boolean not null default false,
+  thumbnail_key text,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+)
+
+-- Server-only Yjs binary snapshots (RLS enabled, ZERO client policies; service_role only)
+board_snapshots (
+  board_id uuid primary key references boards(id) on delete cascade,
+  state bytea not null,
+  version bigint not null default 1,
+  element_count integer not null default 0,
+  updated_at timestamptz not null default now()
+)
+
+board_assets (
+  id uuid primary key default gen_random_uuid(),
+  board_id uuid not null references boards(id) on delete cascade,
+  file_id text not null,
+  storage_key text not null,
+  mime_type text not null,
+  size_bytes bigint not null,
+  status text not null check (status in ('pending','ready')) default 'pending',
+  uploaded_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (board_id, file_id)
+)
+
+board_task_links (
+  id uuid primary key default gen_random_uuid(),
+  board_id uuid not null references boards(id) on delete cascade,
+  task_id uuid not null references tasks(id) on delete cascade,
+  element_id text,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+)
+
+board_templates (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid references organizations(id) on delete cascade,
+  slug text,
+  title text not null,
+  category text not null check (category in ('brainstorm','gameplay','scope','level','ui','custom')) default 'custom',
+  description text,
+  content jsonb not null default '{"elements": []}'::jsonb,
+  is_system boolean not null default false,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+)
 ```
 
 ## Design rules to preserve
